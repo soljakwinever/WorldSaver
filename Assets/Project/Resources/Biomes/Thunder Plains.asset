@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Thunder Plains
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  temperature: 0.6
+  temperatureVariance: 0.14
+  moisture: 0.5
+  moistureVariance: 0.16
+  height: 0.42
+  heightVariance: 0.18
+  heightOffset: -0.01
+  heightMultiplier: 0.82
+  erosionStrength: 1.1
+  mountainStrength: 0.45
+  valleyStrength: 0.9
+  roughnessStrength: 1.2
+  hillStrength: 0.045
+  hillScale: 38
+  bumpStrength: 0.02
+  bumpScale: 12
+  cliffChance: 0.1
+  cliffStrength: 0.045
+  cliffScale: 18
+  volcanoChance: 0
+  craterChance: 0.08
+  mesaChance: 0
+  townChance: 0.35
+  groundColor: {r: 0.37254903, g: 0.43137255, b: 0.29411766, a: 1}
+  pathColor: {r: 0.4117647, g: 0.39215687, b: 0.3137255, a: 1}
+  waterColor: {r: 0.23529412, g: 0.4117647, b: 0.6666667, a: 1}
+  cliffColor: {r: 0.3137255, g: 0.33333334, b: 0.29411766, a: 1}
+  beachColor: {r: 0.7058824, g: 0.6666667, b: 0.47058824, a: 1}

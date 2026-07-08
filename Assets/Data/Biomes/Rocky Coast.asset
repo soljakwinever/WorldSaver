@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Rocky Coast
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Rocky Coast
+  temperature: 0.46
+  temperatureVariance: 0.2
+  moisture: 0.62
+  moistureVariance: 0.22
+  height: 0.18
+  heightVariance: 0.12
+  heightOffset: -0.03
+  heightMultiplier: 0.62
+  erosionStrength: 1.2
+  mountainStrength: 0.4
+  valleyStrength: 0.35
+  roughnessStrength: 0.9
+  hillStrength: 0.045
+  hillScale: 30
+  bumpStrength: 0.024
+  bumpScale: 9
+  cliffChance: 0.26
+  cliffStrength: 0.075
+  cliffScale: 14
+  volcanoChance: 0
+  craterChance: 0.03
+  mesaChance: 0
+  townChance: 0.22
+  groundColor: {r: 0.4117647, g: 0.43137255, b: 0.39215687, a: 1}
+  pathColor: {r: 0.3529412, g: 0.33333334, b: 0.29411766, a: 1}
+  waterColor: {r: 0.15686275, g: 0.4117647, b: 0.7254902, a: 1}
+  cliffColor: {r: 0.3529412, g: 0.3529412, b: 0.33333334, a: 1}
+  beachColor: {r: 0.6862745, g: 0.64705884, b: 0.50980395, a: 1}

@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Tropical Rainforest
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  temperature: 0.78
+  temperatureVariance: 0.12
+  moisture: 0.86
+  moistureVariance: 0.1
+  height: 0.42
+  heightVariance: 0.2
+  heightOffset: -0.01
+  heightMultiplier: 0.88
+  erosionStrength: 1.25
+  mountainStrength: 0.55
+  valleyStrength: 1.15
+  roughnessStrength: 0.9
+  hillStrength: 0.055
+  hillScale: 34
+  bumpStrength: 0.025
+  bumpScale: 10
+  cliffChance: 0.08
+  cliffStrength: 0.035
+  cliffScale: 18
+  volcanoChance: 0
+  craterChance: 0.02
+  mesaChance: 0
+  townChance: 0.16
+  groundColor: {r: 0.09803922, g: 0.49019608, b: 0.1764706, a: 1}
+  pathColor: {r: 0.37254903, g: 0.25490198, b: 0.15686275, a: 1}
+  waterColor: {r: 0.11764706, g: 0.50980395, b: 0.627451, a: 1}
+  cliffColor: {r: 0.25490198, g: 0.3529412, b: 0.25490198, a: 1}
+  beachColor: {r: 0.8235294, g: 0.7254902, b: 0.43137255, a: 1}

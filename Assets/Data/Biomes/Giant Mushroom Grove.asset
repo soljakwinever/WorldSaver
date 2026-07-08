@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Giant Mushroom Grove
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Giant Mushroom Grove
+  temperature: 0.58
+  temperatureVariance: 0.12
+  moisture: 0.82
+  moistureVariance: 0.1
+  height: 0.36
+  heightVariance: 0.16
+  heightOffset: -0.03
+  heightMultiplier: 0.75
+  erosionStrength: 1.45
+  mountainStrength: 0.3
+  valleyStrength: 0.55
+  roughnessStrength: 0.8
+  hillStrength: 0.035
+  hillScale: 42
+  bumpStrength: 0.02
+  bumpScale: 11
+  cliffChance: 0.04
+  cliffStrength: 0.025
+  cliffScale: 24
+  volcanoChance: 0
+  craterChance: 0.03
+  mesaChance: 0
+  townChance: 0.1
+  groundColor: {r: 0.33333334, g: 0.29411766, b: 0.4117647, a: 1}
+  pathColor: {r: 0.4509804, g: 0.3137255, b: 0.29411766, a: 1}
+  waterColor: {r: 0.33333334, g: 0.47058824, b: 0.7058824, a: 1}
+  cliffColor: {r: 0.29411766, g: 0.25490198, b: 0.3529412, a: 1}
+  beachColor: {r: 0.74509805, g: 0.627451, b: 0.54901963, a: 1}

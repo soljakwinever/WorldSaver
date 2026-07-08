@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Jungle Basin
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Jungle Basin
+  temperature: 0.82
+  temperatureVariance: 0.1
+  moisture: 0.92
+  moistureVariance: 0.08
+  height: 0.24
+  heightVariance: 0.14
+  heightOffset: -0.08
+  heightMultiplier: 0.58
+  erosionStrength: 1.5
+  mountainStrength: 0.2
+  valleyStrength: 0.75
+  roughnessStrength: 0.7
+  hillStrength: 0.03
+  hillScale: 46
+  bumpStrength: 0.018
+  bumpScale: 12
+  cliffChance: 0.04
+  cliffStrength: 0.025
+  cliffScale: 22
+  volcanoChance: 0
+  craterChance: 0.02
+  mesaChance: 0
+  townChance: 0.08
+  groundColor: {r: 0.078431375, g: 0.39215687, b: 0.15686275, a: 1}
+  pathColor: {r: 0.27450982, g: 0.21568628, b: 0.13725491, a: 1}
+  waterColor: {r: 0.13725491, g: 0.4509804, b: 0.50980395, a: 1}
+  cliffColor: {r: 0.21568628, g: 0.29411766, b: 0.21568628, a: 1}
+  beachColor: {r: 0.6862745, g: 0.60784316, b: 0.37254903, a: 1}

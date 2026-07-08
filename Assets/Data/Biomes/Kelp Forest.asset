@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Kelp Forest
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Kelp Forest
+  temperature: 0.42
+  temperatureVariance: 0.18
+  moisture: 0.95
+  moistureVariance: 0.05
+  height: 0.02
+  heightVariance: 0.06
+  heightOffset: -0.1
+  heightMultiplier: 0.22
+  erosionStrength: 1.3
+  mountainStrength: 0.02
+  valleyStrength: 0.05
+  roughnessStrength: 0.35
+  hillStrength: 0.004
+  hillScale: 80
+  bumpStrength: 0.004
+  bumpScale: 30
+  cliffChance: 0
+  cliffStrength: 0
+  cliffScale: 40
+  volcanoChance: 0
+  craterChance: 0
+  mesaChance: 0
+  townChance: 0
+  groundColor: {r: 0.13725491, g: 0.4117647, b: 0.29411766, a: 1}
+  pathColor: {r: 0.47058824, g: 0.4117647, b: 0.27450982, a: 1}
+  waterColor: {r: 0.11764706, g: 0.37254903, b: 0.5686275, a: 1}
+  cliffColor: {r: 0.21568628, g: 0.37254903, b: 0.33333334, a: 1}
+  beachColor: {r: 0.6862745, g: 0.627451, b: 0.43137255, a: 1}

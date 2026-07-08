@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Dragonbone Wastes
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Dragonbone Wastes
+  temperature: 0.7
+  temperatureVariance: 0.14
+  moisture: 0.14
+  moistureVariance: 0.1
+  height: 0.44
+  heightVariance: 0.2
+  heightOffset: 0
+  heightMultiplier: 0.88
+  erosionStrength: 1.25
+  mountainStrength: 0.55
+  valleyStrength: 0.75
+  roughnessStrength: 0.95
+  hillStrength: 0.055
+  hillScale: 32
+  bumpStrength: 0.03
+  bumpScale: 9
+  cliffChance: 0.22
+  cliffStrength: 0.07
+  cliffScale: 15
+  volcanoChance: 0.05
+  craterChance: 0.18
+  mesaChance: 0.35
+  townChance: 0.02
+  groundColor: {r: 0.64705884, g: 0.5882353, b: 0.49019608, a: 1}
+  pathColor: {r: 0.5294118, g: 0.43137255, b: 0.33333334, a: 1}
+  waterColor: {r: 0.25490198, g: 0.4509804, b: 0.64705884, a: 1}
+  cliffColor: {r: 0.47058824, g: 0.43137255, b: 0.37254903, a: 1}
+  beachColor: {r: 0.8235294, g: 0.7647059, b: 0.627451, a: 1}

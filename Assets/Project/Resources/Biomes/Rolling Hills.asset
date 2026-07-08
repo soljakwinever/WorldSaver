@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Rolling Hills
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  temperature: 0.52
+  temperatureVariance: 0.16
+  moisture: 0.45
+  moistureVariance: 0.18
+  height: 0.58
+  heightVariance: 0.18
+  heightOffset: 0.03
+  heightMultiplier: 0.98
+  erosionStrength: 0.95
+  mountainStrength: 0.85
+  valleyStrength: 0.8
+  roughnessStrength: 0.7
+  hillStrength: 0.09
+  hillScale: 34
+  bumpStrength: 0.022
+  bumpScale: 12
+  cliffChance: 0.1
+  cliffStrength: 0.04
+  cliffScale: 20
+  volcanoChance: 0
+  craterChance: 0.02
+  mesaChance: 0
+  townChance: 0.6
+  groundColor: {r: 0.4117647, g: 0.64705884, b: 0.29411766, a: 1}
+  pathColor: {r: 0.5686275, g: 0.4509804, b: 0.27450982, a: 1}
+  waterColor: {r: 0.19607843, g: 0.49019608, b: 0.78431374, a: 1}
+  cliffColor: {r: 0.39215687, g: 0.47058824, b: 0.33333334, a: 1}
+  beachColor: {r: 0.8039216, g: 0.7254902, b: 0.49019608, a: 1}

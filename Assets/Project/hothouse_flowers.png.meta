@@ -1,0 +1,1989 @@
+fileFormatVersion: 2
+guid: 7757fcc7772a8cc4493a9084295d0f0c
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -5435317884703910362
+    second: hothouse_flowers_0
+  - first:
+      213: 2220560841130158004
+    second: hothouse_flowers_1
+  - first:
+      213: -7379402790031496112
+    second: hothouse_flowers_2
+  - first:
+      213: 3931166026574087885
+    second: hothouse_flowers_3
+  - first:
+      213: -689198195313332251
+    second: hothouse_flowers_4
+  - first:
+      213: 8287315422132561412
+    second: hothouse_flowers_5
+  - first:
+      213: -8237934559881802298
+    second: hothouse_flowers_6
+  - first:
+      213: -437679124380522674
+    second: hothouse_flowers_7
+  - first:
+      213: -3509523292230427984
+    second: hothouse_flowers_8
+  - first:
+      213: -519313795379113521
+    second: hothouse_flowers_9
+  - first:
+      213: 7635926749500807999
+    second: hothouse_flowers_10
+  - first:
+      213: -7762540155808349564
+    second: hothouse_flowers_11
+  - first:
+      213: 7594397573040464371
+    second: hothouse_flowers_12
+  - first:
+      213: 8075299940647150346
+    second: hothouse_flowers_13
+  - first:
+      213: -7665710960317026029
+    second: hothouse_flowers_14
+  - first:
+      213: 1403654149350448620
+    second: hothouse_flowers_15
+  - first:
+      213: 4506384411577865043
+    second: hothouse_flowers_16
+  - first:
+      213: 2679801407373953839
+    second: hothouse_flowers_17
+  - first:
+      213: 3230389767932835045
+    second: hothouse_flowers_18
+  - first:
+      213: -2141042880183275301
+    second: hothouse_flowers_19
+  - first:
+      213: 1003646753032699895
+    second: hothouse_flowers_20
+  - first:
+      213: -7916003007855946602
+    second: hothouse_flowers_21
+  - first:
+      213: -1735450937366551411
+    second: hothouse_flowers_22
+  - first:
+      213: -2496292860641275659
+    second: hothouse_flowers_23
+  - first:
+      213: -8111754091207658449
+    second: hothouse_flowers_24
+  - first:
+      213: 7075123056631294989
+    second: hothouse_flowers_25
+  - first:
+      213: 2954605756016704188
+    second: hothouse_flowers_26
+  - first:
+      213: -5559364795048749888
+    second: hothouse_flowers_27
+  - first:
+      213: -876477635372927225
+    second: hothouse_flowers_28
+  - first:
+      213: -8357405203362386502
+    second: hothouse_flowers_29
+  - first:
+      213: -3453932591359909186
+    second: hothouse_flowers_30
+  - first:
+      213: 5617597115370541519
+    second: hothouse_flowers_31
+  - first:
+      213: 9017235310209322552
+    second: hothouse_flowers_32
+  - first:
+      213: 6680669328859967807
+    second: hothouse_flowers_33
+  - first:
+      213: -2936718315922779806
+    second: hothouse_flowers_34
+  - first:
+      213: -5322821446312293628
+    second: hothouse_flowers_35
+  - first:
+      213: 6265931287398138226
+    second: hothouse_flowers_36
+  - first:
+      213: -8313743007799981927
+    second: hothouse_flowers_37
+  - first:
+      213: 3949761535102773743
+    second: hothouse_flowers_38
+  - first:
+      213: 7581430082089256010
+    second: hothouse_flowers_39
+  - first:
+      213: -1610866299255790811
+    second: hothouse_flowers_40
+  - first:
+      213: 2054495228083124817
+    second: hothouse_flowers_41
+  - first:
+      213: 8596667617513135228
+    second: hothouse_flowers_42
+  - first:
+      213: -2404666586232177525
+    second: hothouse_flowers_43
+  - first:
+      213: -8952470408147270565
+    second: hothouse_flowers_44
+  - first:
+      213: 8536968332844400701
+    second: hothouse_flowers_45
+  - first:
+      213: 6558340541144178041
+    second: hothouse_flowers_46
+  - first:
+      213: -6815342599018959762
+    second: hothouse_flowers_47
+  - first:
+      213: 6784907064705293746
+    second: hothouse_flowers_48
+  - first:
+      213: -1503295235478993905
+    second: hothouse_flowers_49
+  - first:
+      213: -3129816853336556191
+    second: hothouse_flowers_50
+  - first:
+      213: -4661083061281656499
+    second: hothouse_flowers_51
+  - first:
+      213: -7949098980955631685
+    second: hothouse_flowers_52
+  - first:
+      213: -348725331868634550
+    second: hothouse_flowers_53
+  - first:
+      213: 2677110173930798218
+    second: hothouse_flowers_54
+  - first:
+      213: 5632021878500450298
+    second: hothouse_flowers_55
+  - first:
+      213: -545821583295303240
+    second: hothouse_flowers_56
+  - first:
+      213: -8186074041693220636
+    second: hothouse_flowers_57
+  - first:
+      213: 2913942486518003052
+    second: hothouse_flowers_58
+  - first:
+      213: -3728848016065763915
+    second: hothouse_flowers_59
+  - first:
+      213: -3332452149954926106
+    second: hothouse_flowers_60
+  - first:
+      213: -6457848643013722384
+    second: hothouse_flowers_61
+  - first:
+      213: -4353881964596868064
+    second: hothouse_flowers_62
+  - first:
+      213: 5973269306183946742
+    second: hothouse_flowers_63
+  - first:
+      213: 8896792959326067394
+    second: hothouse_flowers_64
+  - first:
+      213: -136121863955589276
+    second: hothouse_flowers_65
+  - first:
+      213: -4198698320222961541
+    second: hothouse_flowers_66
+  - first:
+      213: -5992195130051970529
+    second: hothouse_flowers_67
+  - first:
+      213: -5863820553394268259
+    second: hothouse_flowers_68
+  - first:
+      213: -1505897089766771584
+    second: hothouse_flowers_69
+  - first:
+      213: -5465211486972883635
+    second: hothouse_flowers_70
+  - first:
+      213: 946168948442133772
+    second: hothouse_flowers_71
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 16
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: hothouse_flowers_0
+      rect:
+        serializedVersion: 2
+        x: 2
+        y: 352
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 62655e07e2fd194b0800000000000000
+      internalID: -5435317884703910362
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_1
+      rect:
+        serializedVersion: 2
+        x: 34
+        y: 352
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b7a4b9e15401de10800000000000000
+      internalID: 2220560841130158004
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_2
+      rect:
+        serializedVersion: 2
+        x: 66
+        y: 352
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 05c65ad9248179990800000000000000
+      internalID: -7379402790031496112
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_3
+      rect:
+        serializedVersion: 2
+        x: 98
+        y: 352
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dc648074cae4e8630800000000000000
+      internalID: 3931166026574087885
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_4
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 352
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5ef228494e97f66f0800000000000000
+      internalID: -689198195313332251
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_5
+      rect:
+        serializedVersion: 2
+        x: 162
+        y: 352
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 406e3d5e775720370800000000000000
+      internalID: 8287315422132561412
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_6
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 323
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6cdc45b0a2afcad80800000000000000
+      internalID: -8237934559881802298
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_7
+      rect:
+        serializedVersion: 2
+        x: 37
+        y: 323
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e47e1b1c72d0de9f0800000000000000
+      internalID: -437679124380522674
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_8
+      rect:
+        serializedVersion: 2
+        x: 69
+        y: 323
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0ba55a3f82bab4fc0800000000000000
+      internalID: -3509523292230427984
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_9
+      rect:
+        serializedVersion: 2
+        x: 101
+        y: 323
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fc1d773cad60bc8f0800000000000000
+      internalID: -519313795379113521
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_10
+      rect:
+        serializedVersion: 2
+        x: 133
+        y: 323
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f3b16eafbe248f960800000000000000
+      internalID: 7635926749500807999
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_11
+      rect:
+        serializedVersion: 2
+        x: 165
+        y: 323
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48286522bdae54490800000000000000
+      internalID: -7762540155808349564
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_12
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 294
+        width: 30
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f16a281b58b46960800000000000000
+      internalID: 7594397573040464371
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_13
+      rect:
+        serializedVersion: 2
+        x: 33
+        y: 294
+        width: 30
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a03a101e28a311070800000000000000
+      internalID: 8075299940647150346
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_14
+      rect:
+        serializedVersion: 2
+        x: 65
+        y: 294
+        width: 30
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3113c7b0f7ced9590800000000000000
+      internalID: -7665710960317026029
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_15
+      rect:
+        serializedVersion: 2
+        x: 97
+        y: 294
+        width: 30
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ced598f0308ca7310800000000000000
+      internalID: 1403654149350448620
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_16
+      rect:
+        serializedVersion: 2
+        x: 129
+        y: 294
+        width: 30
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 353d4791fb4e98e30800000000000000
+      internalID: 4506384411577865043
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_17
+      rect:
+        serializedVersion: 2
+        x: 161
+        y: 294
+        width: 30
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f2bcd1b8e21903520800000000000000
+      internalID: 2679801407373953839
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_18
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 258
+        width: 25
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5e471bbe066a4dc20800000000000000
+      internalID: 3230389767932835045
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_19
+      rect:
+        serializedVersion: 2
+        x: 35
+        y: 258
+        width: 25
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bd0fbcd18dc7942e0800000000000000
+      internalID: -2141042880183275301
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_20
+      rect:
+        serializedVersion: 2
+        x: 67
+        y: 258
+        width: 25
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7fffc72876baded00800000000000000
+      internalID: 1003646753032699895
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_21
+      rect:
+        serializedVersion: 2
+        x: 99
+        y: 258
+        width: 25
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 69492d38435b42290800000000000000
+      internalID: -7916003007855946602
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_22
+      rect:
+        serializedVersion: 2
+        x: 131
+        y: 258
+        width: 25
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d84e52931907ae7e0800000000000000
+      internalID: -1735450937366551411
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_23
+      rect:
+        serializedVersion: 2
+        x: 163
+        y: 258
+        width: 25
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5f012228ed26b5dd0800000000000000
+      internalID: -2496292860641275659
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_24
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 228
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f24fe38c1a24d6f80800000000000000
+      internalID: -8111754091207658449
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_25
+      rect:
+        serializedVersion: 2
+        x: 35
+        y: 228
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d0c2fa43fe2ef2260800000000000000
+      internalID: 7075123056631294989
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_26
+      rect:
+        serializedVersion: 2
+        x: 67
+        y: 228
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cba33bae74ed00920800000000000000
+      internalID: 2954605756016704188
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_27
+      rect:
+        serializedVersion: 2
+        x: 99
+        y: 228
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0c49e467c2b29d2b0800000000000000
+      internalID: -5559364795048749888
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_28
+      rect:
+        serializedVersion: 2
+        x: 131
+        y: 228
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 707b5020c3026d3f0800000000000000
+      internalID: -876477635372927225
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_29
+      rect:
+        serializedVersion: 2
+        x: 163
+        y: 228
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: abd65993f38840c80800000000000000
+      internalID: -8357405203362386502
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_30
+      rect:
+        serializedVersion: 2
+        x: 8
+        y: 193
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eb229dd9b9a2110d0800000000000000
+      internalID: -3453932591359909186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_31
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 193
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fc19be820d6b5fd40800000000000000
+      internalID: 5617597115370541519
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_32
+      rect:
+        serializedVersion: 2
+        x: 72
+        y: 193
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 83ec2214db7a32d70800000000000000
+      internalID: 9017235310209322552
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_33
+      rect:
+        serializedVersion: 2
+        x: 104
+        y: 193
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f31bb80eb5186bc50800000000000000
+      internalID: 6680669328859967807
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_34
+      rect:
+        serializedVersion: 2
+        x: 136
+        y: 193
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2611a06404eae37d0800000000000000
+      internalID: -2936718315922779806
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_35
+      rect:
+        serializedVersion: 2
+        x: 168
+        y: 193
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 40b89b9981a8126b0800000000000000
+      internalID: -5322821446312293628
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_36
+      rect:
+        serializedVersion: 2
+        x: 2
+        y: 164
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2714f5cbe4f05f650800000000000000
+      internalID: 6265931287398138226
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_37
+      rect:
+        serializedVersion: 2
+        x: 34
+        y: 164
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 998c13258c6af9c80800000000000000
+      internalID: -8313743007799981927
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_38
+      rect:
+        serializedVersion: 2
+        x: 66
+        y: 164
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fe96d4f703f50d630800000000000000
+      internalID: 3949761535102773743
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_39
+      rect:
+        serializedVersion: 2
+        x: 98
+        y: 164
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a440464dd76a63960800000000000000
+      internalID: 7581430082089256010
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_40
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 164
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 523e534b2ad05a9e0800000000000000
+      internalID: -1610866299255790811
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_41
+      rect:
+        serializedVersion: 2
+        x: 162
+        y: 164
+        width: 28
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 15a31a65688038c10800000000000000
+      internalID: 2054495228083124817
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_42
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 128
+        width: 33
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c7c59f9a6af7d4770800000000000000
+      internalID: 8596667617513135228
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_43
+      rect:
+        serializedVersion: 2
+        x: 32
+        y: 128
+        width: 33
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b8c3164fa78e0aed0800000000000000
+      internalID: -2404666586232177525
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_44
+      rect:
+        serializedVersion: 2
+        x: 64
+        y: 128
+        width: 33
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b548f24989f62c380800000000000000
+      internalID: -8952470408147270565
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_45
+      rect:
+        serializedVersion: 2
+        x: 96
+        y: 128
+        width: 33
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d3003f9c777697670800000000000000
+      internalID: 8536968332844400701
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_46
+      rect:
+        serializedVersion: 2
+        x: 128
+        y: 128
+        width: 33
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 97d11fe79f7e30b50800000000000000
+      internalID: 6558340541144178041
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_47
+      rect:
+        serializedVersion: 2
+        x: 160
+        y: 128
+        width: 32
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e6c23e2f30a0b61a0800000000000000
+      internalID: -6815342599018959762
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_48
+      rect:
+        serializedVersion: 2
+        x: 6
+        y: 104
+        width: 19
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2bd1cc10705d82e50800000000000000
+      internalID: 6784907064705293746
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_49
+      rect:
+        serializedVersion: 2
+        x: 38
+        y: 104
+        width: 19
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f04ccb8b2f8332be0800000000000000
+      internalID: -1503295235478993905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_50
+      rect:
+        serializedVersion: 2
+        x: 70
+        y: 104
+        width: 19
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 16df7d48728a094d0800000000000000
+      internalID: -3129816853336556191
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_51
+      rect:
+        serializedVersion: 2
+        x: 102
+        y: 104
+        width: 19
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d4177b7b6a1805fb0800000000000000
+      internalID: -4661083061281656499
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_52
+      rect:
+        serializedVersion: 2
+        x: 134
+        y: 104
+        width: 19
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bbf48bbc7902fa190800000000000000
+      internalID: -7949098980955631685
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_53
+      rect:
+        serializedVersion: 2
+        x: 166
+        y: 104
+        width: 19
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a423ac58824192bf0800000000000000
+      internalID: -348725331868634550
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_54
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 65
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8cbabde481072520800000000000000
+      internalID: 2677110173930798218
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_55
+      rect:
+        serializedVersion: 2
+        x: 36
+        y: 65
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aff5f3b0f06f82e40800000000000000
+      internalID: 5632021878500450298
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_56
+      rect:
+        serializedVersion: 2
+        x: 68
+        y: 65
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8b131f0792adc68f0800000000000000
+      internalID: -545821583295303240
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_57
+      rect:
+        serializedVersion: 2
+        x: 100
+        y: 65
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4e054dfd709356e80800000000000000
+      internalID: -8186074041693220636
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_58
+      rect:
+        serializedVersion: 2
+        x: 132
+        y: 65
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c65f2d4b047607820800000000000000
+      internalID: 2913942486518003052
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_59
+      rect:
+        serializedVersion: 2
+        x: 164
+        y: 65
+        width: 28
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5b5eaf45c78704cc0800000000000000
+      internalID: -3728848016065763915
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_60
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 30
+        width: 24
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e923fafc60c0c1d0800000000000000
+      internalID: -3332452149954926106
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_61
+      rect:
+        serializedVersion: 2
+        x: 37
+        y: 31
+        width: 24
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0febde3dfdc1166a0800000000000000
+      internalID: -6457848643013722384
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_62
+      rect:
+        serializedVersion: 2
+        x: 69
+        y: 31
+        width: 24
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 02c493acb67e393c0800000000000000
+      internalID: -4353881964596868064
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_63
+      rect:
+        serializedVersion: 2
+        x: 101
+        y: 31
+        width: 24
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f196d649c055e250800000000000000
+      internalID: 5973269306183946742
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_64
+      rect:
+        serializedVersion: 2
+        x: 133
+        y: 31
+        width: 24
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2ca93dc2f02c77b70800000000000000
+      internalID: 8896792959326067394
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_65
+      rect:
+        serializedVersion: 2
+        x: 165
+        y: 31
+        width: 24
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 46753ccc2e56c1ef0800000000000000
+      internalID: -136121863955589276
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_66
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 0
+        width: 23
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b70c4189f1a3bb5c0800000000000000
+      internalID: -4198698320222961541
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_67
+      rect:
+        serializedVersion: 2
+        x: 37
+        y: 0
+        width: 23
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f1a3d68f64277dca0800000000000000
+      internalID: -5992195130051970529
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_68
+      rect:
+        serializedVersion: 2
+        x: 69
+        y: 0
+        width: 23
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d97dc4846468f9ea0800000000000000
+      internalID: -5863820553394268259
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_69
+      rect:
+        serializedVersion: 2
+        x: 101
+        y: 0
+        width: 23
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0843820539af91be0800000000000000
+      internalID: -1505897089766771584
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_70
+      rect:
+        serializedVersion: 2
+        x: 133
+        y: 0
+        width: 23
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d4dc898cb1ba724b0800000000000000
+      internalID: -5465211486972883635
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hothouse_flowers_71
+      rect:
+        serializedVersion: 2
+        x: 165
+        y: 0
+        width: 23
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c05f56545a7712d00800000000000000
+      internalID: 946168948442133772
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      hothouse_flowers_0: -5435317884703910362
+      hothouse_flowers_1: 2220560841130158004
+      hothouse_flowers_10: 7635926749500807999
+      hothouse_flowers_11: -7762540155808349564
+      hothouse_flowers_12: 7594397573040464371
+      hothouse_flowers_13: 8075299940647150346
+      hothouse_flowers_14: -7665710960317026029
+      hothouse_flowers_15: 1403654149350448620
+      hothouse_flowers_16: 4506384411577865043
+      hothouse_flowers_17: 2679801407373953839
+      hothouse_flowers_18: 3230389767932835045
+      hothouse_flowers_19: -2141042880183275301
+      hothouse_flowers_2: -7379402790031496112
+      hothouse_flowers_20: 1003646753032699895
+      hothouse_flowers_21: -7916003007855946602
+      hothouse_flowers_22: -1735450937366551411
+      hothouse_flowers_23: -2496292860641275659
+      hothouse_flowers_24: -8111754091207658449
+      hothouse_flowers_25: 7075123056631294989
+      hothouse_flowers_26: 2954605756016704188
+      hothouse_flowers_27: -5559364795048749888
+      hothouse_flowers_28: -876477635372927225
+      hothouse_flowers_29: -8357405203362386502
+      hothouse_flowers_3: 3931166026574087885
+      hothouse_flowers_30: -3453932591359909186
+      hothouse_flowers_31: 5617597115370541519
+      hothouse_flowers_32: 9017235310209322552
+      hothouse_flowers_33: 6680669328859967807
+      hothouse_flowers_34: -2936718315922779806
+      hothouse_flowers_35: -5322821446312293628
+      hothouse_flowers_36: 6265931287398138226
+      hothouse_flowers_37: -8313743007799981927
+      hothouse_flowers_38: 3949761535102773743
+      hothouse_flowers_39: 7581430082089256010
+      hothouse_flowers_4: -689198195313332251
+      hothouse_flowers_40: -1610866299255790811
+      hothouse_flowers_41: 2054495228083124817
+      hothouse_flowers_42: 8596667617513135228
+      hothouse_flowers_43: -2404666586232177525
+      hothouse_flowers_44: -8952470408147270565
+      hothouse_flowers_45: 8536968332844400701
+      hothouse_flowers_46: 6558340541144178041
+      hothouse_flowers_47: -6815342599018959762
+      hothouse_flowers_48: 6784907064705293746
+      hothouse_flowers_49: -1503295235478993905
+      hothouse_flowers_5: 8287315422132561412
+      hothouse_flowers_50: -3129816853336556191
+      hothouse_flowers_51: -4661083061281656499
+      hothouse_flowers_52: -7949098980955631685
+      hothouse_flowers_53: -348725331868634550
+      hothouse_flowers_54: 2677110173930798218
+      hothouse_flowers_55: 5632021878500450298
+      hothouse_flowers_56: -545821583295303240
+      hothouse_flowers_57: -8186074041693220636
+      hothouse_flowers_58: 2913942486518003052
+      hothouse_flowers_59: -3728848016065763915
+      hothouse_flowers_6: -8237934559881802298
+      hothouse_flowers_60: -3332452149954926106
+      hothouse_flowers_61: -6457848643013722384
+      hothouse_flowers_62: -4353881964596868064
+      hothouse_flowers_63: 5973269306183946742
+      hothouse_flowers_64: 8896792959326067394
+      hothouse_flowers_65: -136121863955589276
+      hothouse_flowers_66: -4198698320222961541
+      hothouse_flowers_67: -5992195130051970529
+      hothouse_flowers_68: -5863820553394268259
+      hothouse_flowers_69: -1505897089766771584
+      hothouse_flowers_7: -437679124380522674
+      hothouse_flowers_70: -5465211486972883635
+      hothouse_flowers_71: 946168948442133772
+      hothouse_flowers_8: -3509523292230427984
+      hothouse_flowers_9: -519313795379113521
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

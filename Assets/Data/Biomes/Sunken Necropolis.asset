@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Sunken Necropolis
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Sunken Necropolis
+  temperature: 0.46
+  temperatureVariance: 0.14
+  moisture: 0.84
+  moistureVariance: 0.1
+  height: 0.08
+  heightVariance: 0.08
+  heightOffset: -0.13
+  heightMultiplier: 0.42
+  erosionStrength: 1.6
+  mountainStrength: 0.15
+  valleyStrength: 0.3
+  roughnessStrength: 0.7
+  hillStrength: 0.01
+  hillScale: 58
+  bumpStrength: 0.016
+  bumpScale: 14
+  cliffChance: 0.06
+  cliffStrength: 0.025
+  cliffScale: 22
+  volcanoChance: 0
+  craterChance: 0.18
+  mesaChance: 0
+  townChance: 0
+  groundColor: {r: 0.29411766, g: 0.3137255, b: 0.29411766, a: 1}
+  pathColor: {r: 0.4117647, g: 0.39215687, b: 0.3529412, a: 1}
+  waterColor: {r: 0.1764706, g: 0.3137255, b: 0.37254903, a: 1}
+  cliffColor: {r: 0.25490198, g: 0.27450982, b: 0.26666668, a: 1}
+  beachColor: {r: 0.60784316, g: 0.5882353, b: 0.50980395, a: 1}

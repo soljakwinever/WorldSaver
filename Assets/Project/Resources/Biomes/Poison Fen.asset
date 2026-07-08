@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Poison Fen
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  temperature: 0.58
+  temperatureVariance: 0.12
+  moisture: 0.96
+  moistureVariance: 0.06
+  height: 0.14
+  heightVariance: 0.1
+  heightOffset: -0.11
+  heightMultiplier: 0.45
+  erosionStrength: 1.8
+  mountainStrength: 0.06
+  valleyStrength: 0.4
+  roughnessStrength: 0.45
+  hillStrength: 0.012
+  hillScale: 60
+  bumpStrength: 0.008
+  bumpScale: 18
+  cliffChance: 0.015
+  cliffStrength: 0.012
+  cliffScale: 28
+  volcanoChance: 0
+  craterChance: 0.03
+  mesaChance: 0
+  townChance: 0.03
+  groundColor: {r: 0.25490198, g: 0.33333334, b: 0.13725491, a: 1}
+  pathColor: {r: 0.29411766, g: 0.23529412, b: 0.15686275, a: 1}
+  waterColor: {r: 0.33333334, g: 0.54901963, b: 0.1764706, a: 1}
+  cliffColor: {r: 0.25490198, g: 0.29411766, b: 0.19607843, a: 1}
+  beachColor: {r: 0.49019608, g: 0.50980395, b: 0.29411766, a: 1}

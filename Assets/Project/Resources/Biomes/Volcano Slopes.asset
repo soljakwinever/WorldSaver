@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Volcano Slopes
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  temperature: 0.88
+  temperatureVariance: 0.1
+  moisture: 0.18
+  moistureVariance: 0.1
+  height: 0.86
+  heightVariance: 0.12
+  heightOffset: 0.15
+  heightMultiplier: 1.35
+  erosionStrength: 0.55
+  mountainStrength: 1.65
+  valleyStrength: 1.05
+  roughnessStrength: 1.8
+  hillStrength: 0.035
+  hillScale: 26
+  bumpStrength: 0.045
+  bumpScale: 7
+  cliffChance: 0.42
+  cliffStrength: 0.12
+  cliffScale: 12
+  volcanoChance: 0.95
+  craterChance: 0.12
+  mesaChance: 0
+  townChance: 0
+  groundColor: {r: 0.27450982, g: 0.25490198, b: 0.23529412, a: 1}
+  pathColor: {r: 0.37254903, g: 0.29411766, b: 0.21568628, a: 1}
+  waterColor: {r: 0.7058824, g: 0.23529412, b: 0.09803922, a: 1}
+  cliffColor: {r: 0.1764706, g: 0.16470589, b: 0.15686275, a: 1}
+  beachColor: {r: 0.47058824, g: 0.37254903, b: 0.27450982, a: 1}

@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Twilight Moor
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Twilight Moor
+  temperature: 0.36
+  temperatureVariance: 0.14
+  moisture: 0.72
+  moistureVariance: 0.14
+  height: 0.3
+  heightVariance: 0.16
+  heightOffset: -0.05
+  heightMultiplier: 0.72
+  erosionStrength: 1.4
+  mountainStrength: 0.25
+  valleyStrength: 0.65
+  roughnessStrength: 0.65
+  hillStrength: 0.035
+  hillScale: 44
+  bumpStrength: 0.016
+  bumpScale: 14
+  cliffChance: 0.06
+  cliffStrength: 0.03
+  cliffScale: 22
+  volcanoChance: 0
+  craterChance: 0.04
+  mesaChance: 0
+  townChance: 0.12
+  groundColor: {r: 0.29411766, g: 0.27450982, b: 0.4117647, a: 1}
+  pathColor: {r: 0.37254903, g: 0.3137255, b: 0.39215687, a: 1}
+  waterColor: {r: 0.21568628, g: 0.3529412, b: 0.5882353, a: 1}
+  cliffColor: {r: 0.27450982, g: 0.25490198, b: 0.37254903, a: 1}
+  beachColor: {r: 0.60784316, g: 0.5686275, b: 0.64705884, a: 1}
