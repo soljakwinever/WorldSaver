@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b58f2629b454435a2cddccf0ad09e56, type: 3}
+  m_Name: Leafy Tree
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.NodeData
+  sprite: {fileID: -3421067512528417371, guid: 74f5cbabe5a735c40b459daa9a1a4a7e, type: 3}
+  isTrigger: 0
+  sprites:
+  - {fileID: -3585033517956106236, guid: 74f5cbabe5a735c40b459daa9a1a4a7e, type: 3}
+  nodeType: 0
+  toolRequirement: 0
+  overrideMaterial: {fileID: 2100000, guid: b92cef41cc5e98940a34a2711c9948bf, type: 2}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  lightness: 1
+  lightnessVariance: 2

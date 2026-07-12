@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Rolling Hills
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Rolling Hills
   temperature: 0.52
   temperatureVariance: 0.16
   moisture: 0.45
@@ -31,6 +32,7 @@ MonoBehaviour:
   cliffChance: 0.1
   cliffStrength: 0.04
   cliffScale: 20
+  lakeStrength: 0
   volcanoChance: 0
   craterChance: 0.02
   mesaChance: 0
@@ -40,3 +42,8 @@ MonoBehaviour:
   waterColor: {r: 0.19607843, g: 0.49019608, b: 0.78431374, a: 1}
   cliffColor: {r: 0.39215687, g: 0.47058824, b: 0.33333334, a: 1}
   beachColor: {r: 0.8039216, g: 0.7254902, b: 0.49019608, a: 1}
+  overrideGroundTile: {fileID: 0}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

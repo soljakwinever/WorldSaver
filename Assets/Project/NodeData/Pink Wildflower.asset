@@ -13,3 +13,11 @@ MonoBehaviour:
   m_Name: Pink Wildflower
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.NodeData
   sprite: {fileID: 8287315422132561412, guid: 7757fcc7772a8cc4493a9084295d0f0c, type: 3}
+  isTrigger: 1
+  sprites: []
+  nodeType: 0
+  toolRequirement: 0
+  overrideMaterial: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  lightness: 1
+  lightnessVariance: 0

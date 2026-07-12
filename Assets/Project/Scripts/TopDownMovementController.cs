@@ -14,6 +14,8 @@ namespace Project.Scripts
         
         [Inject] private WorldGeneration worldGeneration;
         [Inject] private WorldData worldData;
+        
+        [Inject] private Chunkloader chunkloader;
         private Grid grid;
 
         private Rigidbody2D _rigidbody2D;
@@ -25,7 +27,14 @@ namespace Project.Scripts
             _rigidbody2D = GetComponent<Rigidbody2D>();
             
             inputs = new Inputs();
-            var position = worldGeneration.FindSafeSpawnPosition(minHeight:worldData.beachHeight, maxHeight:worldData.mountainHeight);
+
+            inputs.Player.Interact.started += ctx =>
+            {
+                Debug.Log("Reload chunks");
+                chunkloader.ReloadChunks();
+            };
+
+            var position = worldGeneration.FindSafeSpawnPosition(minHeight:worldData.beachHeight+0.1f, maxHeight:worldData.mountainHeight);
 
             transform.position = grid.CellToWorld(new Vector3Int(position.x, position.y, 0));
         }
@@ -44,6 +53,9 @@ namespace Project.Scripts
         private void Update()
         {
             var input = inputs.Player.Move.ReadValue<Vector2>() * (speed * Time.deltaTime);
+            
+            if(inputs.Player.Interact.WasPressedThisFrame())
+                chunkloader.ReloadChunks();
             _rigidbody2D.AddForce(input);
         }
     }

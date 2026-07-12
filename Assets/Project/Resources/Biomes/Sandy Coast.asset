@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Sandy Coast
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Sandy Coast
   temperature: 0.62
   temperatureVariance: 0.22
   moisture: 0.58
@@ -31,6 +32,7 @@ MonoBehaviour:
   cliffChance: 0.02
   cliffStrength: 0.015
   cliffScale: 28
+  lakeStrength: 0.25
   volcanoChance: 0
   craterChance: 0.01
   mesaChance: 0
@@ -40,3 +42,8 @@ MonoBehaviour:
   waterColor: {r: 0.1764706, g: 0.5294118, b: 0.8627451, a: 1}
   cliffColor: {r: 0.5294118, g: 0.50980395, b: 0.4117647, a: 1}
   beachColor: {r: 0.92156863, g: 0.84313726, b: 0.5686275, a: 1}
+  overrideGroundTile: {fileID: 11400000, guid: f07889fa0e2906b4d994f8518a67c581, type: 2}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

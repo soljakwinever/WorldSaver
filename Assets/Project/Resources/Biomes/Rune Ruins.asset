@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Rune Ruins
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Rune Ruins
   temperature: 0.5
   temperatureVariance: 0.18
   moisture: 0.38

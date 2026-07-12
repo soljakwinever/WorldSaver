@@ -1,0 +1,16 @@
+{
+    "name": "Playwinever.Interface",
+    "rootNamespace": "",
+    "references": [
+        "GUID:01774982fb3f4e5ba026295d79692e5d"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

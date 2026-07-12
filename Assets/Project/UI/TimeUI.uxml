@@ -1,0 +1,9 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <ui:VisualElement data-source-type="Project.Scripts.GameTime.TimeController, Playwinever.TimeAndWeather" name="TimeUI" style="flex-grow: 1;">
+        <ui:Label text="Label" style="-unity-text-align: upper-center; color: rgb(255, 255, 255); font-size: 64px; -unity-font-style: bold; -unity-font-definition: url(&quot;project://database/Assets/UI%20Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss?fileID=2230732570650464555&amp;guid=228f92b9de1cbd9449d8c20798d523ce&amp;type=3#NotInter-Regular&quot;); text-shadow: 4px 4px 0 rgb(0, 0, 0);">
+            <Bindings>
+                <ui:DataBinding property="text" data-source-path="timeString" binding-mode="ToTarget"/>
+            </Bindings>
+        </ui:Label>
+    </ui:VisualElement>
+</ui:UXML>

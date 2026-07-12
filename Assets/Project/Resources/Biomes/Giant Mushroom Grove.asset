@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Giant Mushroom Grove
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Giant Mushroom Grove
   temperature: 0.58
   temperatureVariance: 0.12
   moisture: 0.82

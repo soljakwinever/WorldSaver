@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Oasis
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Oasis
   temperature: 0.84
   temperatureVariance: 0.1
   moisture: 0.42
@@ -40,3 +41,8 @@ MonoBehaviour:
   waterColor: {r: 0.15686275, g: 0.6666667, b: 0.8627451, a: 1}
   cliffColor: {r: 0.47058824, g: 0.47058824, b: 0.3137255, a: 1}
   beachColor: {r: 0.92156863, g: 0.8039216, b: 0.49019608, a: 1}
+  overrideGroundTile: {fileID: 11400000, guid: 333949bd687228644a6574a19acb19d1, type: 2}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

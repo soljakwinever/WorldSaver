@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Thunder Plains
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Thunder Plains
   temperature: 0.6
   temperatureVariance: 0.14
   moisture: 0.5
@@ -31,6 +32,7 @@ MonoBehaviour:
   cliffChance: 0.1
   cliffStrength: 0.045
   cliffScale: 18
+  lakeStrength: 0.4
   volcanoChance: 0
   craterChance: 0.08
   mesaChance: 0
@@ -40,3 +42,8 @@ MonoBehaviour:
   waterColor: {r: 0.23529412, g: 0.4117647, b: 0.6666667, a: 1}
   cliffColor: {r: 0.3137255, g: 0.33333334, b: 0.29411766, a: 1}
   beachColor: {r: 0.7058824, g: 0.6666667, b: 0.47058824, a: 1}
+  overrideGroundTile: {fileID: 0}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

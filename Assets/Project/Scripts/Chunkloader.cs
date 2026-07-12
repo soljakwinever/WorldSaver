@@ -1,26 +1,32 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Project.Scripts;
+using Project.Scripts.Bus;
+using Project.Scripts.Interface;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Tilemaps;
 using Zenject;
 
-public class Chunkloader : MonoBehaviour
+public class Chunkloader : MonoBehaviour, IChunkLoader
 {
-    [Inject] private ChunkGenerator chunkGenerator;
+    [Inject] private IChunkGenerator chunkGenerator;
     
     public Vector2Int Position
     {
         get
         {
-            int chunkX = Mathf.FloorToInt(track.position.x / Chunk.ChunkSize);
-            int chunkY = Mathf.FloorToInt(track.position.y / Chunk.ChunkSize);
+            int chunkX = Mathf.FloorToInt(track.position.x / ChunkBuildResult.ChunkSize);
+            int chunkY = Mathf.FloorToInt(track.position.y / ChunkBuildResult.ChunkSize);
             return new Vector2Int(chunkX, chunkY);
         }
     }
+
+    [SerializeField] private GameObject cursor;
     
     [Inject] private WorldGeneration worldGeneration;
+    [Inject] private MapSignalBus mapSignalBus;
     
     private Vector2Int _lastPosition;
     
@@ -39,7 +45,7 @@ public class Chunkloader : MonoBehaviour
     
     private class ChunkInstance
     {
-        public Chunk chunk;
+        public IChunk chunk;
         public int ticksSinceLastTouch;
 
         public void Tick()
@@ -56,13 +62,20 @@ public class Chunkloader : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        mapSignalBus.ChunkBuilt += MapSignalBusOnChunkBuilt;
         if (!chunkGenerator.IsRunning)
             chunkGenerator.Run(this,destroyCancellationToken);
     }
 
-    void LoadChunks()
+    private void MapSignalBusOnChunkBuilt(ChunkBuildResult result)
     {
-        
+        _loadedChunks.Add(result.chunkPosition, new ChunkInstance {chunk = chunkPool.Spawn(result)}); 
+    }
+
+    public void ReloadChunks()
+    {
+        UnloadChunks(new List<Vector2Int>(_loadedChunks.Keys));
+        TouchChunks();
     }
 
     void TouchChunks()
@@ -71,13 +84,16 @@ public class Chunkloader : MonoBehaviour
         int yMax = Position.y + LoadDistance;
         int xMin = Position.x - LoadDistance;
         int xMax = Position.x + LoadDistance;
+        
+        List<Vector2Int> requestedChunks = new List<Vector2Int>();
+        
         for (int y = yMin; y < yMax; y++)
         {
             for (int x = xMin; x < xMax; x++)
             {
                 if (!_loadedChunks.ContainsKey(new Vector2Int(x, y)))
                 {
-                    CreateChunk(new Vector2Int(x, y));
+                    requestedChunks.Add(new Vector2Int(x, y));
                 }
                 else
                 {
@@ -85,12 +101,15 @@ public class Chunkloader : MonoBehaviour
                 }
             }
         }
+        
+        foreach (var chunk in requestedChunks.OrderBy(t=> Vector2.Distance(track.position, t )))
+            CreateChunk(chunk);
     }
     
     
-    public void ReportSpawn(Chunk chunk)
+    public void ReportSpawn(IChunk chunk)
     {
-        _loadedChunks.Add(chunk.Position, new ChunkInstance {chunk = chunk});
+
     }
 
     private void CreateChunk(Vector2Int position)
@@ -112,6 +131,8 @@ public class Chunkloader : MonoBehaviour
                 
         labelPosition.y += 16;
         GUI.Label(labelPosition, $"Cursor: {position}");
+        
+        cursor.transform.position = position;
         
         var tile = worldGeneration.GetTerrainSample(position.x, position.y);
         
@@ -140,17 +161,22 @@ public class Chunkloader : MonoBehaviour
                     toRemove.Add(chunkInstance.Key);
             }
             
-            foreach (var chunk in toRemove)
-            {
-                //Todo: Apply changes
-                chunkPool.Despawn(_loadedChunks[chunk].chunk);
-                chunkGenerator.ChunkUnloaded(chunk);
-                _loadedChunks.Remove(chunk);
-            }
+            UnloadChunks(toRemove);
             
             tickTimer = 0;
         }
         
         TouchChunks();
+    }
+
+    private void UnloadChunks(List<Vector2Int> toRemove)
+    {
+        foreach (var chunk in toRemove)
+        {
+            //Todo: Apply changes
+            chunkPool.Despawn(_loadedChunks[chunk].chunk as Chunk);
+            chunkGenerator.ChunkUnloaded(chunk);
+            _loadedChunks.Remove(chunk);
+        }
     }
 }

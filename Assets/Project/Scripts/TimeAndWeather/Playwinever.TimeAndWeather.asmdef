@@ -1,0 +1,18 @@
+{
+    "name": "Playwinever.TimeAndWeather",
+    "rootNamespace": "",
+    "references": [
+        "GUID:01774982fb3f4e5ba026295d79692e5d",
+        "GUID:93ca76a137a23b64b981e3a67e948a8d",
+        "GUID:7d305729b6214dde912caf1173d5d0c4"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

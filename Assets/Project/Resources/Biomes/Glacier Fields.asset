@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Glacier Fields
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Glacier Fields
   temperature: 0.03
   temperatureVariance: 0.05
   moisture: 0.45
@@ -31,6 +32,7 @@ MonoBehaviour:
   cliffChance: 0.08
   cliffStrength: 0.035
   cliffScale: 30
+  lakeStrength: 0.25
   volcanoChance: 0
   craterChance: 0.03
   mesaChance: 0
@@ -40,3 +42,8 @@ MonoBehaviour:
   waterColor: {r: 0.27450982, g: 0.6666667, b: 0.9019608, a: 1}
   cliffColor: {r: 0.6666667, g: 0.8039216, b: 0.8627451, a: 1}
   beachColor: {r: 0.8627451, g: 0.8627451, b: 0.8039216, a: 1}
+  overrideGroundTile: {fileID: 11400000, guid: 6266f7fbe57973247924a4ffcd792947, type: 2}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

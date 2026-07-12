@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Mana Springs
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Mana Springs
   temperature: 0.5
   temperatureVariance: 0.14
   moisture: 0.76
@@ -31,6 +32,7 @@ MonoBehaviour:
   cliffChance: 0.04
   cliffStrength: 0.02
   cliffScale: 24
+  lakeStrength: 1.4
   volcanoChance: 0
   craterChance: 0.04
   mesaChance: 0
@@ -40,3 +42,8 @@ MonoBehaviour:
   waterColor: {r: 0.37254903, g: 0.37254903, b: 1, a: 1}
   cliffColor: {r: 0.33333334, g: 0.39215687, b: 0.5294118, a: 1}
   beachColor: {r: 0.74509805, g: 0.7058824, b: 0.8627451, a: 1}
+  overrideGroundTile: {fileID: 0}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

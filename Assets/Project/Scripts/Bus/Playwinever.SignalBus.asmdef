@@ -1,0 +1,17 @@
+{
+    "name": "Playwinever.SignalBus",
+    "rootNamespace": "",
+    "references": [
+        "GUID:dc1a69c4bdcd49b9bc226dcdcc61ad28",
+        "GUID:01774982fb3f4e5ba026295d79692e5d"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

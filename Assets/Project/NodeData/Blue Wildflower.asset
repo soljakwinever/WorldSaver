@@ -12,4 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b58f2629b454435a2cddccf0ad09e56, type: 3}
   m_Name: Blue Wildflower
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.NodeData
-  sprite: {fileID: 8287315422132561412, guid: 7757fcc7772a8cc4493a9084295d0f0c, type: 3}
+  sprite: {fileID: 3931166026574087885, guid: 7757fcc7772a8cc4493a9084295d0f0c, type: 3}
+  isTrigger: 1
+  sprites: []
+  nodeType: 0
+  toolRequirement: 0
+  overrideMaterial: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  lightness: 1
+  lightnessVariance: 0

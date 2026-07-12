@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
   m_Name: Mountains
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Mountains
   temperature: 0.36
   temperatureVariance: 0.18
   moisture: 0.42
@@ -24,13 +25,14 @@ MonoBehaviour:
   mountainStrength: 1.55
   valleyStrength: 1.3
   roughnessStrength: 1.2
-  hillStrength: 0.025
+  hillStrength: 0.5
   hillScale: 30
-  bumpStrength: 0.03
-  bumpScale: 8
+  bumpStrength: 0.2
+  bumpScale: 5
   cliffChance: 0.42
   cliffStrength: 0.11
   cliffScale: 13
+  lakeStrength: 0.25
   volcanoChance: 0.02
   craterChance: 0.05
   mesaChance: 0
@@ -40,3 +42,8 @@ MonoBehaviour:
   waterColor: {r: 0.19607843, g: 0.47058824, b: 0.74509805, a: 1}
   cliffColor: {r: 0.3529412, g: 0.3529412, b: 0.33333334, a: 1}
   beachColor: {r: 0.7058824, g: 0.6666667, b: 0.50980395, a: 1}
+  overrideGroundTile: {fileID: 0}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

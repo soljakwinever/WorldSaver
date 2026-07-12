@@ -1,0 +1,19 @@
+{
+    "name": "Playwinever.Core",
+    "rootNamespace": "",
+    "references": [
+        "GUID:0d8beb7f090555447a6cf5ce9e54dbb4",
+        "GUID:93ca76a137a23b64b981e3a67e948a8d",
+        "GUID:f9aeda8a417b4a179712aaa9427695e7",
+        "GUID:01774982fb3f4e5ba026295d79692e5d"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

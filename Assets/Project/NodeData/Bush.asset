@@ -13,3 +13,11 @@ MonoBehaviour:
   m_Name: Bush
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.NodeData
   sprite: {fileID: 8532718450122457511, guid: 74f5cbabe5a735c40b459daa9a1a4a7e, type: 3}
+  isTrigger: 0
+  sprites: []
+  nodeType: 0
+  toolRequirement: 0
+  overrideMaterial: {fileID: 2100000, guid: b92cef41cc5e98940a34a2711c9948bf, type: 2}
+  tintColor: {r: 0.5254902, g: 1, b: 0.95010835, a: 1}
+  lightness: 1
+  lightnessVariance: 0
