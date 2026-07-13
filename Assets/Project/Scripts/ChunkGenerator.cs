@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Project.Scripts.Bus;
+using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using UnityEngine;
 using Zenject;
@@ -249,17 +250,18 @@ namespace Project.Scripts
                 
                 propPositions.Add(new Vector2Int(worldX, worldY));
                 
-                var entityId = Project.Scripts.DataTypes.SaveData.EntityId.Create(worldGeneration.Seed, new Vector2Int(worldX,worldY), (ushort)rule.GetHashCode(), (ushort) slot);
+                var entityId = Project.Scripts.DataTypes.SaveData.NodeId.Create(worldGeneration.Seed, new Vector2Int(worldX,worldY), (ushort)rule.GetHashCode(), (ushort) slot);
                 
                 props.Add(new PropSpawnData()
                 {
-                    entityId = entityId,
+                    NodeId = entityId,
                     propName = rule.name,
                     position = new Vector2(worldX, worldY),
                     scale = scale,
                     flipX = flipX,
                     terrainSample = sample,
-                    worldPosition = new Vector2Int(worldX, worldY)
+                    worldPosition = new Vector2Int(worldX, worldY),
+                    persistenceKind = EntityPersistenceKind.Procedural
                 });
             }
 

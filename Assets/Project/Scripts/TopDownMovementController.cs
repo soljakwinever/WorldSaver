@@ -1,4 +1,5 @@
 using System;
+using Project.Scripts.Gameplay;
 using UnityEngine;
 using Zenject;
 
@@ -19,6 +20,8 @@ namespace Project.Scripts
         private Grid grid;
 
         private Rigidbody2D _rigidbody2D;
+        
+        [Inject] private PlayerDataController playerDataController;
         
         private void Awake()
         {
@@ -49,10 +52,14 @@ namespace Project.Scripts
         {
             inputs.Disable();
         }
+        
+        
 
         private void Update()
         {
             var input = inputs.Player.Move.ReadValue<Vector2>() * (speed * Time.deltaTime);
+
+            playerDataController.SetWalking(input.magnitude > 0.1f);
             
             if(inputs.Player.Interact.WasPressedThisFrame())
                 chunkloader.ReloadChunks();

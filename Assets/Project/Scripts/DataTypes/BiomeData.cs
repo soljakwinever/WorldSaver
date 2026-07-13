@@ -4,7 +4,7 @@ using UnityEngine.Tilemaps;
 namespace Project.Scripts
 {
     [CreateAssetMenu(fileName = "New Biome", menuName = "Biome Data", order = 0)]
-    public class BiomeData : ScriptableObject
+    public sealed class BiomeData : ScriptableObject
     {
         public string biomeName;
         

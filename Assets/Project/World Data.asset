@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.WorldData
   tiles:
   - {fileID: 11400000, guid: 891afee3b71051d48af651fbbdcf7995, type: 2}
-  seed: 44455
+  seed: 44
   heightMapDebug: 0
-  previewNoiseLayer: 13
-  waterHeight: 0.24
-  beachHeight: 0.3
+  previewNoiseLayer: 1
+  waterHeight: 0.1
+  beachHeight: 0.15
   mountainHeight: 0.9
-  cliffHeight: 0.1
+  cliffHeight: 0.085
   outCropStrength: 2
   outCropThreshold: 0.7
   outCropNoiseScale: 1
@@ -36,18 +36,18 @@ MonoBehaviour:
   lakeNoiseScale: 0.5
   hillStrength: 0
   bumpStrength: 8
-  featureCellSize: 256
-  featureChancePerCell: 0.85
-  minFeatureRadius: 64
-  maxFeatureRadius: 256
+  featureCellSize: 1024
+  featureChancePerCell: 0.1
+  minFeatureRadius: 32
+  maxFeatureRadius: 96
   propSpawnRules:
   - name: Oak Tree
     nodeData: {fileID: 11400000, guid: d9eaf2b8e259b4e41b604c1ebe576e32, type: 2}
     allowedBiomes: []
     disallowedBiomes: []
-    minHeight: 0.31
+    minHeight: 0.205
     maxHeight: 0.78
-    minMoisture: 0
+    minMoisture: 0.3
     maxMoisture: 1
     minTemperature: 0.3
     maxTemperature: 0.6
@@ -73,7 +73,7 @@ MonoBehaviour:
     nodeData: {fileID: 11400000, guid: 936a8bbb38815664a88614bc13daf719, type: 2}
     allowedBiomes: []
     disallowedBiomes: []
-    minHeight: 0.3
+    minHeight: 0.2
     maxHeight: 0.5
     minMoisture: 0
     maxMoisture: 1
@@ -271,10 +271,11 @@ MonoBehaviour:
     allowedBiomes:
     - {fileID: 11400000, guid: 88cd43d05ce724647b64d84071a7e0dd, type: 2}
     - {fileID: 11400000, guid: 03b094fd2b4ccdc478b1329ce73f5582, type: 2}
+    - {fileID: 11400000, guid: dc785bbff5047cf4db1a436c96544af2, type: 2}
     disallowedBiomes: []
-    minHeight: 0.31
+    minHeight: 0.1
     maxHeight: 0.8
-    minMoisture: 0.385
+    minMoisture: 0.33
     maxMoisture: 0.6
     minTemperature: 0
     maxTemperature: 1
@@ -306,7 +307,7 @@ MonoBehaviour:
     - {fileID: 11400000, guid: f7e5d03f83b83ca4ba906988822a61fb, type: 2}
     - {fileID: 11400000, guid: 461c4f3d7bdea58449cc2af9ff8c2dfd, type: 2}
     disallowedBiomes: []
-    minHeight: 0.31
+    minHeight: 0.2
     maxHeight: 0.85
     minMoisture: 0
     maxMoisture: 1
@@ -623,3 +624,7 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 8
     m_NumAlphaKeys: 2
+  playerSettings:
+    hungerRate: 1.005
+    energyRate: 0.15
+    movementEnergyMulpiplier: 15

@@ -5,7 +5,7 @@ using UnityEngine;
 
 public static class BiomeSelector
 {
-    public const int biomeBlendCount = 4;
+    public const int biomeBlendCount = 3;
 
     public const float biomeBlendPower = 1.35f;
     

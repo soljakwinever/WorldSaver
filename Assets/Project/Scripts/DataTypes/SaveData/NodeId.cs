@@ -3,23 +3,23 @@ using UnityEngine;
 
 namespace Project.Scripts.DataTypes.SaveData
 {
-    public readonly struct EntityId : IEquatable<EntityId>
+    public readonly struct NodeId : IEquatable<NodeId>
     {
         public readonly ulong value;
         
-        public EntityId(ulong value)
+        public NodeId(ulong value)
         {
             this.value = value;
         }
         
-        public bool Equals(EntityId other)
+        public bool Equals(NodeId other)
         {
             return value == other.value;
         }
 
         public override bool Equals(object obj)
         {
-            return obj is EntityId other && Equals(other);
+            return obj is NodeId other && Equals(other);
         }
         
         public override int GetHashCode()
@@ -32,7 +32,7 @@ namespace Project.Scripts.DataTypes.SaveData
             return value.ToString("X16");
         }
         
-        public static EntityId Create(
+        public static NodeId Create(
             uint worldSeed,
             Vector2Int chunk,
             ushort generatorType,
@@ -53,18 +53,18 @@ namespace Project.Scripts.DataTypes.SaveData
                 hash *= 0x94D049BB133111EBUL;
                 hash ^= hash >> 31;
 
-                return new EntityId(hash);
+                return new NodeId(hash);
             }
         }
 
-        public static EntityId CreateRuntimeId(WorldIdentityState state)
+        public static NodeId CreateRuntimeId(WorldIdentityState state)
         {
             const ulong RuntimeEntityMask = 1UL << 63;
 
             ulong id = RuntimeEntityMask | state.nextRuntimeEntityId;
             state.nextRuntimeEntityId++;
             
-            return new EntityId(id);
+            return new NodeId(id);
         }
     }
 }

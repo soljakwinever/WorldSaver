@@ -1,5 +1,6 @@
 using Project.Scripts;
 using Project.Scripts.Bus;
+using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using UnityEngine;
 using Zenject;
@@ -33,6 +34,8 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<WorldGeneration>().FromNew().AsSingle();
         
         Container.Bind<Chunkloader>().FromComponentInHierarchy().AsSingle();
+        
+        Container.Bind<PlayerDataController>().FromComponentInHierarchy().AsSingle();
         
         Container.Bind<MapSignalBus>().FromNew().AsSingle();
         Container.Bind<TimeSignalBus>().FromNew().AsSingle();

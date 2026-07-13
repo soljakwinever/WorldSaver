@@ -11,7 +11,6 @@ using Zenject;
 
 public class Chunk : MonoBehaviour, IChunk
 {
-    
     [SerializeField] private Tilemap _groundTilemap;
     [SerializeField] private Tilemap _waterTilemap;
     
@@ -32,7 +31,7 @@ public class Chunk : MonoBehaviour, IChunk
     
     readonly List<Node> props = new();
     
-    private void Init(ChunkBuildResult data)
+    public void Init(ChunkBuildResult data)
     {
         _groundTilemap.ClearAllTiles();
         _waterTilemap.ClearAllTiles();
@@ -88,8 +87,9 @@ public class Chunk : MonoBehaviour, IChunk
         {
             var rule = worldData.propSpawnRules.First(t=>t.name == propSpawnData.propName);
 
-            props.Add(nodePool.Spawn(propSpawnData.entityId, propSpawnData, rule.nodeData, propSpawnData.terrainSample));
+            props.Add(nodePool.Spawn(propSpawnData.NodeId, propSpawnData, rule.nodeData, propSpawnData.terrainSample));
         }
+        
     }
     
     private void UnloadProps()
@@ -114,7 +114,14 @@ public class Chunk : MonoBehaviour, IChunk
     {
         if (worldData.heightMapDebug)
         {
-            color = new Color(height, height, height);
+            if (worldData.previewNoiseLayer == WorldData.NoiseLayer.Moisture)
+            {
+                color = new Color(temperature, moisture, isCliff ? 0 : 1);    
+            }
+            else
+            {
+                color = new Color(height, height, height);
+            }
             return DebugTile;
         }
 

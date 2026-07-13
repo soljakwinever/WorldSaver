@@ -63,6 +63,8 @@ namespace Project.Scripts
         [GradientUsage(true)]
         public Gradient dayColorGradient;
         
+        public PlayerSettings playerSettings;
+        
         public enum NoiseLayer
         {
             Temperature,
@@ -79,6 +81,15 @@ namespace Project.Scripts
             MountainIsland,
             LocalLandforms,
             Lakes
+        }
+
+        [Serializable]
+        public class PlayerSettings
+        {
+            public float hungerRate = 0.005f;
+            public float energyRate = 0.005f;
+            
+            public float movementEnergyMulpiplier = 1.1f;
         }
 
         [Serializable]

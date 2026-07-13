@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Swamp
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Swamp
-  temperature: 0.62
+  temperature: 0.5
   temperatureVariance: 0.14
   moisture: 0.88
   moistureVariance: 0.1
-  height: 0.18
-  heightVariance: 0.14
+  height: 0.3
+  heightVariance: 0.3
   heightOffset: -0.09
   heightMultiplier: 0.5
   erosionStrength: 1.65
@@ -32,6 +32,7 @@ MonoBehaviour:
   cliffChance: 0.01
   cliffStrength: 0.01
   cliffScale: 30
+  lakeStrength: 2
   volcanoChance: 0
   craterChance: 0.01
   mesaChance: 0
@@ -41,3 +42,8 @@ MonoBehaviour:
   waterColor: {r: 0.1764706, g: 0.3137255, b: 0.27450982, a: 1}
   cliffColor: {r: 0.27450982, g: 0.3137255, b: 0.25490198, a: 1}
   beachColor: {r: 0.50980395, g: 0.47058824, b: 0.29411766, a: 1}
+  overrideGroundTile: {fileID: 0}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

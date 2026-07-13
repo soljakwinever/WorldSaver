@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0b58f2629b454435a2cddccf0ad09e56, type: 3}
-  m_Name: SnowySmallRock 1
+  m_Name: SnowyRock 1
   m_EditorClassIdentifier: Playwinever.Core::Project.Scripts.NodeData
   sprite: {fileID: -679801205976017755, guid: 125933d8eebfc334aab191a041191efb, type: 3}
-  isTrigger: 1
+  isTrigger: 0
   sprites:
   - {fileID: 2534348177759942497, guid: 125933d8eebfc334aab191a041191efb, type: 3}
   - {fileID: -679801205976017755, guid: 125933d8eebfc334aab191a041191efb, type: 3}
@@ -24,5 +24,6 @@ MonoBehaviour:
   toolRequirement: 0
   overrideMaterial: {fileID: 0}
   tintColor: {r: 1, g: 1, b: 1, a: 1}
+  overrideVisual: {fileID: 0}
   lightness: 1
   lightnessVariance: 0

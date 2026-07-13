@@ -1,6 +1,7 @@
 using System;
 using Project.Scripts;
 using Project.Scripts.Core;
+using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
 using Zenject;
 
@@ -20,13 +21,13 @@ public class Node : MonoBehaviour
 
     private GameObject _overrideVisual;
     
-    public void Initialize(Project.Scripts.DataTypes.SaveData.EntityId entityId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample)
+    public void Initialize(NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample)
     {
         _nodeData = nodeData;
         
-        _persistentEntity.Initialize(entityId);
+        _persistentEntity.Initialize(nodeId, spawnData.persistenceKind);
         
-        name = $"{nodeData.name} ({entityId})";
+        name = $"{nodeData.name} ({nodeId})";
         
         transform.position = spawnData.position;
         transform.localScale = new Vector3(spawnData.scale, spawnData.scale, 1);
@@ -91,11 +92,11 @@ public class Node : MonoBehaviour
         }
     }
 
-    public class Pool : MonoMemoryPool<Project.Scripts.DataTypes.SaveData.EntityId, PropSpawnData, NodeData, TerrainSample, Node>
+    public class Pool : MonoMemoryPool<Project.Scripts.DataTypes.SaveData.NodeId, PropSpawnData, NodeData, TerrainSample, Node>
     {
-        protected override void Reinitialize(Project.Scripts.DataTypes.SaveData.EntityId entityId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample, Node item)
+        protected override void Reinitialize(Project.Scripts.DataTypes.SaveData.NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample, Node item)
         {
-            item.Initialize(entityId, spawnData, nodeData, terrainSample);
+            item.Initialize(nodeId, spawnData, nodeData, terrainSample);
         }
 
         protected override void OnCreated(Node item)
