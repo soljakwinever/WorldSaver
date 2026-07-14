@@ -7,12 +7,19 @@ namespace Project.Scripts.DataTypes
     public sealed class RuntimeRegion
     {
         private readonly Dictionary<ushort, ChunkState> _chunkStates = new();
-        
+        private readonly Dictionary<ushort, RegionComponentRecord> _components = new();
+
+        private ulong _revision;
+        private ulong _savedRevision;
+
         public Vector2Int Position { get; }
         public long LastSimulatedTick { get; set; }
         public long NextScheduledTick { get; set; }
-        
-        public bool IsDirty { get; private set; }
+        public ulong Revision => _revision;
+        public bool IsDirty => _revision != _savedRevision;
+
+        public IReadOnlyDictionary<ushort, ChunkState> ChangedChunks => _chunkStates;
+        public IReadOnlyDictionary<ushort, RegionComponentRecord> Components => _components;
 
         public RuntimeRegion(Vector2Int position, long lastSimulatedTick)
         {
@@ -20,38 +27,60 @@ namespace Project.Scripts.DataTypes
             LastSimulatedTick = lastSimulatedTick;
         }
 
-        public bool TryGetChunkState(ushort localChunkIndex, out ChunkState chunkState)
+        public bool TryGetChunkState(
+            ushort localChunkIndex,
+            out ChunkState chunkState)
         {
             return _chunkStates.TryGetValue(localChunkIndex, out chunkState);
         }
-        
-        public void SetChunkState(ushort localChunkIndex, ChunkState chunkState)
+
+        public void SetChunkState(
+            ushort localChunkIndex,
+            ChunkState chunkState,
+            bool markDirty = true)
         {
             _chunkStates[localChunkIndex] = chunkState;
-            IsDirty = true;
+
+            if (markDirty)
+                MarkDirty();
         }
 
-        public void RemoveChunkState(ushort localChunkIndex)
+        public bool RemoveChunkState(
+            ushort localChunkIndex,
+            bool markDirty = true)
         {
-            if(_chunkStates.Remove(localChunkIndex))
-                IsDirty = true;
+            bool removed = _chunkStates.Remove(localChunkIndex);
+
+            if (removed && markDirty)
+                MarkDirty();
+
+            return removed;
         }
-        
-        public IReadOnlyDictionary<ushort, ChunkState> ChangedChunks => _chunkStates;
+
+        public void SetComponent(
+            RegionComponentRecord component,
+            bool markDirty = true)
+        {
+            _components[component.typeId] = component;
+
+            if (markDirty)
+                MarkDirty();
+        }
 
         public void MarkDirty()
         {
-            IsDirty = true;
+            checked
+            {
+                _revision++;
+            }
         }
 
-        public void MarkSaved()
+        // Only acknowledges the exact revision that was written. If the region
+        // changed while the save was in flight, it remains dirty.
+        public void MarkSaved(ulong writtenRevision)
         {
-            IsDirty = false;
-        }
-
-        public void SetComponent(RegionComponentRecord component, RegionComponentRecord createSnapshot, bool markDirty)
-        {
-            
+            if (_revision == writtenRevision)
+                _savedRevision = writtenRevision;
         }
     }
 }

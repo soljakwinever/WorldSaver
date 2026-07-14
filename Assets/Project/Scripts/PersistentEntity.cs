@@ -1,79 +1,91 @@
 using System.Collections.Generic;
-using System.Linq;
-using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using UnityEngine;
-using Project.Scripts.DataTypes.SaveData;
-using Zenject;
 
 namespace Project.Scripts.Core
 {
-    public class PersistentEntity : MonoBehaviour
+    public sealed class PersistentEntity : MonoBehaviour
     {
         [SerializeField] private int archetypeId;
 
         private NodeId _id;
         private EntityPersistenceKind _persistenceKind;
-        
+        private ChunkPersistenceRoot _owner;
+
         public NodeId Id => _id;
         public int ArchetypeId => archetypeId;
+        public EntityPersistenceKind PersistenceKind => _persistenceKind;
 
-        private ChunkPersistenceRoot _owner;
-        
-        [Inject] private Node.Pool nodePool;
-        
+        public void Initialize(
+            NodeId id,
+            EntityPersistenceKind persistenceKind)
+        {
+            _id = id;
+            _persistenceKind = persistenceKind;
+            _owner = null;
+        }
+
         public void SetOwner(ChunkPersistenceRoot owner)
         {
             _owner = owner;
         }
 
+        public void ClearOwner(ChunkPersistenceRoot expectedOwner)
+        {
+            if (_owner == expectedOwner)
+                _owner = null;
+        }
+
         public void RemoveFromWorld()
         {
-            _owner.NotifyEntityRemoved(this);
-        }
-        
-        public EntityPersistenceKind PersistenceKind => _persistenceKind;
+            if (_owner == null)
+            {
+                Debug.LogError($"Persistent entity {Id} has no chunk owner.", this);
+                return;
+            }
 
-        public void Initialize(NodeId id, EntityPersistenceKind persistenceKind)
-        {
-            _id = id;
-            _persistenceKind = persistenceKind;
+            _owner.NotifyEntityRemoved(this);
+            gameObject.SetActive(false);
         }
-        
+
         public IEnumerable<IPersistentComponent> GetPersistentComponents()
         {
-            MonoBehaviour[] behaviors = GetComponentsInChildren<MonoBehaviour>(true);
+            MonoBehaviour[] behaviours =
+                GetComponentsInChildren<MonoBehaviour>(includeInactive: true);
 
-            foreach (var behavior in behaviors)
+            foreach (MonoBehaviour behaviour in behaviours)
             {
-                if(behavior is IPersistentComponent persistent)
+                if (behaviour is IPersistentComponent persistent)
                     yield return persistent;
             }
         }
-        
+
         public PersistentEntityRecord CapturePersistentState(long currentTick)
         {
-            PersistentEntityRecord record = new()
-            {
-                id = _id,
-                archetypeId = archetypeId,
-                components = GetPersistentComponents().ToList(),
-            };
-        }
-
-        public void SuppressFromPersistentRestore()
-        {
-            //nodePool.Despawn(this);
+            return EntityStateUtility.Capture(this, currentTick);
         }
 
         public void RestorePersistentState(PersistentEntityRecord record)
         {
-            throw new System.NotImplementedException();
+            EntityStateUtility.Restore(this, record);
         }
 
-        public void SimulateOffline(long fromTick, long toTick, RuntimeRegion region)
+        public void SuppressFromPersistentRestore()
         {
-            
+            gameObject.SetActive(false);
+        }
+
+        public void SetPersistenceReady(bool ready)
+        {
+            MonoBehaviour[] behaviours =
+                GetComponentsInChildren<MonoBehaviour>(includeInactive: true);
+
+            foreach (MonoBehaviour behaviour in behaviours)
+            {
+                if (behaviour is IPersistenceInteractionGate gate)
+                    gate.SetPersistenceReady(ready);
+            }
         }
     }
 }

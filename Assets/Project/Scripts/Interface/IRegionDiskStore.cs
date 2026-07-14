@@ -1,10 +1,11 @@
-using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
 
 namespace Project.Scripts.Interface
 {
     public interface IRegionDiskStore
     {
-        Awaitable<RuntimeRegion> LoadAsync(Vector2Int regionPosition);
+        Awaitable<RegionSaveData> LoadAsync(Vector2Int regionPosition);
+        Awaitable SaveAsync(RegionSaveData snapshot);
     }
 }

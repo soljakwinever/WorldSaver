@@ -1,37 +1,58 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace Project.Scripts.DataTypes.SaveData
 {
     [Serializable]
-    public class ChunkState
+    public sealed class ChunkState
     {
         public ushort localChunkIndex;
         public long lastSimulatedTick;
-        
         public List<PersistentEntityRecord> entities = new();
         public List<PersistenceComponentRecord> components = new();
-        
-        public bool HasChanges => entities.Count > 0;
+
+        public bool HasChanges =>
+            (entities != null && entities.Count > 0) ||
+            (components != null && components.Count > 0);
 
         public void Compact()
         {
+            entities ??= new List<PersistentEntityRecord>();
+            components ??= new List<PersistenceComponentRecord>();
+
             for (int i = entities.Count - 1; i >= 0; i--)
             {
-                var entity = entities[i];
+                PersistentEntityRecord entity = entities[i];
+
+                if (entity == null)
+                {
+                    entities.RemoveAt(i);
+                    continue;
+                }
 
                 entity.Compact();
-                
-                if(!entity.MustBeSaved)
+
+                if (!entity.MustBeSaved)
                     entities.RemoveAt(i);
             }
 
-            components.Clear();
-            // for (int i = components.Count - 1; i >= 0; i--)
-            // {
-            //     if(components[i].IsAtBaseline)
-            // }
+            for (int i = components.Count - 1; i >= 0; i--)
+            {
+                PersistenceComponentRecord component = components[i];
+
+                if (component == null ||
+                    component.isAtBaseline ||
+                    component.data == null ||
+                    component.data.Length == 0)
+                {
+                    components.RemoveAt(i);
+                }
+            }
+
+            entities.Sort(static (left, right) =>
+                left.id.value.CompareTo(right.id.value));
+            components.Sort(static (left, right) =>
+                left.typeId.CompareTo(right.typeId));
         }
 
         public ChunkState CreateSnapshot()
@@ -42,24 +63,25 @@ namespace Project.Scripts.DataTypes.SaveData
                 lastSimulatedTick = lastSimulatedTick
             };
 
-            foreach (var entity in entities)
+            if (entities != null)
             {
-                if(entity != null)
-                    snapshot.entities.Add(entity.CreateSnapshot());
+                foreach (PersistentEntityRecord entity in entities)
+                {
+                    if (entity != null)
+                        snapshot.entities.Add(entity.CreateSnapshot());
+                }
             }
 
-            foreach (var component in components)
+            if (components != null)
             {
-                if(component != null)
-                    snapshot.components.Add(component.CreateSnapshot());
+                foreach (PersistenceComponentRecord component in components)
+                {
+                    if (component != null)
+                        snapshot.components.Add(component.CreateSnapshot());
+                }
             }
+
+            return snapshot;
         }
-    }
-
-    [Serializable]
-    public sealed class ChunkComponentRecord
-    {
-        public ushort version;
-        public byte[] data;
     }
 }

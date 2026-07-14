@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Project.Scripts.Bus;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
@@ -10,178 +9,151 @@ using Zenject;
 
 namespace Project.Scripts
 {
-    public class DataController : MonoBehaviour, IDataController
+    public sealed class DataController : MonoBehaviour
     {
-        [Inject] private MapSignalBus _mapSignalBus;
-        [Inject] private RegionRepository _regionRepository;
-        [Inject] private WorldClock _worldClock;
+        [Inject] private IRegionRepository _regions;
+        [Inject] private IWorldClock _worldClock;
 
-        private readonly Dictionary<Vector2Int, ActiveChunk> _loadedChunks = new ();
-
+        private readonly Dictionary<Vector2Int, ActiveChunk> _activeChunks = new();
         private int _nextLoadVersion;
-        private bool _acceptSignals;
 
         private sealed class ActiveChunk
         {
-            public Vector2Int position;
-            public ChunkPersistenceRoot persistenceRoot;
-            public int loadVersion;
-            
+            public Chunk chunk;
+            public ChunkPersistenceRoot root;
             public RuntimeRegion region;
+            public int loadVersion;
             public bool restoreComplete;
         }
-        
-        private void OnEnable()
-        {
-            _acceptSignals = true;
-            
-            _mapSignalBus.ChunkLoaded += MapSignalBusOnChunkLoaded;
-            _mapSignalBus.ChunkUnloaded += MapSignalBusOnChunkUnloaded;
-        }
-        
-        private void OnDisable()
-        {
-            _acceptSignals = false;
-            
-            _mapSignalBus.ChunkLoaded+= MapSignalBusOnChunkLoaded;
-            _mapSignalBus.ChunkUnloaded -= MapSignalBusOnChunkUnloaded;
-        }
 
-        private async void MapSignalBusOnChunkLoaded(Vector2Int chunkPosition, IChunk loaded)
+        public async Awaitable RestoreChunkAsync(Chunk chunk)
         {
-            var chunk = loaded as Chunk;
-            
-            ChunkPersistenceRoot persistenceRoot =
+            Vector2Int position = chunk.Position;
+            ChunkPersistenceRoot root =
                 chunk.GetComponent<ChunkPersistenceRoot>();
 
-            if (persistenceRoot == null)
+            if (root == null)
             {
-                Debug.LogError($"Chunk at position {chunkPosition} does not have a {nameof(ChunkPersistenceRoot)} component");
-                return;
+                throw new InvalidOperationException(
+                    $"Chunk {position} has no {nameof(ChunkPersistenceRoot)}.");
             }
-            
-            int loadedVersion = ++_nextLoadVersion;
 
-            ActiveChunk activeChunk = new()
+            if (root.ChunkPosition != position)
             {
-                position = chunkPosition,
-                persistenceRoot = persistenceRoot,
-                loadVersion = loadedVersion,
-                restoreComplete = false
+                throw new InvalidOperationException(
+                    $"Chunk {position} did not call BeginRestore before registration.");
+            }
+
+            int version = ++_nextLoadVersion;
+            ActiveChunk active = new()
+            {
+                chunk = chunk,
+                root = root,
+                loadVersion = version
             };
 
-            if (_loadedChunks.ContainsKey(chunkPosition))
-            {
-                Debug.LogWarning($"Chunk at position {chunkPosition} already loaded. Replacing.");
-            }
-
-            _loadedChunks[chunkPosition] = activeChunk;
-
-            persistenceRoot.BeginRestore(chunkPosition);
+            _activeChunks[position] = active;
 
             try
             {
                 Vector2Int regionPosition =
-                    WorldPartition.ChunkToRegion(chunkPosition);
+                    WorldPartition.ChunkToRegion(position);
 
-                RuntimeRegion region = await _regionRepository.GetReadyAsync(regionPosition, _worldClock.CurrentTick);
+                RuntimeRegion region = await _regions.GetReadyAsync(
+                    regionPosition,
+                    _worldClock.CurrentTick);
 
-                if (!IsCurrentLoad(chunkPosition, persistenceRoot, loadedVersion))
-                {
+                if (!IsCurrent(position, root, version))
                     return;
-                }
 
-                activeChunk.region = region;
+                active.region = region;
 
-                ushort localChunkIndex = WorldPartition.GetLocalChunkIndex(chunkPosition);
+                ushort localIndex =
+                    WorldPartition.GetLocalChunkIndex(position);
 
-                region.TryGetChunkState(localChunkIndex, out ChunkState savedState);
-
-                persistenceRoot.Restore(savedState, region, _worldClock.CurrentTick);
-
-                activeChunk.restoreComplete = true;
-                persistenceRoot.CompleteRestore();
+                region.TryGetChunkState(localIndex, out ChunkState state);
+                root.Restore(state);
+                root.CompleteRestore();
+                active.restoreComplete = true;
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                Debug.LogException(e, persistenceRoot);
+                if (IsCurrent(position, root, version))
+                    root.FailRestore();
 
-                persistenceRoot.FailRestore();
+                Debug.LogException(exception, root);
+                throw;
             }
         }
-        
-        private void MapSignalBusOnChunkUnloaded(Vector2Int chunkPosition)
+
+        public void CaptureBeforeUnload(Chunk chunk)
         {
-            if (!_loadedChunks.TryGetValue(chunkPosition, out ActiveChunk activeChunk))
+            Vector2Int position = chunk.Position;
+            ChunkPersistenceRoot root =
+                chunk.GetComponent<ChunkPersistenceRoot>();
+
+            if (!_activeChunks.Remove(position, out ActiveChunk active))
             {
-                Debug.LogWarning($"Chunk at position {chunkPosition} was built but not loaded");
+                root?.PrepareForPool();
+                return;
             }
-            
-            _loadedChunks.Remove(chunkPosition);
 
             try
             {
-                if (!activeChunk.restoreComplete || activeChunk.region)
-                {
-                    return;
-                }
-
-                ChunkState snapshot = activeChunk.persistenceRoot.Capture(_worldClock.CurrentTick);
-
-                CommitChunkSnapshot(
-                    activeChunk.region,
-                    chunkPosition,
-                    snapshot
-                );
+                if (active.restoreComplete && active.region != null)
+                    CaptureIntoRegion(position, active);
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                Debug.LogException(e, activeChunk.persistenceRoot);
+                Debug.LogException(exception, active.root);
             }
             finally
             {
-                activeChunk.persistenceRoot.PrepareForPool();
+                active.root.PrepareForPool();
             }
         }
 
-        private void CommitChunkSnapshot(
-            RuntimeRegion region,
-            Vector2Int chunkPosition,
-            ChunkState snapshot
-        )
+        public async Awaitable SaveAsync()
         {
-            ushort localChunkIndex = WorldPartition.GetLocalChunkIndex(chunkPosition);
+            // Capture currently loaded chunks as well as chunks that happened to
+            // unload since the previous save.
+            ActiveChunk[] active = new ActiveChunk[_activeChunks.Count];
+            _activeChunks.Values.CopyTo(active, 0);
 
-            snapshot.localChunkIndex = localChunkIndex;
+            foreach (ActiveChunk chunk in active)
+            {
+                if (chunk.restoreComplete && chunk.region != null)
+                    CaptureIntoRegion(chunk.chunk.Position, chunk);
+            }
+
+            await _regions.FlushDirtyAsync();
+        }
+
+        private void CaptureIntoRegion(
+            Vector2Int position,
+            ActiveChunk active)
+        {
+            ushort localIndex = WorldPartition.GetLocalChunkIndex(position);
+            ChunkState snapshot = active.root.Capture(_worldClock.CurrentTick);
+            snapshot.localChunkIndex = localIndex;
             snapshot.Compact();
 
             if (snapshot.HasChanges)
-            {
-                region.SetChunkState(localChunkIndex, snapshot);
-            }
+                active.region.SetChunkState(localIndex, snapshot);
             else
-            {
-                region.RemoveChunkState(localChunkIndex);
-            }
+                active.region.RemoveChunkState(localIndex);
 
-            _regionRepository.MarkDirty(region);
+            _regions.MarkDirty(active.region);
         }
 
-        private bool IsCurrentLoad(Vector2Int chunkPosition, ChunkPersistenceRoot persistenceRoot, int loadVersion)
+        private bool IsCurrent(
+            Vector2Int position,
+            ChunkPersistenceRoot root,
+            int version)
         {
-            if (!_acceptSignals) return false;
-
-            if (!_loadedChunks.TryGetValue(chunkPosition, out ActiveChunk current))
-            {
-                return false;
-            }
-            
-            return current.loadVersion == loadVersion && persistenceRoot == current.persistenceRoot;
-        }
-
-        public Awaitable FlushAsync()
-        {
-            return _regionRepository.FlushDirtyAsync();
+            return _activeChunks.TryGetValue(position, out ActiveChunk current) &&
+                   current.loadVersion == version &&
+                   current.root == root;
         }
     }
 }

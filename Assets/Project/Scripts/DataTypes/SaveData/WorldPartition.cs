@@ -2,13 +2,14 @@ using UnityEngine;
 
 namespace Project.Scripts.DataTypes.SaveData
 {
-    public class WorldPartition
+    public static class WorldPartition
     {
         public const int RegionSizeInChunks = 8;
-        
+
         public static Vector2Int WorldToChunk(Vector2 worldPosition)
         {
-            return Vector2Int.FloorToInt(worldPosition/ChunkBuildResult.ChunkSize);
+            return Vector2Int.FloorToInt(
+                worldPosition / ChunkBuildResult.ChunkSize);
         }
 
         public static Vector2Int ChunkToRegion(Vector2Int chunkPosition)
@@ -18,22 +19,28 @@ namespace Project.Scripts.DataTypes.SaveData
                 FloorDiv(chunkPosition.y, RegionSizeInChunks));
         }
 
-        public static Vector2Int ChunkToLocalRegionCoordinate(Vector2Int chunkPosition)
+        public static Vector2Int ChunkToLocalRegionCoordinate(
+            Vector2Int chunkPosition)
         {
             return new Vector2Int(
                 PositiveMod(chunkPosition.x, RegionSizeInChunks),
                 PositiveMod(chunkPosition.y, RegionSizeInChunks));
         }
 
-        public static ushort GetLocalChunkIndex(Vector2Int localChunk)
+        // Accepts a global chunk coordinate and safely handles negative chunks.
+        public static ushort GetLocalChunkIndex(Vector2Int chunkPosition)
         {
-            return checked(
-                (ushort)(localChunk.y * RegionSizeInChunks
-                         + localChunk.x));
+            Vector2Int local = ChunkToLocalRegionCoordinate(chunkPosition);
+
+            return checked((ushort)(
+                local.y * RegionSizeInChunks + local.x));
         }
 
         public static Vector2Int GetLocalChunkCoordinate(ushort index)
         {
+            if (index >= RegionSizeInChunks * RegionSizeInChunks)
+                throw new System.ArgumentOutOfRangeException(nameof(index));
+
             return new Vector2Int(
                 index % RegionSizeInChunks,
                 index / RegionSizeInChunks);
@@ -43,10 +50,10 @@ namespace Project.Scripts.DataTypes.SaveData
         {
             int quotient = value / divisor;
             int remainder = value % divisor;
-            
-            if(remainder != 0 && value < 0)
+
+            if (remainder != 0 && value < 0)
                 quotient--;
-            
+
             return quotient;
         }
 
