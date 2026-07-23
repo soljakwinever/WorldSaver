@@ -16,6 +16,7 @@ public class GameDataInstaller : MonoInstaller
     
     public override void InstallBindings()
     {
+        Container.Bind<ItemCatalog>().FromComponentInHierarchy().AsSingle();
         Container.BindInterfacesAndSelfTo<InputManager>().AsSingle().NonLazy();
         Container.Bind<Chunk>().FromInstance(chunkPrefab);
 

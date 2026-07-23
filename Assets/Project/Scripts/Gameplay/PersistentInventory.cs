@@ -4,6 +4,7 @@ using System.IO;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using UnityEngine;
+using Zenject;
 
 namespace Project.Scripts.Gameplay
 {
@@ -13,10 +14,10 @@ namespace Project.Scripts.Gameplay
         private const ushort CurrentVersion = 1;
 
         [SerializeField, Min(1)] private int size = 16;
-        [SerializeField] private ItemData[] itemCatalog = Array.Empty<ItemData>();
 
         private Inventory _inventory;
         private Dictionary<string, ItemData> _itemsById;
+        private ItemCatalog _itemCatalog;
 
         public ushort PersistentTypeId => TypeId;
         public ushort PersistentVersion => CurrentVersion;
@@ -28,6 +29,19 @@ namespace Project.Scripts.Gameplay
         private void Awake()
         {
             EnsureInitialized();
+        }
+
+        [Inject]
+        public void Construct(ItemCatalog itemCatalog)
+        {
+            if (itemCatalog == null)
+                throw new ArgumentNullException(nameof(itemCatalog));
+            if (_inventory != null && _inventory.OccupiedSlots > 0)
+                throw new InvalidOperationException("A non-empty inventory cannot change its item catalog.");
+
+            _itemCatalog = itemCatalog;
+            _itemsById = null;
+            _inventory = new Inventory(size);
         }
 
         public void Configure(int inventorySize, IReadOnlyList<ItemData> catalog)
@@ -45,7 +59,7 @@ namespace Project.Scripts.Gameplay
             Inventory inventory = new(inventorySize);
 
             size = inventorySize;
-            itemCatalog = configuredCatalog;
+            _itemCatalog = null;
             _itemsById = itemsById;
             _inventory = inventory;
         }
@@ -134,7 +148,7 @@ namespace Project.Scripts.Gameplay
                 ItemData.Rarity rarity = (ItemData.Rarity)reader.ReadByte();
                 int count = reader.ReadInt32();
 
-                if (!_itemsById.TryGetValue(itemId, out ItemData item))
+                if (!TryResolveItem(itemId, out ItemData item))
                     throw new InvalidDataException($"Saved inventory references unknown item '{itemId}'.");
                 if (!Enum.IsDefined(typeof(ItemData.Rarity), rarity))
                     throw new InvalidDataException($"Saved inventory has invalid rarity {(byte)rarity}.");
@@ -166,9 +180,9 @@ namespace Project.Scripts.Gameplay
             if (_inventory != null)
                 return;
 
-            Dictionary<string, ItemData> catalog = BuildCatalog(itemCatalog);
             Inventory inventory = new(size);
-            _itemsById = catalog;
+            if (_itemCatalog == null)
+                _itemsById ??= new Dictionary<string, ItemData>(StringComparer.Ordinal);
             _inventory = inventory;
         }
 
@@ -177,9 +191,21 @@ namespace Project.Scripts.Gameplay
             ValidatePersistentId(item);
             EnsureInitialized();
 
-            if (!_itemsById.TryGetValue(item.persistentId, out ItemData registered) || registered != item)
+            bool registered = _itemCatalog != null
+                ? _itemCatalog.Contains(item)
+                : _itemsById.TryGetValue(item.persistentId, out ItemData localItem) && localItem == item;
+
+            if (!registered)
                 throw new ArgumentException(
                     $"Item '{item.persistentId}' is not registered in this inventory's catalog.", nameof(item));
+        }
+
+        private bool TryResolveItem(string persistentId, out ItemData item)
+        {
+            EnsureInitialized();
+            return _itemCatalog != null
+                ? _itemCatalog.TryGet(persistentId, out item)
+                : _itemsById.TryGetValue(persistentId, out item);
         }
 
         private static Dictionary<string, ItemData> BuildCatalog(IReadOnlyList<ItemData> catalog)

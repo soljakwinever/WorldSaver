@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using Project.Scripts.Interface;
 using UnityEngine;
@@ -7,18 +8,25 @@ namespace Project.Scripts.Gameplay
     public class PersistentTransform : MonoBehaviour, IPersistentComponent
     {
         public const ushort TypeId = 5;
+        private const ushort CurrentVersion = 1;
 
         public ushort PersistentTypeId => TypeId;
-        public ushort PersistentVersion => 1;
+        public ushort PersistentVersion => CurrentVersion;
 
         [SerializeField] private Transform target;
         private Vector3 _baselinePosition;
         private Quaternion _baselineRotation;
         private bool _alwaysPersist;
 
+        private void Awake()
+        {
+            Initialize(alwaysPersist: false);
+        }
+
         public void Initialize(bool alwaysPersist)
         {
-            target ??= transform;
+            if(target == null)
+                target = transform;
             _baselinePosition = target.position;
             _baselineRotation = target.rotation;
             _alwaysPersist = alwaysPersist;
@@ -26,6 +34,10 @@ namespace Project.Scripts.Gameplay
         
         public void WriteState(BinaryWriter writer)
         {
+            if (writer == null)
+                throw new ArgumentNullException(nameof(writer));
+
+            target ??= transform;
             Vector3 position = target.position;
             float rotation = target.rotation.eulerAngles.z;
             
@@ -38,6 +50,12 @@ namespace Project.Scripts.Gameplay
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
         {
+            if (reader == null)
+                throw new ArgumentNullException(nameof(reader));
+            if (savedVersion != CurrentVersion)
+                throw new InvalidDataException($"Unsupported transform state version {savedVersion}.");
+
+            target ??= transform;
             target.position = new Vector3(
                 reader.ReadSingle(), 
                 reader.ReadSingle(), 

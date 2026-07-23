@@ -23,6 +23,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 80888888888848888888888888888888, type: 2}
   - {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
   - {fileID: 11400000, guid: a0aaaaaaaaaa4aaa8aaaaaaaaaaaaaaa, type: 2}
+  - {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
   seed: 44
   heightMapDebug: 0
   previewNoiseLayer: 1

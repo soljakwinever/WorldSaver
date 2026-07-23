@@ -19,7 +19,7 @@ namespace Project.Scripts.DataTypes
             Common,
             Uncommon,
             Rare,
-            Epic,
+            Mythic,
             Legendary,
         }
     }

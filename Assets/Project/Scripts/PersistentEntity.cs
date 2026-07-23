@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Project.Scripts.Core
 {
-    public sealed class PersistentEntity : MonoBehaviour
+    public sealed class PersistentEntity : MonoBehaviour, IPersistentEntity
     {
         [SerializeField] private int archetypeId;
 
