@@ -73,5 +73,10 @@ namespace Project.Scripts.Gameplay
             maxHealth = Mathf.Max(1, maxHealth);
             health = Mathf.Clamp(health, 0, maxHealth);
         }
+
+        public void Initialize(int maximumHealth)
+        {
+            this.maxHealth = health = maximumHealth;
+        }
     }
 }

@@ -12,10 +12,12 @@ namespace Project.Scripts.Core
         private NodeId _id;
         private EntityPersistenceKind _persistenceKind;
         private ChunkPersistenceRoot _owner;
+        private PersistentComponentHost _componentHost;
 
         public NodeId Id => _id;
         public int ArchetypeId => archetypeId;
         public EntityPersistenceKind PersistenceKind => _persistenceKind;
+        public PersistentComponentHost ComponentHost => _componentHost;
 
         public void Initialize(
             NodeId id,
@@ -26,6 +28,11 @@ namespace Project.Scripts.Core
             _persistenceKind = persistenceKind;
             archetypeId = runtimeArchetypeId;
             _owner = null;
+        }
+
+        public void SetComponentHost(PersistentComponentHost componentHost)
+        {
+            _componentHost = componentHost;
         }
 
         public void SetOwner(ChunkPersistenceRoot owner)
@@ -53,14 +60,13 @@ namespace Project.Scripts.Core
 
         public IEnumerable<IPersistentComponent> GetPersistentComponents()
         {
-            MonoBehaviour[] behaviours =
-                GetComponentsInChildren<MonoBehaviour>(includeInactive: true);
+            if (_componentHost == null)
+                _componentHost = GetComponentInChildren<PersistentComponentHost>(
+                    includeInactive: true);
 
-            foreach (MonoBehaviour behaviour in behaviours)
-            {
-                if (behaviour is IPersistentComponent persistent)
-                    yield return persistent;
-            }
+            return _componentHost != null
+                ? _componentHost.GetPersistentComponents()
+                : System.Array.Empty<IPersistentComponent>();
         }
 
         public PersistentEntityRecord CapturePersistentState(long currentTick)

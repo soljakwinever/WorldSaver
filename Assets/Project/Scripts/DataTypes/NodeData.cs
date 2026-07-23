@@ -1,3 +1,4 @@
+using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
 using Zenject.ReflectionBaking.Mono.Cecil;
@@ -20,6 +21,8 @@ namespace Project.Scripts
 
         public float lightness = 1;
         public float lightnessVariance = 0.0f;
+
+        public NodeComponentDefinition[] persistentComponents;
         
         public ResourceType resourceType;
 

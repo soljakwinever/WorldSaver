@@ -18,18 +18,18 @@ namespace Project.Scripts.Gameplay
         private Quaternion _baselineRotation;
         private bool _alwaysPersist;
 
-        private void Awake()
+        public void Initialize(bool alwaysPersist, Transform host)
         {
-            Initialize(alwaysPersist: false);
-        }
-
-        public void Initialize(bool alwaysPersist)
-        {
-            if(target == null)
-                target = transform;
+            target = !host ? transform : host;
             _baselinePosition = target.position;
             _baselineRotation = target.rotation;
             _alwaysPersist = alwaysPersist;
+        }
+
+        private void Awake()
+        {
+            if (target == null)
+                Initialize(alwaysPersist: false, transform);
         }
         
         public void WriteState(BinaryWriter writer)

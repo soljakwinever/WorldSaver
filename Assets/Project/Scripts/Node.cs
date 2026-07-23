@@ -1,23 +1,30 @@
 using System;
 using Project.Scripts;
 using Project.Scripts.Core;
+using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Gameplay;
+using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
+using Project.Scripts.Persistence;
 using UnityEngine;
 using Zenject;
 
 [RequireComponent(typeof(PersistentEntity))]
-public class Node : MonoBehaviour, IInteractable
+public class Node : MonoBehaviour, IInteractable, INode
 {
     [SerializeField]
     private SpriteRenderer spriteRenderer;
 
     [SerializeField] private Collider2D _collider2D;
-    
+
     [SerializeField] private Material _defaultMaterial;
     
+    [Inject] private DiContainer _container;
+    
     private PersistentEntity _persistentEntity;
+
+    private PersistentComponentHost _persistentComponentHost;
     
     private NodeData _nodeData;
 
@@ -27,6 +34,8 @@ public class Node : MonoBehaviour, IInteractable
         Chunk chunk, int archetypeId = 0)
     {
         ClearOverrideVisual();
+        ClearPersistentComponents();
+        
         _nodeData = nodeData;
         
         _persistentEntity.Initialize(nodeId, spawnData.persistenceKind, archetypeId);
@@ -53,10 +62,12 @@ public class Node : MonoBehaviour, IInteractable
         
         _collider2D.isTrigger = nodeData.isTrigger;
 
-        var persistentTransform = GetComponent<Project.Scripts.Gameplay.PersistentTransform>();
-        if (persistentTransform == null)
-            persistentTransform = gameObject.AddComponent<Project.Scripts.Gameplay.PersistentTransform>();
-        persistentTransform.Initialize(spawnData.persistenceKind == EntityPersistenceKind.RuntimeSpawned);
+        InstallPersistentComponents(nodeData, spawnData.persistenceKind);
+        
+        // var persistentTransform = GetComponent<Project.Scripts.Gameplay.PersistentTransform>();
+        // if (persistentTransform == null)
+        //     persistentTransform = gameObject.AddComponent<Project.Scripts.Gameplay.PersistentTransform>();
+        // persistentTransform.Initialize(spawnData.persistenceKind == EntityPersistenceKind.RuntimeSpawned);
 
         void InitializeSpriteAppearance()
         {
@@ -106,6 +117,35 @@ public class Node : MonoBehaviour, IInteractable
         }
     }
 
+    private void InstallPersistentComponents(
+        NodeData nodeData,
+        EntityPersistenceKind  persistenceKind)
+    {
+        var hostObject = new GameObject("Persistent Components");
+        _persistentComponentHost = hostObject.AddComponent<PersistentComponentHost>();
+
+        _persistentComponentHost.transform.SetParent(
+            transform,
+            worldPositionStays: false);
+        _persistentEntity.SetComponentHost(_persistentComponentHost);
+
+        var context = new NodeComponentSpawnContext(this, persistenceKind);
+
+        if (nodeData.persistentComponents == null)
+            return;
+
+        foreach (var definition in nodeData.persistentComponents)
+        {
+            if (definition == null)
+                continue;
+
+            definition.Install(
+                _persistentComponentHost.gameObject,
+                _container,
+                context);
+        }
+    }
+
     public class Pool : MonoMemoryPool<Project.Scripts.DataTypes.SaveData.NodeId, PropSpawnData, NodeData, TerrainSample, Chunk, Node>
     {
         protected override void Reinitialize(Project.Scripts.DataTypes.SaveData.NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample, Chunk chunk, Node item)
@@ -126,10 +166,25 @@ public class Node : MonoBehaviour, IInteractable
         }
     }
 
+    private void ClearPersistentComponents()
+    {
+        if (_persistentComponentHost == null)
+            return;
+
+        // Detach first so the old host cannot be rediscovered while Unity's
+        // deferred Destroy is pending.
+        _persistentComponentHost.transform.SetParent(null);
+        _persistentComponentHost.gameObject.SetActive(false);
+        _persistentEntity.SetComponentHost(null);
+        Destroy(_persistentComponentHost.gameObject);
+        _persistentComponentHost = null;
+    }
+
     private void CleanUp()
     {
         name = "Empty";
         ClearOverrideVisual();
+        ClearPersistentComponents();
     }
 
     private void ClearOverrideVisual()

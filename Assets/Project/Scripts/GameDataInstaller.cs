@@ -44,6 +44,9 @@ public class GameDataInstaller : MonoInstaller
 
         Container.Bind<IRegionDiskStore>().To<FileRegionDiskStore>().AsSingle();
         Container.Bind<IRegionRepository>().To<RegionRepository>().AsSingle();
+        Container.Bind<IRegionSimulationService>()
+            .To<RegionSimulationService>()
+            .AsSingle();
         Container.BindInterfacesAndSelfTo<WorldClock>()
             .FromNewComponentOnNewGameObject()
             .AsSingle()
@@ -54,6 +57,9 @@ public class GameDataInstaller : MonoInstaller
             .NonLazy();
         
         Container.Bind<PlayerDataController>().FromComponentInHierarchy().AsSingle();
+        Container.Bind<ITimeController>()
+            .FromComponentInHierarchy()
+            .AsSingle();
         
         Container.Bind<MapSignalBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<TimeSignalBus>().FromNew().AsSingle().NonLazy();
