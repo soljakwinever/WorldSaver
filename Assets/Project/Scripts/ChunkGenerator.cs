@@ -215,7 +215,13 @@ namespace Project.Scripts
                 int chunkStartX, int chunkStartY,
                 List<PropSpawnData> props)
             {
-                float chanceRoll = Util.Hash01(cellX, cellY, rule.name.GetHashCode());
+                ushort generatorType =
+                    Project.Scripts.DataTypes.SaveData.NodeId.CreateGeneratorType(
+                        rule.name);
+                float chanceRoll = Util.Hash01(
+                    cellX,
+                    cellY,
+                    generatorType);
                 
                 if(chanceRoll > rule.density)
                     return;
@@ -250,7 +256,12 @@ namespace Project.Scripts
                 
                 propPositions.Add(new Vector2Int(worldX, worldY));
                 
-                var entityId = Project.Scripts.DataTypes.SaveData.NodeId.Create(worldGeneration.Seed, new Vector2Int(worldX,worldY), (ushort)rule.GetHashCode(), (ushort) slot);
+                var entityId =
+                    Project.Scripts.DataTypes.SaveData.NodeId.Create(
+                        worldGeneration.Seed,
+                        new Vector2Int(worldX, worldY),
+                        generatorType,
+                        (ushort)slot);
                 
                 props.Add(new PropSpawnData()
                 {

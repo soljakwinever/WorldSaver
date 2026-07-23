@@ -31,6 +31,35 @@ namespace Project.Scripts.DataTypes.SaveData
         {
             return value.ToString("X16");
         }
+
+        /// <summary>
+        /// Returns a stable identifier for a procedural generator name.
+        /// Unlike string/object GetHashCode, this is deterministic between
+        /// processes and Unity sessions.
+        /// </summary>
+        public static ushort CreateGeneratorType(string generatorName)
+        {
+            unchecked
+            {
+                // FNV-1a over UTF-16 code units. Fold to 16 bits because the
+                // generated NodeId format reserves 16 bits for generator type.
+                uint hash = 2166136261u;
+
+                if (generatorName != null)
+                {
+                    for (int i = 0; i < generatorName.Length; i++)
+                    {
+                        char character = generatorName[i];
+                        hash ^= (byte)character;
+                        hash *= 16777619u;
+                        hash ^= (byte)(character >> 8);
+                        hash *= 16777619u;
+                    }
+                }
+
+                return (ushort)(hash ^ (hash >> 16));
+            }
+        }
         
         public static NodeId Create(
             uint worldSeed,

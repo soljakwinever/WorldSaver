@@ -2,11 +2,13 @@ using System;
 using Project.Scripts;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.Gameplay;
+using Project.Scripts.Interface.Decorator;
 using UnityEngine;
 using Zenject;
 
 [RequireComponent(typeof(PersistentEntity))]
-public class Node : MonoBehaviour
+public class Node : MonoBehaviour, IInteractable
 {
     [SerializeField]
     private SpriteRenderer spriteRenderer;
@@ -21,7 +23,7 @@ public class Node : MonoBehaviour
 
     private GameObject _overrideVisual;
     
-    public void Initialize(NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample)
+    public void Initialize(NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample, Chunk chunk)
     {
         _nodeData = nodeData;
         
@@ -92,11 +94,11 @@ public class Node : MonoBehaviour
         }
     }
 
-    public class Pool : MonoMemoryPool<Project.Scripts.DataTypes.SaveData.NodeId, PropSpawnData, NodeData, TerrainSample, Node>
+    public class Pool : MonoMemoryPool<Project.Scripts.DataTypes.SaveData.NodeId, PropSpawnData, NodeData, TerrainSample, Chunk, Node>
     {
-        protected override void Reinitialize(Project.Scripts.DataTypes.SaveData.NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample, Node item)
+        protected override void Reinitialize(Project.Scripts.DataTypes.SaveData.NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample, Chunk chunk, Node item)
         {
-            item.Initialize(nodeId, spawnData, nodeData, terrainSample);
+            item.Initialize(nodeId, spawnData, nodeData, terrainSample, chunk);
         }
 
         protected override void OnCreated(Node item)
@@ -129,5 +131,31 @@ public class Node : MonoBehaviour
         _persistentEntity = GetComponent<PersistentEntity>();
         if(!_persistentEntity)
             _persistentEntity = gameObject.AddComponent<PersistentEntity>();
+    }
+
+    public Vector3 GetPosition()
+    {
+        return transform.position;
+    }
+    
+    public bool CanInteract(InteractionContext context)
+    {
+        return context.interactionType == InteractionType.Direct;
+    }
+
+    public void Interact(InteractionContext context)
+    {
+        Debug.Log("Interact");
+        if (!TryGetComponent<PersistentEntity>(out var entity))
+        {
+            return;
+        }
+        
+        entity.RemoveFromWorld();
+    }
+
+    public string GetInteractionPrompt(InteractionContext context)
+    {
+        return $"Touch {_nodeData.name}";
     }
 }

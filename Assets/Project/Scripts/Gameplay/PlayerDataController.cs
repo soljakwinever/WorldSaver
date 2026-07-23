@@ -35,7 +35,6 @@ namespace Project.Scripts.Gameplay
                 _hunger -= _hungerDrainRate * _worldData.playerSettings.hungerRate * deltaTime;
                 _energy = Mathf.Clamp01(_energy + _hungerEnergyRegenerationRate * deltaTime);
             }
-            Debug.Log(currentEnergyDrainMultiplier);
             _energy -= (_energyDrainRate * currentEnergyDrainMultiplier) * _worldData.playerSettings.energyRate * deltaTime;
         }
 

@@ -1,10 +1,9 @@
-using Project.Scripts.Interface;
 using UnityEngine;
 
 namespace Project.Scripts
 {
     [CreateAssetMenu(fileName = "New Tool", menuName = "Tool Data", order = 0)]
-    public class ToolData : ScriptableObject, IToolData
+    public class ToolData : ScriptableObject
     {
         [SerializeField]
         private string _toolName;
@@ -22,5 +21,19 @@ namespace Project.Scripts
         public int Power => _power;
 
         public float StaminaCost => _staminaCost;
+    }
+    
+    public enum ToolType
+    {
+        Axe,
+        Pickaxe,
+        Hoe,
+        WateringCan,
+        Shovel,
+        FishingRod,
+        Hammer,
+        Sword,
+        Spear,
+        None
     }
 }

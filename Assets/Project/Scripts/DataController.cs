@@ -16,6 +16,8 @@ namespace Project.Scripts
 
         private readonly Dictionary<Vector2Int, ActiveChunk> _activeChunks = new();
         private int _nextLoadVersion;
+        private bool _saveRequested;
+        private bool _saveInProgress;
 
         private sealed class ActiveChunk
         {
@@ -127,6 +129,41 @@ namespace Project.Scripts
             }
 
             await _regions.FlushDirtyAsync();
+        }
+
+        // Chunk pool callbacks are synchronous. Coalesce their disk flushes into
+        // one asynchronous save operation while preserving every later request.
+        public void RequestSave()
+        {
+            _saveRequested = true;
+
+            if (!_saveInProgress)
+                FlushRequestedSavesAsync();
+        }
+
+        private async void FlushRequestedSavesAsync()
+        {
+            _saveInProgress = true;
+
+            try
+            {
+                while (_saveRequested)
+                {
+                    _saveRequested = false;
+                    await SaveAsync();
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, this);
+            }
+            finally
+            {
+                _saveInProgress = false;
+
+                if (_saveRequested)
+                    FlushRequestedSavesAsync();
+            }
         }
 
         private void CaptureIntoRegion(
