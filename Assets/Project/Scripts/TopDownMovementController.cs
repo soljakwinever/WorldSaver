@@ -1,4 +1,6 @@
 using System;
+using Project.Scripts.Gameplay;
+using Project.Scripts.Interface;
 using UnityEngine;
 using Zenject;
 
@@ -6,8 +8,6 @@ namespace Project.Scripts
 {
     public class TopDownMovementController : MonoBehaviour
     {
-        private Inputs inputs;
-        
         public float speed = 10;
     
         private float currentSpeed;
@@ -15,10 +15,26 @@ namespace Project.Scripts
         [Inject] private WorldGeneration worldGeneration;
         [Inject] private WorldData worldData;
         
+        private IInputManager inputManager;
+        private bool _subscribedToInput = false;
+        
         [Inject] private Chunkloader chunkloader;
         private Grid grid;
 
         private Rigidbody2D _rigidbody2D;
+        private Vector2 moveInput;
+        
+        [Inject] private PlayerDataController playerDataController;
+
+        [Inject]
+        public void Construct(IInputManager inputManager)
+        {
+            UnsubscribeFromInput();
+            this.inputManager = inputManager;
+
+            if (isActiveAndEnabled)
+                SubscribeToInput();
+        }
         
         private void Awake()
         {
@@ -26,37 +42,50 @@ namespace Project.Scripts
             
             _rigidbody2D = GetComponent<Rigidbody2D>();
             
-            inputs = new Inputs();
-
-            inputs.Player.Interact.started += ctx =>
-            {
-                Debug.Log("Reload chunks");
-                chunkloader.ReloadChunks();
-            };
-
             var position = worldGeneration.FindSafeSpawnPosition(minHeight:worldData.beachHeight+0.1f, maxHeight:worldData.mountainHeight);
 
             transform.position = grid.CellToWorld(new Vector3Int(position.x, position.y, 0));
         }
-        
 
         private void OnEnable()
         {
-            inputs.Enable();
+            SubscribeToInput();
         }
         
         private void OnDisable()
         {
-            inputs.Disable();
+            UnsubscribeFromInput();
         }
 
         private void Update()
         {
-            var input = inputs.Player.Move.ReadValue<Vector2>() * (speed * Time.deltaTime);
+            var input = moveInput * (speed * Time.deltaTime);
+
+            playerDataController.SetWalking(input.magnitude > 0.1f);
             
-            if(inputs.Player.Interact.WasPressedThisFrame())
-                chunkloader.ReloadChunks();
             _rigidbody2D.AddForce(input);
         }
+        
+        private void InputManagerOnInputPerformed(InputContext context)
+        {
+            moveInput = context.Movement;
+        }
+        
+        private void SubscribeToInput()
+        {
+            if(_subscribedToInput || inputManager == null) return;
+            
+            inputManager.InputPerformed += InputManagerOnInputPerformed;
+            _subscribedToInput = true;
+        }
+
+        private void UnsubscribeFromInput()
+        {
+            if(!_subscribedToInput || inputManager == null) return;
+            
+            inputManager.InputPerformed -= InputManagerOnInputPerformed;
+            _subscribedToInput = false;
+        }
+
     }
 }

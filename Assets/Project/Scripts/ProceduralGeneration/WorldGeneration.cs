@@ -66,10 +66,18 @@ public class WorldGeneration : IWorldGenerator
         moistureNoise = new FastNoiseLite();
         moistureNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
         moistureNoise.SetSeed(645745 + worldData.seed);
+        moistureNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
+        moistureNoise.SetFractalOctaves(3);
+        moistureNoise.SetFractalLacunarity(2.720f);
+        moistureNoise.SetFractalGain(0.45f);
         
         temperatureNoise = new FastNoiseLite();
         temperatureNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
         temperatureNoise.SetSeed(324234 + worldData.seed);
+        temperatureNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
+        temperatureNoise.SetFractalOctaves(3);
+        temperatureNoise.SetFractalLacunarity(2.720f);
+        temperatureNoise.SetFractalGain(0.45f);
         
         erosionNoise = new FastNoiseLite();
         erosionNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
@@ -154,7 +162,7 @@ public class WorldGeneration : IWorldGenerator
         propNoise = new FastNoiseLite(667766 + worldData.seed);
     }
 
-    private float ContinentalNoise(float x, float y) => continentalNoise.GetNoise(x / worldData.continentalNoiseScale, y / worldData.continentalNoiseScale);
+    private float ContinentalNoise(float x, float y) => Mathf.InverseLerp(-0.5f, 0.5f,continentalNoise.GetNoise(x / worldData.continentalNoiseScale, y / worldData.continentalNoiseScale));
     private float MoistureNoise(float x, float y) => Mathf.InverseLerp(-.5f,.5f,moistureNoise.GetNoise(x / worldData.moistureNoiseScale, y / worldData.moistureNoiseScale));
     private float TemperatureNoise(float x, float y) => Mathf.InverseLerp(-.5f, .5f,temperatureNoise.GetNoise(x / worldData.temperatureNoiseScale, y / worldData.temperatureNoiseScale));
     
@@ -299,7 +307,7 @@ public class WorldGeneration : IWorldGenerator
         
         //ApplyLocalLandforms(x,y, ref height, moisture, temperature, ref biomeData);
         
-        height = Mathf.InverseLerp(-.1f,1f,height);
+        height = Mathf.InverseLerp(-.1f,1.25f,height);
 
         //height = PeakValleyNoise(x, y);
         
@@ -661,13 +669,13 @@ public class WorldGeneration : IWorldGenerator
                 {
                     //Volcanos can appear anywhere but hotter areas make them stronger
                     float hotMask = Mathf.Lerp(0.65f,1f, SmoothStep(0.45f, 0.85f, temperature));
-
-                    var lava = biomeLibrary.FirstOrDefault(t => t.biomeName.StartsWith("Volcano"));
-
-                    if (lava != null)
-                    {
-                        biomeData = BiomeSelector.BlendBiomes(biomeData.dominantBiome, lava, landMask * hotMask);
-                    }
+                    //
+                    // var lava = biomeLibrary.FirstOrDefault(t => t.biomeName.StartsWith("Volcano"));
+                    //
+                    // if (lava != null)
+                    // {
+                    //     biomeData = BiomeSelector.BlendBiomes(biomeData.dominantBiome, lava, landMask * hotMask);
+                    // }
                     
                     ApplyVolcano(
                         ref height,
@@ -720,7 +728,7 @@ public class WorldGeneration : IWorldGenerator
         float edgeMask = SmoothStep(0.35f, 1f, baseD);
 
         // Distort the volcano radius.
-        float distortedD = baseD + edgeNoise * 0.16f * edgeMask;
+        float distortedD = baseD + edgeNoise * 0.18f * edgeMask;
 
         // ------------------------------------------------------------
         // 2. Add volcanic ridges running down the slope
@@ -762,7 +770,7 @@ public class WorldGeneration : IWorldGenerator
         float rim = Ring(distortedD, 0.23f, 0.075f) * 0.27f;
 
         float craterBowl =
-            (1f - SmoothStep(0f, 0.24f, distortedD)) * 0.50f;
+            (1f - SmoothStep(0f, 0.43f, distortedD)) * 0.50f;
 
         // ------------------------------------------------------------
         // 4. Eroded gullies between ridges
@@ -776,7 +784,7 @@ public class WorldGeneration : IWorldGenerator
             SmoothStep(0.28f, 0.95f, distortedD) *
             0.10f;
 
-        height += (cone + rim + ridges - craterBowl - gullies) * weight;
+        height += ((cone + rim + ridges - craterBowl - gullies)*8f) * weight;
     }
     
     private void ApplyImpactCrater(ref float height, float d, float weight)

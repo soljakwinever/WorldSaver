@@ -1,10 +1,11 @@
 using System.Collections.Generic;
 using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
 
 namespace Project.Scripts
 {
-    public class ChunkBuildResult
+    public sealed class ChunkBuildResult
     {
         public const int ChunkSize = 32;
         public const int BufferedSize = ChunkSize + OverbufferSize * 2;
@@ -78,12 +79,13 @@ namespace Project.Scripts
             
     public struct PropSpawnData
     {
-        public Project.Scripts.DataTypes.SaveData.EntityId entityId;
+        public Project.Scripts.DataTypes.SaveData.NodeId NodeId;
         public Vector2Int worldPosition;
         public string propName;
         public Vector2 position;
         public float scale;
         public bool flipX;
         public TerrainSample terrainSample;
+        public EntityPersistenceKind persistenceKind;
     }
 }

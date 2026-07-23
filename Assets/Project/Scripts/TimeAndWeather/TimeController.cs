@@ -17,7 +17,6 @@ namespace Project.Scripts.GameTime
         
         private int dayInMonth; 
         private Season season;
-        private int _dayInMonth;
         private Season _season;
         private int _year;
 
@@ -57,7 +56,7 @@ namespace Project.Scripts.GameTime
             timeString = $"{Season} {DayInMonth} {Year:0000}\n{Hour:00}:{Minute:00}";
         }
 
-        public int DayInMonth => _dayInMonth;
+        public int DayInMonth => dayInMonth;
 
         public Season Season => _season;
 

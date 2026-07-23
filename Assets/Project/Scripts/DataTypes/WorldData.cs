@@ -1,15 +1,61 @@
 using System;
+using System.Collections.Generic;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Enums;
 using UnityEngine;
 using UnityEngine.Serialization;
-using UnityEngine.Tilemaps;
 
 namespace Project.Scripts
 {
     [CreateAssetMenu(fileName = "World Data", menuName = "WorldData", order = 0)]
     public class WorldData : ScriptableObject
     {
-        public TileBase[] tiles;
+        public TileData[] tiles;
+
+        public bool TryGetTileData(int tileId, out TileData tileData)
+        {
+            tileData = null;
+            if (tileId < 0)
+                return false;
+
+            if (tiles != null)
+            {
+                foreach (TileData candidate in tiles)
+                {
+                    if (candidate == null ||
+                        candidate.TileId != tileId ||
+                        candidate.TileBase == null)
+                        continue;
+
+                    if (tileData != null)
+                    {
+                        tileData = null;
+                        return false;
+                    }
+
+                    tileData = candidate;
+                }
+            }
+
+            return tileData != null;
+        }
+
+        private void OnValidate()
+        {
+            if (tiles == null)
+                return;
+
+            HashSet<int> ids = new();
+            foreach (TileData tile in tiles)
+            {
+                if (tile == null)
+                    continue;
+                if (tile.TileId < 0 || tile.TileBase == null)
+                    Debug.LogError($"Invalid tile definition '{tile.name}'.", tile);
+                else if (!ids.Add(tile.TileId))
+                    Debug.LogError($"Duplicate persistent tile ID {tile.TileId}.", this);
+            }
+        }
 
         public int seed;
         
@@ -53,6 +99,9 @@ namespace Project.Scripts
         public float maxFeatureRadius = 256f;
         
         public PropSpawnRule[] propSpawnRules;
+
+        [Header("Runtime Entities")]
+        public DataTypes.EntityArchetype[] runtimeEntityArchetypes;
         
         [Header("Time Data")]
         public int daysInMonth = 30;
@@ -62,6 +111,8 @@ namespace Project.Scripts
 
         [GradientUsage(true)]
         public Gradient dayColorGradient;
+        
+        public PlayerSettings playerSettings;
         
         public enum NoiseLayer
         {
@@ -79,6 +130,15 @@ namespace Project.Scripts
             MountainIsland,
             LocalLandforms,
             Lakes
+        }
+
+        [Serializable]
+        public class PlayerSettings
+        {
+            public float hungerRate = 0.005f;
+            public float energyRate = 0.005f;
+            
+            public float movementEnergyMulpiplier = 1.1f;
         }
 
         [Serializable]

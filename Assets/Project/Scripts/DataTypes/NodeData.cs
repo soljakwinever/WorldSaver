@@ -1,9 +1,11 @@
+using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
+using Zenject.ReflectionBaking.Mono.Cecil;
 
 namespace Project.Scripts
 {
     [CreateAssetMenu(fileName = "New Node Data", menuName = "Node Data", order = 0)]
-    public class NodeData : ScriptableObject
+    public sealed class NodeData : ScriptableObject
     {
         public Sprite sprite;
         public bool isTrigger;
@@ -19,11 +21,15 @@ namespace Project.Scripts
         public float lightness = 1;
         public float lightnessVariance = 0.0f;
         
+        public ResourceType resourceType;
+
         //Todo: Resource
 
-        public enum NodeType
+        public enum NodeType : byte
         {
-            Resource,
+            Harvestable,
+            Buildable,
+            Entity,
         }
         
         public enum ToolRequirement

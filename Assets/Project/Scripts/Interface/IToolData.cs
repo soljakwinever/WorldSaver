@@ -7,18 +7,4 @@ namespace Project.Scripts.Interface
         public int Power { get; }
         public float StaminaCost { get; }
     }
-    
-    public enum ToolType
-    {
-        Axe,
-        Pickaxe,
-        Hoe,
-        WateringCan,
-        Shovel,
-        FishingRod,
-        Hammer,
-        Sword,
-        Spear,
-        None
-    }
 }

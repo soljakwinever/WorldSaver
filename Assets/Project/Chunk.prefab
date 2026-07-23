@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2192097708493092769
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8056897704571369314}
+  m_Layer: 0
+  m_Name: Nodes
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8056897704571369314
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2192097708493092769}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 8191377541332474158}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5261493062494215904
 GameObject:
   m_ObjectHideFlags: 0
@@ -10,6 +41,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8191377541332474158}
   - component: {fileID: 3563933547565955901}
+  - component: {fileID: 7341598026341859201}
   - component: {fileID: 5478392736116554989}
   m_Layer: 0
   m_Name: Chunk
@@ -33,6 +65,7 @@ Transform:
   m_Children:
   - {fileID: 1331027695433322459}
   - {fileID: 2700305277295957478}
+  - {fileID: 8056897704571369314}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &3563933547565955901
@@ -49,13 +82,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   _groundTilemap: {fileID: 4112063885157446276}
   _waterTilemap: {fileID: 1229582530020419607}
-  DebugTile: {fileID: 11400000, guid: 6266f7fbe57973247924a4ffcd792947, type: 2}
-  GroundTile: {fileID: 11400000, guid: 333949bd687228644a6574a19acb19d1, type: 2}
-  PathTile: {fileID: 11400000, guid: 891afee3b71051d48af651fbbdcf7995, type: 2}
-  WaterTile: {fileID: 11400000, guid: 97686c16282da7049b0856a81a441b67, type: 2}
-  CliffTile: {fileID: 11400000, guid: 4e541ba50aeeece458a1f59e146abec4, type: 2}
-  BeachTile: {fileID: 11400000, guid: f07889fa0e2906b4d994f8518a67c581, type: 2}
-  WallTile: {fileID: 11400000, guid: 4e541ba50aeeece458a1f59e146abec4, type: 2}
+  _nodeTransform: {fileID: 8056897704571369314}
+  DebugTile: {fileID: 11400000, guid: 40444444444444448444444444444444, type: 2}
+  GroundTile: {fileID: 11400000, guid: 30333333333343338333333333333333, type: 2}
+  PathTile: {fileID: 11400000, guid: 10111111111141118111111111111111, type: 2}
+  WaterTile: {fileID: 11400000, guid: 50555555555545558555555555555555, type: 2}
+  CliffTile: {fileID: 11400000, guid: 20222222222242228222222222222222, type: 2}
+  BeachTile: {fileID: 11400000, guid: 60666666666646668666666666666666, type: 2}
+  WallTile: {fileID: 11400000, guid: 20222222222242228222222222222222, type: 2}
+--- !u!114 &7341598026341859201
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5261493062494215904}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2558815567d74c2aa524f3c995f92e11, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Playwinever.Core::Project.Scripts.Core.ChunkPersistenceRoot
 --- !u!1839735485 &5478392736116554989
 Tilemap:
   m_ObjectHideFlags: 0
@@ -271,7 +317,7 @@ GameObject:
   - component: {fileID: 2700305277295957478}
   - component: {fileID: 1229582530020419607}
   - component: {fileID: 1642239812559854265}
-  m_Layer: 0
+  m_Layer: 4
   m_Name: Water
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -1,6 +1,9 @@
 using Project.Scripts;
 using Project.Scripts.Bus;
+using Project.Scripts.Gameplay;
+using Project.Scripts.Core;
 using Project.Scripts.Interface;
+using Project.Scripts.Persistence;
 using UnityEngine;
 using Zenject;
 
@@ -8,9 +11,12 @@ public class GameDataInstaller : MonoInstaller
 {
     public Chunk chunkPrefab;
     public Node nodePrefab;
+
+    public RectTransform worldUi;
     
     public override void InstallBindings()
     {
+        Container.BindInterfacesAndSelfTo<InputManager>().AsSingle().NonLazy();
         Container.Bind<Chunk>().FromInstance(chunkPrefab);
 
         Container
@@ -28,13 +34,29 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<BiomeData[]>().FromMethod(t => Resources.LoadAll<BiomeData>("Biomes") 
         ).AsSingle();
 
+        Container.Bind<RectTransform>().WithId("WorldUI").FromInstance(worldUi);
 
-        Container.Bind<IChunkGenerator>().To<ChunkGenerator>().FromNew().AsSingle();
+        Container.BindInterfacesAndSelfTo<ChunkGenerator>().AsSingle().NonLazy();
         Container.Bind<WorldGeneration>().FromNew().AsSingle();
-        
+
         Container.Bind<Chunkloader>().FromComponentInHierarchy().AsSingle();
+
+        Container.Bind<IRegionDiskStore>().To<FileRegionDiskStore>().AsSingle();
+        Container.Bind<IRegionRepository>().To<RegionRepository>().AsSingle();
+        Container.BindInterfacesAndSelfTo<WorldClock>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
+        Container.Bind<DataController>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
         
-        Container.Bind<MapSignalBus>().FromNew().AsSingle();
-        Container.Bind<TimeSignalBus>().FromNew().AsSingle();
+        Container.Bind<PlayerDataController>().FromComponentInHierarchy().AsSingle();
+        
+        Container.Bind<MapSignalBus>().FromNew().AsSingle().NonLazy();
+        Container.Bind<TimeSignalBus>().FromNew().AsSingle().NonLazy();
+        Container.Bind<PlayerBus>().FromNew().AsSingle().NonLazy();
+
     }
 }

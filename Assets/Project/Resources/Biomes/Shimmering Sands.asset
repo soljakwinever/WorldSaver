@@ -32,6 +32,7 @@ MonoBehaviour:
   cliffChance: 0.05
   cliffStrength: 0.03
   cliffScale: 22
+  lakeStrength: 0.25
   volcanoChance: 0
   craterChance: 0.06
   mesaChance: 0.22
@@ -41,3 +42,8 @@ MonoBehaviour:
   waterColor: {r: 0.3137255, g: 0.7058824, b: 0.9019608, a: 1}
   cliffColor: {r: 0.64705884, g: 0.5882353, b: 0.47058824, a: 1}
   beachColor: {r: 0.98039216, g: 0.9019608, b: 0.6666667, a: 1}
+  overrideGroundTile: {fileID: 11400000, guid: 70777777777747778777777777777777, type: 2}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}

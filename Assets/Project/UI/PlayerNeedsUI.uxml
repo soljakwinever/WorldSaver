@@ -1,0 +1,20 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <ui:VisualElement name="NeedsDisplay" data-source-type="Project.Scripts.Gameplay.PlayerDataController, Playwinever.Gameplay" style="flex-grow: 0; bottom: 0; left: 0; width: 420px; height: 128px; background-color: rgb(99, 99, 99); position: absolute; border-top-left-radius: 24px; border-top-right-radius: 24px; border-bottom-right-radius: 24px; border-bottom-left-radius: 24px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px; padding-top: 12px; padding-right: 12px; padding-bottom: 12px; padding-left: 12px;">
+        <ui:VisualElement style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Hunger" style="color: rgb(255, 255, 255); text-shadow: 8px 8px 0 rgb(0, 0, 0); flex-grow: 0.1; width: 32px;"/>
+            <ui:ProgressBar value="22" title="" name="HungerBar" high-value="1" style="flex-grow: 1;">
+                <Bindings>
+                    <ui:DataBinding property="value" data-source-path="_hunger" binding-mode="ToTarget"/>
+                </Bindings>
+            </ui:ProgressBar>
+        </ui:VisualElement>
+        <ui:VisualElement style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Energy" style="color: rgb(255, 255, 255); text-shadow: 8px 8px 0 rgb(0, 0, 0); flex-grow: 0.1; width: 32px;"/>
+            <ui:ProgressBar value="22" title="" name="EnergyBar" high-value="1" style="flex-grow: 1;">
+                <Bindings>
+                    <ui:DataBinding property="value" data-source-path="_energy" binding-mode="ToTarget"/>
+                </Bindings>
+            </ui:ProgressBar>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
