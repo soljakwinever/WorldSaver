@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.Tilemaps;
+using Project.Scripts.DataTypes;
 
 namespace Project.Scripts
 {
@@ -48,11 +48,11 @@ namespace Project.Scripts
         public Color cliffColor = Color.red;
         public Color beachColor = Color.sandyBrown;
         
-        public TileBase overrideGroundTile;
-        public TileBase overridePathTile;
-        public TileBase overrideWaterTile;
-        public TileBase overrideCliffTile;
-        public TileBase overrideBeachTile;
+        public TileData overrideGroundTile;
+        public TileData overridePathTile;
+        public TileData overrideWaterTile;
+        public TileData overrideCliffTile;
+        public TileData overrideBeachTile;
 
     }
 }

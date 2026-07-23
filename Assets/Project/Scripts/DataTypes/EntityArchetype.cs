@@ -7,5 +7,8 @@ namespace Project.Scripts.DataTypes
     {
         [SerializeField] private int id;
         [SerializeField] private NodeData nodeData;
+
+        public int Id => id;
+        public NodeData NodeData => nodeData;
     }
 }

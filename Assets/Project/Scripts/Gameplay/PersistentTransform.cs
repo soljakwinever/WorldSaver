@@ -12,6 +12,17 @@ namespace Project.Scripts.Gameplay
         public ushort PersistentVersion => 1;
 
         [SerializeField] private Transform target;
+        private Vector3 _baselinePosition;
+        private Quaternion _baselineRotation;
+        private bool _alwaysPersist;
+
+        public void Initialize(bool alwaysPersist)
+        {
+            target ??= transform;
+            _baselinePosition = target.position;
+            _baselineRotation = target.rotation;
+            _alwaysPersist = alwaysPersist;
+        }
         
         public void WriteState(BinaryWriter writer)
         {
@@ -27,17 +38,20 @@ namespace Project.Scripts.Gameplay
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
         {
-            target.localPosition = new Vector3(
+            target.position = new Vector3(
                 reader.ReadSingle(), 
                 reader.ReadSingle(), 
                 reader.ReadSingle());
             
-            target.localRotation = Quaternion.Euler(0, 0, reader.ReadSingle());
+            target.rotation = Quaternion.Euler(0, 0, reader.ReadSingle());
         }
 
         public bool IsAtBaseline()
         {
-            return false;
+            target ??= transform;
+            return !_alwaysPersist &&
+                   target.position == _baselinePosition &&
+                   target.rotation == _baselineRotation;
         }
     }
 }

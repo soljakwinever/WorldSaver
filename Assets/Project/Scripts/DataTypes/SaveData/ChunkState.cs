@@ -10,15 +10,18 @@ namespace Project.Scripts.DataTypes.SaveData
         public long lastSimulatedTick;
         public List<PersistentEntityRecord> entities = new();
         public List<PersistenceComponentRecord> components = new();
+        public List<TileOverrideData> tileOverrides = new();
 
         public bool HasChanges =>
             (entities != null && entities.Count > 0) ||
-            (components != null && components.Count > 0);
+            (components != null && components.Count > 0) ||
+            (tileOverrides != null && tileOverrides.Count > 0);
 
         public void Compact()
         {
             entities ??= new List<PersistentEntityRecord>();
             components ??= new List<PersistenceComponentRecord>();
+            tileOverrides ??= new List<TileOverrideData>();
 
             for (int i = entities.Count - 1; i >= 0; i--)
             {
@@ -49,10 +52,34 @@ namespace Project.Scripts.DataTypes.SaveData
                 }
             }
 
+            HashSet<int> tileKeys = new();
+            for (int i = tileOverrides.Count - 1; i >= 0; i--)
+            {
+                TileOverrideData tileOverride = tileOverrides[i];
+                if (tileOverride == null)
+                {
+                    tileOverrides.RemoveAt(i);
+                    continue;
+                }
+
+                int key = ((int)tileOverride.layer << 16) |
+                          (tileOverride.localY << 8) |
+                          tileOverride.localX;
+                if (!tileKeys.Add(key))
+                    tileOverrides.RemoveAt(i);
+            }
+
             entities.Sort(static (left, right) =>
                 left.id.value.CompareTo(right.id.value));
             components.Sort(static (left, right) =>
                 left.typeId.CompareTo(right.typeId));
+            tileOverrides.Sort(static (left, right) =>
+            {
+                int layer = left.layer.CompareTo(right.layer);
+                if (layer != 0) return layer;
+                int y = left.localY.CompareTo(right.localY);
+                return y != 0 ? y : left.localX.CompareTo(right.localX);
+            });
         }
 
         public ChunkState CreateSnapshot()
@@ -78,6 +105,15 @@ namespace Project.Scripts.DataTypes.SaveData
                 {
                     if (component != null)
                         snapshot.components.Add(component.CreateSnapshot());
+                }
+            }
+
+            if (tileOverrides != null)
+            {
+                foreach (TileOverrideData tileOverride in tileOverrides)
+                {
+                    if (tileOverride != null)
+                        snapshot.tileOverrides.Add(tileOverride.CreateSnapshot());
                 }
             }
 

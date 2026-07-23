@@ -4,11 +4,13 @@ using System.Linq;
 using Project.Scripts;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using UnityEngine;
 using UnityEngine.Pool;
 using UnityEngine.Tilemaps;
 using Zenject;
+using TileData = Project.Scripts.DataTypes.TileData;
 
 [RequireComponent(typeof(ChunkPersistenceRoot))]
 public class Chunk : MonoBehaviour, IChunk
@@ -23,23 +25,34 @@ public class Chunk : MonoBehaviour, IChunk
     public Vector2Int Position { get; set; }
 
     [Inject] private WorldData worldData;
+    [Inject] private WorldGeneration worldGeneration;
 
     [Header("Debug")]
-    public TileBase DebugTile;
+    public TileData DebugTile;
 
     [Header("Default Tiles")]
-    public TileBase GroundTile;
-    public TileBase PathTile;
-    public TileBase WaterTile;
-    public TileBase CliffTile;
-    public TileBase BeachTile;
-    public TileBase WallTile;
+    public TileData GroundTile;
+    public TileData PathTile;
+    public TileData WaterTile;
+    public TileData CliffTile;
+    public TileData BeachTile;
+    public TileData WallTile;
 
     [Inject] private Node.Pool nodePool;
     [Inject] private DataController dataController;
 
     readonly List<Node> props = new();
     private ChunkPersistenceRoot _persistenceRoot;
+    private readonly TileData[][] _baselineTiles =
+    {
+        new TileData[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize],
+        new TileData[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize]
+    };
+    private readonly Color[][] _baselineColors =
+    {
+        new Color[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize],
+        new Color[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize]
+    };
 
     public void Init(ChunkBuildResult data)
     {
@@ -81,14 +94,27 @@ public class Chunk : MonoBehaviour, IChunk
 
                 var tileData = GetTile(offsetX + x, offsetY + y, biome, height, moisture, temperature, isCliff,
                     out var color);
-                changes.Add(new TileChangeData(tilePosition, tileData, color, Matrix4x4.identity));
+                color *= tileData.Color;
+                changes.Add(new TileChangeData(
+                    tilePosition, tileData.TileBase, color, Matrix4x4.identity));
+                int tileIndex = data.GetTileIndex(x, y);
+                _baselineTiles[(int)PersistentTileLayer.Ground][tileIndex] = tileData;
+                _baselineColors[(int)PersistentTileLayer.Ground][tileIndex] = color;
+                _baselineTiles[(int)PersistentTileLayer.Water][tileIndex] = null;
+                _baselineColors[(int)PersistentTileLayer.Water][tileIndex] = Color.white;
 
                 if (isWater && !worldData.heightMapDebug)
                 {
                     tileData = WaterTile;
-                    float depth = Mathf.InverseLerp(0, worldData.waterHeight, height);
-                    waterTiles.Add(new TileChangeData(tilePosition, tileData, new Color(depth, depth, depth),
+                    Color waterColor = new(
+                        Mathf.InverseLerp(0, worldData.waterHeight, height),
+                        Mathf.InverseLerp(0, worldData.waterHeight, height),
+                        Mathf.InverseLerp(0, worldData.waterHeight, height));
+                    waterColor *= tileData.Color;
+                    waterTiles.Add(new TileChangeData(tilePosition, tileData.TileBase, waterColor,
                         Matrix4x4.identity));
+                    _baselineTiles[(int)PersistentTileLayer.Water][tileIndex] = tileData;
+                    _baselineColors[(int)PersistentTileLayer.Water][tileIndex] = waterColor;
                 }
             }
         }
@@ -130,6 +156,7 @@ public class Chunk : MonoBehaviour, IChunk
     private void Awake()
     {
         _persistenceRoot = GetComponent<ChunkPersistenceRoot>();
+        _persistenceRoot.SetRuntimeEntityFactory(RestoreRuntimeEntity);
 
         if (_nodeTransform == null)
         {
@@ -137,11 +164,91 @@ public class Chunk : MonoBehaviour, IChunk
         }
     }
 
+    public PersistentEntity SpawnRuntimeEntity(EntityArchetype archetype, Vector2 worldPosition)
+    {
+        if (archetype == null)
+            throw new ArgumentNullException(nameof(archetype));
+        if (archetype.NodeData == null)
+        {
+            Debug.LogError(
+                $"Runtime archetype '{archetype.name}' has no NodeData assigned.",
+                archetype);
+            return null;
+        }
+        if (!_persistenceRoot.RestoreCompleted)
+        {
+            Debug.LogWarning($"Chunk {Position} is not ready for runtime spawns.", this);
+            return null;
+        }
+
+        NodeId id = NodeId.CreateRuntimeId();
+        PersistentEntity entity = SpawnRuntimeNode(id, archetype.Id, archetype.NodeData, worldPosition);
+        _persistenceRoot.RegisterRuntimeEntity(entity);
+        return entity;
+    }
+
+    private PersistentEntity RestoreRuntimeEntity(PersistentEntityRecord record)
+    {
+        EntityArchetype archetype = worldData.runtimeEntityArchetypes?
+            .FirstOrDefault(candidate => candidate.Id == record.archetypeId);
+
+        archetype ??= Resources.LoadAll<EntityArchetype>(string.Empty)
+            .FirstOrDefault(candidate => candidate.Id == record.archetypeId);
+
+        if (archetype == null)
+        {
+            Debug.LogError(
+                $"Cannot restore runtime entity {record.id}: archetype ID " +
+                $"{record.archetypeId} is not registered in WorldData or Resources.",
+                this);
+            return null;
+        }
+
+        if (archetype.NodeData == null)
+        {
+            Debug.LogError(
+                $"Cannot restore runtime entity {record.id}: archetype " +
+                $"'{archetype.name}' has no NodeData assigned.",
+                archetype);
+            return null;
+        }
+
+        // PersistentTransform applies the saved position immediately afterwards.
+        return SpawnRuntimeNode(record.id, archetype.Id, archetype.NodeData, transform.position);
+    }
+
+    private PersistentEntity SpawnRuntimeNode(
+        NodeId id,
+        int archetypeId,
+        NodeData nodeData,
+        Vector2 worldPosition)
+    {
+        Vector2Int cell = Vector2Int.FloorToInt(worldPosition);
+        TerrainSample sample = worldGeneration.GetTerrainSample(cell.x, cell.y);
+        PropSpawnData spawnData = new()
+        {
+            NodeId = id,
+            worldPosition = cell,
+            position = worldPosition,
+            scale = 1f,
+            terrainSample = sample,
+            persistenceKind = EntityPersistenceKind.RuntimeSpawned
+        };
+
+        Node node = nodePool.Spawn(id, spawnData, nodeData, sample, this);
+        node.GetComponent<PersistentEntity>().Initialize(
+            id, EntityPersistenceKind.RuntimeSpawned, archetypeId);
+        node.transform.SetParent(_nodeTransform);
+        props.Add(node);
+        return node.GetComponent<PersistentEntity>();
+    }
+
     private async void RestorePersistentState()
     {
         try
         {
             await dataController.RestoreChunkAsync(this);
+            ApplyPersistentTileOverrides();
         }
         catch (Exception)
         {
@@ -149,7 +256,130 @@ public class Chunk : MonoBehaviour, IChunk
         }
     }
 
-    private TileBase GetTile(int x, int y, BiomeBlend biome, float height, float moisture, float temperature,
+    /// <summary>Places a registered tile at a world cell after this chunk has restored.</summary>
+    public bool TryPlaceTile(
+        Vector3Int worldCell,
+        PersistentTileLayer layer,
+        TileData tile)
+    {
+        if (!TryGetLocalCell(worldCell, layer, out Vector3Int localCell) || tile == null)
+            return false;
+
+        if (!worldData.TryGetTileData(tile.TileId, out TileData registered) ||
+            registered != tile ||
+            tile.TileBase == null)
+        {
+            Debug.LogWarning(
+                $"Tile '{tile.name}' is not registered in WorldData.tiles and cannot be persisted.",
+                tile);
+            return false;
+        }
+
+        GetTilemap(layer).SetTile(localCell, tile.TileBase);
+        GetTilemap(layer).SetColor(localCell, tile.Color);
+        _persistenceRoot.SetTileOverride(new TileOverrideData
+        {
+            localX = (byte)localCell.x,
+            localY = (byte)localCell.y,
+            layer = layer,
+            kind = TileOverrideKind.Place,
+            tileId = tile.TileId
+        });
+        return true;
+    }
+
+    /// <summary>Persists an intentionally empty tile at a world cell.</summary>
+    public bool TryClearTile(Vector3Int worldCell, PersistentTileLayer layer)
+    {
+        if (!TryGetLocalCell(worldCell, layer, out Vector3Int localCell))
+            return false;
+
+        GetTilemap(layer).SetTile(localCell, null);
+        _persistenceRoot.SetTileOverride(new TileOverrideData
+        {
+            localX = (byte)localCell.x,
+            localY = (byte)localCell.y,
+            layer = layer,
+            kind = TileOverrideKind.Clear,
+            tileId = -1
+        });
+        return true;
+    }
+
+    /// <summary>Removes an override and restores the procedurally generated tile.</summary>
+    public bool TryResetTile(Vector3Int worldCell, PersistentTileLayer layer)
+    {
+        if (!TryGetLocalCell(worldCell, layer, out Vector3Int localCell))
+            return false;
+
+        _persistenceRoot.RemoveTileOverride(
+            (byte)localCell.x, (byte)localCell.y, layer);
+        ApplyBaseline(localCell, layer);
+        return true;
+    }
+
+    private void ApplyPersistentTileOverrides()
+    {
+        foreach (TileOverrideData tileOverride in _persistenceRoot.TileOverrides)
+        {
+            Vector3Int localCell = new(tileOverride.localX, tileOverride.localY);
+            Tilemap tilemap = GetTilemap(tileOverride.layer);
+
+            if (tileOverride.kind == TileOverrideKind.Clear)
+            {
+                tilemap.SetTile(localCell, null);
+                continue;
+            }
+
+            if (!worldData.TryGetTileData(
+                    tileOverride.tileId,
+                    out TileData tileData) ||
+                tileData.TileBase == null)
+            {
+                Debug.LogWarning(
+                    $"Chunk {Position} references missing persistent tile ID {tileOverride.tileId}.",
+                    this);
+                continue;
+            }
+
+            tilemap.SetTile(localCell, tileData.TileBase);
+            tilemap.SetColor(localCell, tileData.Color);
+        }
+    }
+
+    private bool TryGetLocalCell(
+        Vector3Int worldCell,
+        PersistentTileLayer layer,
+        out Vector3Int localCell)
+    {
+        localCell = new Vector3Int(
+            worldCell.x - Position.x * ChunkBuildResult.ChunkSize,
+            worldCell.y - Position.y * ChunkBuildResult.ChunkSize,
+            0);
+
+        return _persistenceRoot.RestoreCompleted &&
+               Enum.IsDefined(typeof(PersistentTileLayer), layer) &&
+               localCell.x >= 0 &&
+               localCell.y >= 0 &&
+               localCell.x < ChunkBuildResult.ChunkSize &&
+               localCell.y < ChunkBuildResult.ChunkSize;
+    }
+
+    private Tilemap GetTilemap(PersistentTileLayer layer)
+    {
+        return layer == PersistentTileLayer.Ground ? _groundTilemap : _waterTilemap;
+    }
+
+    private void ApplyBaseline(Vector3Int localCell, PersistentTileLayer layer)
+    {
+        int index = localCell.x + localCell.y * ChunkBuildResult.ChunkSize;
+        Tilemap tilemap = GetTilemap(layer);
+        TileData tileData = _baselineTiles[(int)layer][index];
+        tilemap.SetTile(localCell, tileData != null ? tileData.TileBase : null);
+        tilemap.SetColor(localCell, _baselineColors[(int)layer][index]);
+    }
+
+    private TileData GetTile(int x, int y, BiomeBlend biome, float height, float moisture, float temperature,
         bool isCliff, out Color color)
     {
         if (worldData.heightMapDebug)

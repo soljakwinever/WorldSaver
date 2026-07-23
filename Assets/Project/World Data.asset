@@ -13,7 +13,16 @@ MonoBehaviour:
   m_Name: World Data
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.WorldData
   tiles:
-  - {fileID: 11400000, guid: 891afee3b71051d48af651fbbdcf7995, type: 2}
+  - {fileID: 11400000, guid: 10111111111141118111111111111111, type: 2}
+  - {fileID: 11400000, guid: 20222222222242228222222222222222, type: 2}
+  - {fileID: 11400000, guid: 30333333333343338333333333333333, type: 2}
+  - {fileID: 11400000, guid: 40444444444444448444444444444444, type: 2}
+  - {fileID: 11400000, guid: 50555555555545558555555555555555, type: 2}
+  - {fileID: 11400000, guid: 60666666666646668666666666666666, type: 2}
+  - {fileID: 11400000, guid: 70777777777747778777777777777777, type: 2}
+  - {fileID: 11400000, guid: 80888888888848888888888888888888, type: 2}
+  - {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
+  - {fileID: 11400000, guid: a0aaaaaaaaaa4aaa8aaaaaaaaaaaaaaa, type: 2}
   seed: 44
   heightMapDebug: 0
   previewNoiseLayer: 1
@@ -590,6 +599,8 @@ MonoBehaviour:
     minScale: 0.85
     maxScale: 1
     randomFlipX: 1
+  runtimeEntityArchetypes:
+  - {fileID: 11400000, guid: f54a64c4914aedb45a88fb4adc14ed5d, type: 2}
   daysInMonth: 30
   minutesPerDay: 5
   startHour: 8

@@ -19,10 +19,12 @@ namespace Project.Scripts.Core
 
         public void Initialize(
             NodeId id,
-            EntityPersistenceKind persistenceKind)
+            EntityPersistenceKind persistenceKind,
+            int runtimeArchetypeId = 0)
         {
             _id = id;
             _persistenceKind = persistenceKind;
+            archetypeId = runtimeArchetypeId;
             _owner = null;
         }
 

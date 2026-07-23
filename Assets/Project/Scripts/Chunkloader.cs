@@ -4,9 +4,10 @@ using System.Linq;
 using Project.Scripts;
 using Project.Scripts.Bus;
 using Project.Scripts.Interface;
+using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Tilemaps;
 using Zenject;
 
 public class Chunkloader : MonoBehaviour, IChunkLoader
@@ -24,8 +25,11 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     }
 
     [SerializeField] private GameObject cursor;
+    [SerializeField] private EntityArchetype mouseSpawnArchetype;
+    [SerializeField] private TileData[] mousePlacementTiles;
     
     [Inject] private WorldGeneration worldGeneration;
+    [Inject] private WorldData worldData;
     [Inject] private MapSignalBus mapSignalBus;
     
     private Vector2Int _lastPosition;
@@ -42,6 +46,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     private Dictionary<Vector2Int, ChunkInstance> _loadedChunks = new Dictionary<Vector2Int, ChunkInstance>();
 
     [Inject] private Chunk.Pool chunkPool;
+
+    private int selectedTile = 0;
     
     private class ChunkInstance
     {
@@ -62,9 +68,30 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        if (mouseSpawnArchetype == null &&
+            worldData.runtimeEntityArchetypes?.Length > 0)
+        {
+            mouseSpawnArchetype = worldData.runtimeEntityArchetypes[0];
+        }
+
+        if (mouseSpawnArchetype != null &&
+            (worldData.runtimeEntityArchetypes == null ||
+             !worldData.runtimeEntityArchetypes.Contains(mouseSpawnArchetype)))
+        {
+            worldData.runtimeEntityArchetypes =
+                (worldData.runtimeEntityArchetypes ?? Array.Empty<EntityArchetype>())
+                .Append(mouseSpawnArchetype)
+                .ToArray();
+        }
+
         mapSignalBus.ChunkBuilt += MapSignalBusOnChunkBuilt;
         if (!chunkGenerator.IsRunning)
             chunkGenerator.Run(this,destroyCancellationToken);
+    }
+
+    private void OnDestroy()
+    {
+        mapSignalBus.ChunkBuilt -= MapSignalBusOnChunkBuilt;
     }
 
     private void MapSignalBusOnChunkBuilt(ChunkBuildResult result)
@@ -112,6 +139,23 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
 
     }
 
+    public bool TryGetLoadedChunk(Vector3Int worldCell, out Chunk chunk)
+    {
+        Vector2Int chunkPosition = new(
+            Mathf.FloorToInt((float)worldCell.x / ChunkBuildResult.ChunkSize),
+            Mathf.FloorToInt((float)worldCell.y / ChunkBuildResult.ChunkSize));
+
+        if (_loadedChunks.TryGetValue(chunkPosition, out ChunkInstance loaded) &&
+            loaded.chunk is Chunk concreteChunk)
+        {
+            chunk = concreteChunk;
+            return true;
+        }
+
+        chunk = null;
+        return false;
+    }
+
     private void CreateChunk(Vector2Int position)
     {
         chunkGenerator.RequestChunk(position);
@@ -145,13 +189,51 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         
         labelPosition.y += 16;
         GUI.Label(labelPosition, $"Biome: {tile.biome.name}");
+
+        labelPosition.y += 32;
+        GUI.Label(labelPosition,$"Place Tile: {mousePlacementTiles[selectedTile].name}");
     }
 
     // Update is called once per frame
     void Update()
     {
+        if (Mouse.current.scroll.ReadValue().y > 0.01f)
+        {
+            selectedTile = (selectedTile + 1) % mousePlacementTiles.Length;
+        }
+        
+        if (Mouse.current != null && Camera.main != null &&
+            (Mouse.current.leftButton.wasPressedThisFrame ||
+             Mouse.current.rightButton.wasPressedThisFrame))
+        {
+            Vector2 worldPosition =
+                Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
+            Vector2Int chunkPosition = new(
+                Mathf.FloorToInt(worldPosition.x / ChunkBuildResult.ChunkSize),
+                Mathf.FloorToInt(worldPosition.y / ChunkBuildResult.ChunkSize));
+            
+            if (_loadedChunks.TryGetValue(chunkPosition, out ChunkInstance loaded) &&
+                loaded.chunk is Chunk chunk)
+            {
+                if (Mouse.current.leftButton.wasPressedThisFrame)
+                {
+                    Vector3Int worldCell = new(
+                        Mathf.FloorToInt(worldPosition.x),
+                        Mathf.FloorToInt(worldPosition.y));
+                    chunk.TryPlaceTile(
+                        worldCell,
+                        PersistentTileLayer.Ground,
+                        mousePlacementTiles[selectedTile] != null ? mousePlacementTiles[selectedTile] : chunk.WallTile);
+                }
+                else if (mouseSpawnArchetype != null)
+                {
+                    chunk.SpawnRuntimeEntity(mouseSpawnArchetype, worldPosition);
+                }
+            }
+        }
+
         tickTimer += Time.deltaTime;
-        if (tickTimer < TickTime)
+        if (tickTimer >= TickTime)
         {
             List<Vector2Int> toRemove = new List<Vector2Int>();
             foreach (var chunkInstance in _loadedChunks)

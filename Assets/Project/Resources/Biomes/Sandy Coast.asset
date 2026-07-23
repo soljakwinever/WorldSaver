@@ -42,7 +42,7 @@ MonoBehaviour:
   waterColor: {r: 0.1764706, g: 0.5294118, b: 0.8627451, a: 1}
   cliffColor: {r: 0.5294118, g: 0.50980395, b: 0.4117647, a: 1}
   beachColor: {r: 0.92156863, g: 0.84313726, b: 0.5686275, a: 1}
-  overrideGroundTile: {fileID: 11400000, guid: 65fec0bce8bc9f143a589caf3d6bdbda, type: 2}
+  overrideGroundTile: {fileID: 11400000, guid: a0aaaaaaaaaa4aaa8aaaaaaaaaaaaaaa, type: 2}
   overridePathTile: {fileID: 0}
   overrideWaterTile: {fileID: 0}
   overrideCliffTile: {fileID: 0}

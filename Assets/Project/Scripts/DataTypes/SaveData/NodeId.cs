@@ -95,5 +95,12 @@ namespace Project.Scripts.DataTypes.SaveData
             
             return new NodeId(id);
         }
+
+        public static NodeId CreateRuntimeId()
+        {
+            const ulong RuntimeEntityMask = 1UL << 63;
+            ulong value = BitConverter.ToUInt64(Guid.NewGuid().ToByteArray(), 0);
+            return new NodeId(RuntimeEntityMask | (value & ~RuntimeEntityMask));
+        }
     }
 }

@@ -27,8 +27,9 @@ namespace Project.Scripts
 
         public enum NodeType : byte
         {
-            Plant,
-            Stone,
+            Harvestable,
+            Buildable,
+            Entity,
         }
         
         public enum ToolRequirement

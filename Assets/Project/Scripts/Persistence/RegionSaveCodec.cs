@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 
 namespace Project.Scripts.Persistence
@@ -114,6 +115,11 @@ namespace Project.Scripts.Persistence
                         writer,
                         chunk.components[componentIndex]);
                 }
+
+                int tileCount = chunk.tileOverrides?.Count ?? 0;
+                writer.Write(tileCount);
+                for (int tileIndex = 0; tileIndex < tileCount; tileIndex++)
+                    WriteTileOverride(writer, chunk.tileOverrides[tileIndex]);
             }
         }
 
@@ -145,8 +151,48 @@ namespace Project.Scripts.Persistence
                     chunk.components.Add(ReadPersistentComponent(reader));
                 }
 
+                if (save.version >= 2)
+                {
+                    int tileCount = ReadCount(reader, "tile override");
+                    for (int tileIndex = 0; tileIndex < tileCount; tileIndex++)
+                        chunk.tileOverrides.Add(ReadTileOverride(reader));
+                }
+
                 save.changedChunks.Add(chunk);
             }
+        }
+
+        private static void WriteTileOverride(BinaryWriter writer, TileOverrideData tile)
+        {
+            writer.Write(tile.localX);
+            writer.Write(tile.localY);
+            writer.Write((byte)tile.layer);
+            writer.Write((byte)tile.kind);
+            writer.Write(tile.tileId);
+        }
+
+        private static TileOverrideData ReadTileOverride(BinaryReader reader)
+        {
+            TileOverrideData tile = new()
+            {
+                localX = reader.ReadByte(),
+                localY = reader.ReadByte(),
+                layer = (PersistentTileLayer)reader.ReadByte(),
+                kind = (TileOverrideKind)reader.ReadByte(),
+                tileId = reader.ReadInt32()
+            };
+
+            if (tile.localX >= ChunkBuildResult.ChunkSize ||
+                tile.localY >= ChunkBuildResult.ChunkSize)
+                throw new InvalidDataException("Tile override is outside its chunk.");
+            if (!Enum.IsDefined(typeof(PersistentTileLayer), tile.layer) ||
+                !Enum.IsDefined(typeof(TileOverrideKind), tile.kind))
+                throw new InvalidDataException("Invalid tile override enum value.");
+            if ((tile.kind == TileOverrideKind.Place && tile.tileId < 0) ||
+                (tile.kind == TileOverrideKind.Clear && tile.tileId != -1))
+                throw new InvalidDataException("Invalid tile override tile ID.");
+
+            return tile;
         }
 
         private static void WriteEntity(

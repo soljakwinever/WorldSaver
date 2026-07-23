@@ -9,12 +9,21 @@ namespace Project.Scripts.Core
     {
         private readonly Dictionary<NodeId, PersistentEntity> _entities = new();
         private readonly Dictionary<NodeId, PersistentEntityRecord> _tombstones = new();
+        private readonly Dictionary<int, TileOverrideData> _tileOverrides = new();
 
         private Vector2Int _chunkPosition;
         private bool _restoreCompleted;
+        private Func<PersistentEntityRecord, PersistentEntity> _runtimeEntityFactory;
 
         public Vector2Int ChunkPosition => _chunkPosition;
         public bool RestoreCompleted => _restoreCompleted;
+        public IEnumerable<TileOverrideData> TileOverrides => _tileOverrides.Values;
+
+        public void SetRuntimeEntityFactory(
+            Func<PersistentEntityRecord, PersistentEntity> factory)
+        {
+            _runtimeEntityFactory = factory;
+        }
 
         // Call this before Chunk.Init spawns any generated nodes.
         public void BeginRestore(Vector2Int chunkPosition)
@@ -23,6 +32,7 @@ namespace Project.Scripts.Core
             _restoreCompleted = false;
             _entities.Clear();
             _tombstones.Clear();
+            _tileOverrides.Clear();
         }
 
         // Registration is explicit because the node pool is not parented under
@@ -46,7 +56,22 @@ namespace Project.Scripts.Core
 
         public void Restore(ChunkState state)
         {
-            if (state?.entities == null)
+            if (state == null)
+                return;
+
+            if (state.tileOverrides != null)
+            {
+                foreach (TileOverrideData tileOverride in state.tileOverrides)
+                {
+                    if (tileOverride != null)
+                        _tileOverrides[GetTileKey(
+                            tileOverride.localX,
+                            tileOverride.localY,
+                            tileOverride.layer)] = tileOverride.CreateSnapshot();
+                }
+            }
+
+            if (state.entities == null)
                 return;
 
             foreach (PersistentEntityRecord record in state.entities)
@@ -111,8 +136,33 @@ namespace Project.Scripts.Core
                     state.entities.Add(record);
             }
 
+            foreach (TileOverrideData tileOverride in _tileOverrides.Values)
+                state.tileOverrides.Add(tileOverride.CreateSnapshot());
+
             state.Compact();
             return state;
+        }
+
+        public void SetTileOverride(TileOverrideData tileOverride)
+        {
+            if (!_restoreCompleted)
+                throw new InvalidOperationException("Cannot edit tiles before chunk restore completes.");
+
+            _tileOverrides[GetTileKey(
+                tileOverride.localX,
+                tileOverride.localY,
+                tileOverride.layer)] = tileOverride.CreateSnapshot();
+        }
+
+        public bool RemoveTileOverride(
+            byte localX,
+            byte localY,
+            PersistentTileLayer layer)
+        {
+            if (!_restoreCompleted)
+                throw new InvalidOperationException("Cannot edit tiles before chunk restore completes.");
+
+            return _tileOverrides.Remove(GetTileKey(localX, localY, layer));
         }
 
         public void NotifyEntityRemoved(PersistentEntity entity)
@@ -159,8 +209,17 @@ namespace Project.Scripts.Core
 
             _entities.Clear();
             _tombstones.Clear();
+            _tileOverrides.Clear();
             _restoreCompleted = false;
             _chunkPosition = default;
+        }
+
+        private static int GetTileKey(
+            byte localX,
+            byte localY,
+            PersistentTileLayer layer)
+        {
+            return ((int)layer << 16) | (localY << 8) | localX;
         }
 
         private void RegisterEntity(PersistentEntity entity)
@@ -196,11 +255,18 @@ namespace Project.Scripts.Core
 
             if (record.persistenceKind == EntityPersistenceKind.RuntimeSpawned)
             {
-                Debug.LogWarning(
-                    $"Runtime entity {record.id} needs an archetype factory. " +
-                    "This vertical slice intentionally implements procedural " +
-                    "and authored entities first.",
-                    this);
+                if (_runtimeEntityFactory == null)
+                {
+                    Debug.LogError($"No runtime entity factory for chunk {_chunkPosition}.", this);
+                    return;
+                }
+
+                PersistentEntity restored = _runtimeEntityFactory(record);
+                if (restored == null)
+                    return;
+
+                RegisterRuntimeEntity(restored);
+                restored.RestorePersistentState(record);
                 return;
             }
 

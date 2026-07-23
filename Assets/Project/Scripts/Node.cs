@@ -23,18 +23,25 @@ public class Node : MonoBehaviour, IInteractable
 
     private GameObject _overrideVisual;
     
-    public void Initialize(NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample, Chunk chunk)
+    public void Initialize(NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample,
+        Chunk chunk, int archetypeId = 0)
     {
+        ClearOverrideVisual();
         _nodeData = nodeData;
         
-        _persistentEntity.Initialize(nodeId, spawnData.persistenceKind);
+        _persistentEntity.Initialize(nodeId, spawnData.persistenceKind, archetypeId);
         
         name = $"{nodeData.name} ({nodeId})";
         
         transform.position = spawnData.position;
         transform.localScale = new Vector3(spawnData.scale, spawnData.scale, 1);
-        
-        
+
+        // A pooled Node may previously have represented a sprite-based prop or
+        // an override-visual entity. Reset both presentation paths before
+        // selecting the one used by the new NodeData.
+        spriteRenderer.sprite = null;
+        spriteRenderer.enabled = nodeData.overrideVisual == null;
+
         if(nodeData.overrideVisual)
         {
             _overrideVisual = Instantiate(nodeData.overrideVisual, transform);
@@ -45,6 +52,11 @@ public class Node : MonoBehaviour, IInteractable
         }
         
         _collider2D.isTrigger = nodeData.isTrigger;
+
+        var persistentTransform = GetComponent<Project.Scripts.Gameplay.PersistentTransform>();
+        if (persistentTransform == null)
+            persistentTransform = gameObject.AddComponent<Project.Scripts.Gameplay.PersistentTransform>();
+        persistentTransform.Initialize(spawnData.persistenceKind == EntityPersistenceKind.RuntimeSpawned);
 
         void InitializeSpriteAppearance()
         {
@@ -117,8 +129,20 @@ public class Node : MonoBehaviour, IInteractable
     private void CleanUp()
     {
         name = "Empty";
-        if(_overrideVisual)
-            Destroy(_overrideVisual);
+        ClearOverrideVisual();
+    }
+
+    private void ClearOverrideVisual()
+    {
+        if (!_overrideVisual)
+            return;
+
+        // Destroy is deferred until the end of the frame. Disable the old
+        // pooled visual first so it cannot reappear if this Node is spawned
+        // again before Unity processes the destruction.
+        _overrideVisual.SetActive(false);
+        Destroy(_overrideVisual);
+        _overrideVisual = null;
     }
 
     private void Awake()
