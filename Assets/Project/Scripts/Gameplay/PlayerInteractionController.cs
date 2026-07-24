@@ -1,4 +1,5 @@
 ﻿using Project.Scripts.Bus;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using UnityEngine;
@@ -19,6 +20,8 @@ namespace Project.Scripts.Gameplay
         private IInputManager inputManager;
         
         private IInteractable focusedInteractable;
+        private ItemData activeItem;
+        private ItemData.Rarity activeItemRarity;
 
         [Inject]
         public void Construct(IInputManager inputManager)
@@ -94,6 +97,70 @@ namespace Project.Scripts.Gameplay
                 focusedInteractable.Interact(context);
         }
 
+        public void SetActiveItem(
+            ItemData item,
+            ItemData.Rarity rarity = ItemData.Rarity.Common)
+        {
+            activeItem = item;
+            activeItemRarity = rarity;
+        }
+
+        public bool CanUseActiveItem()
+        {
+            return activeItem != null &&
+                   activeItem.action != null &&
+                   activeItem.action.CanPerform(CreateItemActionContext());
+        }
+
+        public bool TryUseActiveItem()
+        {
+            if (!CanUseActiveItem())
+                return false;
+
+            ItemAction action = activeItem.action;
+            PersistentInventory inventory = null;
+            if (action.ConsumesItem)
+            {
+                inventory = GetComponent<PersistentInventory>();
+                if (inventory == null ||
+                    !inventory.Contains(activeItem, 1, activeItemRarity))
+                    return false;
+            }
+
+            if (!action.Perform(CreateItemActionContext()))
+                return false;
+
+            return !action.ConsumesItem ||
+                   inventory.TryRemove(activeItem, 1, activeItemRarity);
+        }
+
+        public bool CanUseTool(ToolData tool)
+        {
+            if (tool == null || focusedInteractable == null)
+                return false;
+
+            return focusedInteractable.CanInteract(
+                new InteractionContext(gameObject, InteractionType.Tool, tool));
+        }
+
+        public bool TryUseTool(ToolData tool)
+        {
+            if (!CanUseTool(tool))
+                return false;
+
+            focusedInteractable.Interact(
+                new InteractionContext(gameObject, InteractionType.Tool, tool));
+            return true;
+        }
+
+        private ItemActionContext CreateItemActionContext()
+        {
+            Vector3 targetPosition = facingPoint != null
+                ? facingPoint.position
+                : transform.position;
+            return new ItemActionContext(gameObject, targetPosition);
+        }
+
         private InteractionContext CreateDirectInteractionContext()
         {
             return new InteractionContext(gameObject, InteractionType.Direct, null);
@@ -105,9 +172,24 @@ namespace Project.Scripts.Gameplay
             {
                 TryDirectInteract();
             }
+
+            if (context.AttackPressed)
+            {
+                TryUseActiveItem();
+            }
+
+            if (context.HotBarPressed != InputContext.NoHotbarKeyPressed)
+            {
+                SetSelectedItem(context.HotBarPressed);
+            }
         }
-        
-        
+
+        private void SetSelectedItem(int contextHotBarPressed)
+        {
+            
+        }
+
+
         private void SubscribeToInput()
         {
             if (_inputSubscribed || inputManager == null) return;

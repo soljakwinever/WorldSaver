@@ -15,6 +15,9 @@ namespace Project.Scripts.DataTypes
         public int maxStack;
         
         public Sprite sprite;
+
+        [Tooltip("Optional action performed when this item is used from the HotBar.")]
+        public ItemAction action;
         
         public int goldValue;
         [Min(1)] public int fuelValue = 1;

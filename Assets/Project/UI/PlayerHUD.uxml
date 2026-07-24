@@ -17,4 +17,12 @@
             </ui:ProgressBar>
         </ui:VisualElement>
     </ui:VisualElement>
+    <ui:VisualElement name="Toolbar" style="flex-grow: 1; position: absolute; bottom: 0; left: auto; right: auto; width: 800px; top: auto; height: 72px; background-color: rgb(99, 99, 99); border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; align-self: center; flex-direction: row; padding-top: 4px; padding-right: 4px; padding-bottom: 4px; padding-left: 4px;">
+        <ui:VisualElement name="ToolbarElement" style="flex-grow: 0; width: 64px; height: 64px; background-color: rgb(255, 255, 255); border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px;">
+            <ui:Label text="{0}" style="bottom: 0; right: 0; position: absolute;"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="ToolbarElement" style="flex-grow: 0; width: 64px; height: 64px; background-color: rgb(255, 255, 255); border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px;">
+            <ui:Label text="{0}" style="bottom: 0; right: 0; position: absolute;"/>
+        </ui:VisualElement>
+    </ui:VisualElement>
 </ui:UXML>

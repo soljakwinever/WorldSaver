@@ -2,6 +2,7 @@ using System;
 using Project.Scripts.Interface;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 using Zenject;
 
 namespace Project.Scripts.Core
@@ -15,7 +16,9 @@ namespace Project.Scripts.Core
         private InputAction _inventory;
         private InputAction _attack;
         private InputAction _skill;
+        private InputAction _hotKeyPressed;
         private bool _ownsSkillAction;
+        private int _pendingHotKey = -1;
 
         public InputContext Context => CreateContext(out _);
         public event Action<InputContext> InputPerformed;
@@ -28,7 +31,8 @@ namespace Project.Scripts.Core
             _inventory = _inputs.asset.FindAction("Player/Inventory", true);
             _attack = _inputs.asset.FindAction("Player/Attack", true);
             _skill = _inputs.asset.FindAction("Player/Skill");
-
+            _hotKeyPressed = _inputs.asset.FindAction("Player/Hotbar", true);
+            _hotKeyPressed.performed += OnHotKeyPressed;
             // Keeps play mode usable until Unity regenerates Inputs after the
             // InputSystem_Actions asset gains the Skill action.
             if (_skill == null)
@@ -43,11 +47,25 @@ namespace Project.Scripts.Core
             _inputs.Player.Enable();
         }
 
+        private int GetHotKeyPressed()
+        {
+            int hotKey = _pendingHotKey;
+            _pendingHotKey = -1;
+            return hotKey;
+        }
+
+        private void OnHotKeyPressed(InputAction.CallbackContext context)
+        {
+            if (context.ReadValueAsButton() && context.control is KeyControl key)
+                _pendingHotKey = KeyToNumber(key.keyCode);
+        }
+
         public void Tick()
         {
             InputContext context = CreateContext(out var movement);
             if (context.InteractionPressed || context.InventoryPressed ||
-                context.AttackPressed || context.SkillPressed || movement != lastMovement)
+                context.AttackPressed || context.SkillPressed ||
+                context.HotBarPressed >= 0 || movement != lastMovement)
             {
                 InputPerformed?.Invoke(context);
             }
@@ -59,6 +77,7 @@ namespace Project.Scripts.Core
             if (_inputs == null)
                 return;
 
+            _hotKeyPressed.performed -= OnHotKeyPressed;
             _inputs.Player.Disable();
             if (_ownsSkillAction)
             {
@@ -84,7 +103,27 @@ namespace Project.Scripts.Core
                 _interact.WasPressedThisFrame(),
                 _inventory.WasPressedThisFrame(),
                 _attack.WasPressedThisFrame(),
-                _skill.WasPressedThisFrame());
+                _skill.WasPressedThisFrame(),
+                GetHotKeyPressed());
+        }
+
+        private static int KeyToNumber(Key key)
+        {
+            Debug.Log($"Key: {key}");
+            return key switch
+            {
+                Key.Digit1 => 0,
+                Key.Digit2 => 1,
+                Key.Digit3 => 2,
+                Key.Digit4 => 3,
+                Key.Digit5 => 4,
+                Key.Digit6 => 5,
+                Key.Digit7 => 6,
+                Key.Digit8 => 7,
+                Key.Digit9 => 8,
+                Key.Digit0 => 9,
+                _ => -1
+            };
         }
     }
 }

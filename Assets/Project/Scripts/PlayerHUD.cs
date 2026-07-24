@@ -1,30 +1,54 @@
-using System;
+using Project.Scripts.Core;
 using Project.Scripts.Gameplay;
+using Project.Scripts.Interface;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Zenject;
 
-[RequireComponent(typeof(UIDocument))]
-public class PlayerHUD : MonoBehaviour
+namespace Project.Scripts
 {
-    private UIDocument _uiDocument;
+    [RequireComponent(typeof(PanelRenderer))]
+    public class PlayerHUD : MonoBehaviour
+    {
+        private PanelRenderer _uiDocument;
     
-    [Inject] private PlayerDataController playerDataController;
-    
-    private void Awake()
-    {
-        _uiDocument = GetComponent<UIDocument>();
-    }
+        [Inject] private PlayerDataController playerDataController;
+        private IInputManager inputManager;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        _uiDocument.rootVisualElement.Q("NeedsDisplay").dataSource = playerDataController;    
-    }
+        [Inject]
+        public void Construct([Inject] IInputManager inputManager)
+        {
+            this.inputManager = inputManager;
+            inputManager.InputPerformed += InputManagerOnInputPerformed;
+        }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
+        private void InputManagerOnInputPerformed(InputContext context)
+        {
+            if (context.HotBarPressed >= 0)
+            {
+                
+            }
+        }
+
+        private void HandleHotBar(int hotbarPressed)
+        {
+            
+        }
+
+        private void Awake()
+        {
+            _uiDocument = GetComponent<PanelRenderer>();
+        }
+
+        // Start is called once before the first execution of Update after the MonoBehaviour is created
+        void Start()
+        {
+            _uiDocument.RegisterUIReloadCallback(ReloadCallback);
+        }
+
+        private void ReloadCallback(PanelRenderer panel, VisualElement root)
+        {
+            root.Q("NeedsDisplay").dataSource = playerDataController;
+        }
     }
 }
