@@ -1,18 +1,20 @@
 using System;
 using System.IO;
+using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using Project.Scripts.Utility;
 using UnityEngine;
+using Zenject;
 
 namespace Project.Scripts.Gameplay
 {
-    [RequireComponent(typeof(PersistentInventory))]
-    public sealed class PersistentProduction : MonoBehaviour, IPersistentComponent, IOfflineSimulatable
+    public sealed class PersistentProduction : MonoBehaviour, IPersistentComponent,
+        IOfflineSimulatable, IConditionallyActive
     {
         public const ushort TypeId = 6;
-        private const ushort CurrentVersion = 2;
+        private const ushort CurrentVersion = 3;
         private const int RarityCount = (int)ItemData.Rarity.Legendary + 1;
 
         [SerializeField] private ItemData outputItem;
@@ -20,20 +22,41 @@ namespace Project.Scripts.Gameplay
         [SerializeField, Min(1)] private long ticksPerCycle = 600;
         [SerializeField] private bool generateRarity;
         [SerializeField] private ItemData.Rarity rarity = ItemData.Rarity.Common;
+        [SerializeField] private EntityConditionDefinition activationCondition;
 
         private readonly int[] _pendingByRarity = new int[RarityCount];
         private PersistentInventory _inventory;
+        private IWorldClock _worldClock;
         private long _lastProductionTick;
+        private long _cycleProgressTicks;
+        private bool _productionTickInitialized;
+        private IOperationCondition _condition;
 
         public ushort PersistentTypeId => TypeId;
         public ushort PersistentVersion => CurrentVersion;
+        public bool IsConditionSatisfied
+        {
+            get
+            {
+                IOperationCondition condition = ResolveCondition();
+                return condition == null || condition.AvailableOperations > 0;
+            }
+        }
+
+        [Inject]
+        public void Construct(IWorldClock worldClock)
+        {
+            _worldClock = worldClock ??
+                throw new ArgumentNullException(nameof(worldClock));
+        }
 
         public void Initialize(
             ItemData item,
             int outputPerCycle,
             long cycleTicks,
             bool shouldGenerateRarity,
-            ItemData.Rarity fixedRarity = ItemData.Rarity.Common)
+            ItemData.Rarity fixedRarity = ItemData.Rarity.Common,
+            EntityConditionDefinition condition = null)
         {
             outputItem = item != null
                 ? item
@@ -42,8 +65,29 @@ namespace Project.Scripts.Gameplay
             ticksPerCycle = Math.Max(1, cycleTicks);
             generateRarity = shouldGenerateRarity;
             rarity = fixedRarity;
+            activationCondition = condition;
+            _condition = null;
             ValidateConfiguration();
             ResolveInventory();
+        }
+
+        private void Update()
+        {
+            if (_worldClock == null)
+                return;
+
+            long currentTick = _worldClock.CurrentTick;
+            if (!_productionTickInitialized)
+            {
+                _lastProductionTick = currentTick;
+                _productionTickInitialized = true;
+                return;
+            }
+
+            if (currentTick <= _lastProductionTick)
+                return;
+
+            SimulateProduction(_lastProductionTick, currentTick);
         }
 
         public void SimulateOffline(
@@ -54,21 +98,57 @@ namespace Project.Scripts.Gameplay
             if (policy == OfflineSimulationPolicy.None || toTick <= fromTick)
                 return;
 
+            long productionStart = !_productionTickInitialized
+                ? fromTick
+                : _lastProductionTick;
+            _productionTickInitialized = true;
+            SimulateProduction(productionStart, toTick);
+        }
+
+        private void SimulateProduction(long productionStart, long toTick)
+        {
             ValidateConfiguration();
             ResolveInventory();
+            ResolveCondition();
             FlushPendingOutput();
 
-            long productionStart = _lastProductionTick == 0
-                ? fromTick
-                : Math.Max(fromTick, _lastProductionTick);
-            long cycles = (toTick - productionStart) / ticksPerCycle;
-            if (cycles <= 0)
+            long elapsedTicks = toTick - productionStart;
+            if (elapsedTicks <= 0)
                 return;
 
-            long produced = checked(cycles * itemsPerCycle);
+            long availableOperations = _condition?.AvailableOperations ?? long.MaxValue;
+            if (availableOperations <= 0)
+            {
+                _lastProductionTick = toTick;
+                return;
+            }
+
+            long accumulatedTicks = checked(_cycleProgressTicks + elapsedTicks);
+            long cycles = accumulatedTicks / ticksPerCycle;
+            if (cycles <= 0)
+            {
+                _cycleProgressTicks = accumulatedTicks;
+                _lastProductionTick = toTick;
+                return;
+            }
+
+            long approvedCycles = Math.Min(cycles, availableOperations);
+            _condition?.Commit(approvedCycles);
+
+            long produced = checked(approvedCycles * itemsPerCycle);
             AddPendingOutput(produced);
-            _lastProductionTick = checked(productionStart + cycles * ticksPerCycle);
+            _cycleProgressTicks = approvedCycles < cycles
+                ? 0
+                : accumulatedTicks % ticksPerCycle;
+            _lastProductionTick = toTick;
             FlushPendingOutput();
+        }
+
+        private IOperationCondition ResolveCondition()
+        {
+            if (_condition == null && activationCondition != null)
+                _condition = activationCondition.Build(gameObject);
+            return _condition;
         }
 
         public void WriteState(BinaryWriter writer)
@@ -77,6 +157,7 @@ namespace Project.Scripts.Gameplay
                 throw new ArgumentNullException(nameof(writer));
 
             writer.Write(_lastProductionTick);
+            writer.Write(_cycleProgressTicks);
             for (int i = 0; i < RarityCount; i++)
                 writer.Write(_pendingByRarity[i]);
         }
@@ -90,6 +171,11 @@ namespace Project.Scripts.Gameplay
                     $"Unsupported production state version {savedVersion}.");
 
             _lastProductionTick = reader.ReadInt64();
+            _productionTickInitialized = _lastProductionTick != 0;
+            _cycleProgressTicks = savedVersion >= 3 ? reader.ReadInt64() : 0;
+            if (_cycleProgressTicks < 0 || _cycleProgressTicks >= ticksPerCycle)
+                throw new InvalidDataException(
+                    "Production has invalid partial-cycle progress.");
             Array.Clear(_pendingByRarity, 0, _pendingByRarity.Length);
 
             if (savedVersion == 1)
@@ -110,6 +196,8 @@ namespace Project.Scripts.Gameplay
         public bool IsAtBaseline()
         {
             if (_lastProductionTick != 0)
+                return false;
+            if (_cycleProgressTicks != 0)
                 return false;
 
             for (int i = 0; i < RarityCount; i++)

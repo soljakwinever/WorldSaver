@@ -90,9 +90,27 @@ namespace Project.Scripts.Gameplay
             return GetInventory().TryRemove(stack);
         }
 
+        public bool TryRemove(ItemTag tag, int count)
+        {
+            return GetInventory().TryRemove(tag, count);
+        }
+
+        public bool TryRemoveOne(
+            ItemTag tag,
+            out ItemData item,
+            out ItemData.Rarity rarity)
+        {
+            return GetInventory().TryRemoveOne(tag, out item, out rarity);
+        }
+
         public int GetCount(ItemData item, ItemData.Rarity rarity = ItemData.Rarity.Common)
         {
             return GetInventory().GetCount(item, rarity);
+        }
+
+        public int GetCount(ItemTag tag)
+        {
+            return GetInventory().GetCount(tag);
         }
 
         public bool Contains(ItemData item, int count = 1,
@@ -240,6 +258,15 @@ namespace Project.Scripts.Gameplay
                 throw new ArgumentException("The item stack has an invalid count.", nameof(stack));
             if (!Enum.IsDefined(typeof(ItemData.Rarity), stack.Rarity))
                 throw new ArgumentException("The item stack has an invalid rarity.", nameof(stack));
+        }
+
+        public void Initialize(int size)
+        {
+            if (_inventory != null && _inventory.OccupiedSlots > 0)
+                throw new InvalidOperationException("A non-empty inventory cannot be reconfigured.");
+
+            this.size = size;
+            _inventory = new Inventory(size);
         }
     }
 }

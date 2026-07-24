@@ -1,6 +1,8 @@
+using System;
 using Project.Scripts.Interface;
 using Project.Scripts.Utility;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Zenject;
 
 namespace Project.Scripts.Gameplay
@@ -12,27 +14,29 @@ namespace Project.Scripts.Gameplay
         [SerializeField] private PersistentInventory inventory;
 
         [Header("Display")]
-        [SerializeField] private bool visibleOnStart = true;
         [SerializeField] private Rect windowRect = new(16f, 96f, 420f, 360f);
+        [SerializeField] private Rect otherWindowRect = new(452f, 96f, 420f, 360f);
 
-        private IInventory _inventory;
+        private IInventory _otherInventory;
+        private PersistentInventory _playerInventory;
         private IInputManager _inputManager;
-        private Vector2 _scrollPosition;
+        private Vector2 _playerScrollPosition;
+        private Vector2 _otherScrollPosition;
         private bool _visible;
         private bool _subscribed;
         private string _inventoryBindingDisplay;
+        private string _transferMessage;
 
-        public IInventory Target => _inventory;
+        public IInventory Target => _otherInventory;
         public bool IsVisible => _visible;
 
         private void Awake()
         {
-            _visible = visibleOnStart;
-            SetInventory(inventory != null
+            _playerInventory = inventory != null
                 ? inventory
-                : GetComponentInParent<PersistentInventory>());
+                : GetComponentInParent<PersistentInventory>();
 
-            _inventoryBindingDisplay = "Inventory action";
+            _inventoryBindingDisplay = "I";
         }
 
         [Inject]
@@ -55,17 +59,46 @@ namespace Project.Scripts.Gameplay
             UnsubscribeFromInput();
         }
 
+        private void Update()
+        {
+            if (!_visible ||
+                Keyboard.current?.escapeKey.wasPressedThisFrame != true)
+                return;
+
+            if (_otherInventory != null)
+            {
+                _otherInventory = null;
+                _otherScrollPosition = Vector2.zero;
+                _transferMessage = null;
+                return;
+            }
+
+            _visible = false;
+        }
+
         private void OnGUI()
         {
             if (!_visible)
                 return;
 
-            windowRect = GUI.Window(5555654, windowRect, DrawWindow, "Inventory Debug");
+            windowRect = GUI.Window(
+                5555654,
+                windowRect,
+                DrawPlayerWindow,
+                "Player Inventory");
+            if (_otherInventory != null)
+            {
+                otherWindowRect = GUI.Window(
+                    5555655,
+                    otherWindowRect,
+                    DrawOtherWindow,
+                    GetOtherWindowTitle());
+            }
         }
 
         public void SetInventory(IInventory target)
         {
-            _inventory = target;
+            _otherInventory = target;
         }
 
         public void SetVisible(bool visible)
@@ -73,40 +106,106 @@ namespace Project.Scripts.Gameplay
             _visible = visible;
         }
 
-        private void DrawWindow(int id)
+        private void DrawPlayerWindow(int id)
         {
-            if (_inventory == null)
+            DrawInventory(
+                _playerInventory,
+                _otherInventory,
+                ref _playerScrollPosition,
+                "Transfer to other",
+                ">");
+            GUI.DragWindow(new Rect(0f, 0f, windowRect.width, 24f));
+        }
+
+        private void DrawOtherWindow(int id)
+        {
+            DrawInventory(
+                _otherInventory,
+                _playerInventory,
+                ref _otherScrollPosition,
+                "Transfer to player",
+                "<");
+            GUI.DragWindow(new Rect(0f, 0f, otherWindowRect.width, 24f));
+        }
+
+        private void DrawInventory(
+            IInventory source,
+            IInventory destination,
+            ref Vector2 scrollPosition,
+            string transferTooltip,
+            string transferLabel)
+        {
+            if (source == null)
             {
                 GUILayout.Label("No inventory assigned.");
-                GUILayout.Label("Assign one in the Inspector or place this component under a PersistentInventory.");
-                GUI.DragWindow(new Rect(0f, 0f, windowRect.width, 24f));
                 return;
             }
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"Slots: {_inventory.OccupiedSlots}/{_inventory.Size}");
+            GUILayout.Label($"Slots: {source.OccupiedSlots}/{source.Size}");
             GUILayout.FlexibleSpace();
-            GUILayout.Label($"Toggle: {_inventoryBindingDisplay}");
+            GUILayout.Label($"Open: {_inventoryBindingDisplay} | Close: Escape");
             GUILayout.EndHorizontal();
 
-            _scrollPosition = GUILayout.BeginScrollView(_scrollPosition);
+            if (!string.IsNullOrEmpty(_transferMessage))
+                GUILayout.Label(_transferMessage);
 
-            for (int slot = 0; slot < _inventory.Size; slot++)
+            scrollPosition = GUILayout.BeginScrollView(scrollPosition);
+
+            for (int slot = 0; slot < source.Size; slot++)
             {
-                if (slot < _inventory.Stacks.Count)
-                    DrawStack(slot, _inventory.Stacks[slot]);
+                if (slot < source.Stacks.Count)
+                    DrawStack(
+                        slot,
+                        source.Stacks[slot],
+                        source,
+                        destination,
+                        transferTooltip,
+                        transferLabel);
                 else
                     DrawEmptySlot(slot);
             }
 
             GUILayout.EndScrollView();
-            GUI.DragWindow(new Rect(0f, 0f, windowRect.width, 24f));
         }
 
         private void OnInputPerformed(InputContext context)
         {
-            if (context.InventoryPressed)
-                _visible = !_visible;
+            if (!context.InventoryPressed)
+                return;
+
+            PersistentInventory hoveredInventory = GetInventoryUnderMouse();
+            SetInventory(hoveredInventory);
+            _otherScrollPosition = Vector2.zero;
+            _transferMessage = null;
+            _visible = true;
+        }
+
+        private PersistentInventory GetInventoryUnderMouse()
+        {
+            if (Mouse.current == null || Camera.main == null)
+                return null;
+
+            Vector2 worldPosition =
+                Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
+            Collider2D[] colliders = Physics2D.OverlapPointAll(worldPosition);
+
+            foreach (Collider2D hoveredCollider in colliders)
+            {
+                PersistentInventory hoveredInventory =
+                    hoveredCollider.GetComponentInParent<PersistentInventory>();
+                if (hoveredInventory == null)
+                {
+                    hoveredInventory =
+                        hoveredCollider.GetComponentInChildren<PersistentInventory>();
+                }
+
+                if (hoveredInventory != null &&
+                    hoveredInventory != _playerInventory)
+                    return hoveredInventory;
+            }
+
+            return null;
         }
 
         private void SubscribeToInput()
@@ -127,7 +226,13 @@ namespace Project.Scripts.Gameplay
             _subscribed = false;
         }
 
-        private static void DrawStack(int slot, IItemStack stack)
+        private void DrawStack(
+            int slot,
+            IItemStack stack,
+            IInventory source,
+            IInventory destination,
+            string transferTooltip,
+            string transferLabel)
         {
             GUILayout.BeginVertical(GUI.skin.box);
 
@@ -138,6 +243,14 @@ namespace Project.Scripts.Gameplay
             GUILayout.Label(stack.Rarity.ToString(), GUILayout.Width(90f));
             GUI.color = previousColor;
             GUILayout.Label($"{stack.Count}/{stack.Capacity}", GUILayout.Width(64f));
+            if (destination != null &&
+                GUILayout.Button(
+                    new GUIContent(transferLabel, transferTooltip),
+                    GUILayout.Width(32f)))
+            {
+                TransferStack(source, destination, stack);
+                GUIUtility.ExitGUI();
+            }
             GUILayout.EndHorizontal();
 
             Rect progressRect = GUILayoutUtility.GetRect(1f, 5f, GUILayout.ExpandWidth(true));
@@ -153,6 +266,61 @@ namespace Project.Scripts.Gameplay
             }
 
             GUILayout.EndVertical();
+        }
+
+        private void TransferStack(
+            IInventory source,
+            IInventory destination,
+            IItemStack stack)
+        {
+            if (source == null || destination == null || stack == null ||
+                ReferenceEquals(source, destination))
+                return;
+
+            int originalCount = stack.Count;
+            if (!source.TryRemove(stack.Item, originalCount, stack.Rarity))
+            {
+                _transferMessage = "The transfer could not be completed.";
+                return;
+            }
+
+            int remainder;
+            try
+            {
+                destination.TryAdd(
+                    stack.Item,
+                    originalCount,
+                    out remainder,
+                    stack.Rarity);
+            }
+            catch (Exception exception)
+            {
+                source.TryAdd(stack.Item, originalCount, out _, stack.Rarity);
+                _transferMessage = $"Transfer failed: {exception.Message}";
+                return;
+            }
+
+            if (remainder > 0)
+                source.TryAdd(stack.Item, remainder, out _, stack.Rarity);
+
+            int transferred = originalCount - remainder;
+            if (transferred == 0)
+            {
+                _transferMessage = "The destination inventory is full.";
+                return;
+            }
+
+            _transferMessage = remainder == 0
+                ? $"Transferred {originalCount} {GetDisplayName(stack)}."
+                : $"Transferred {transferred}/{originalCount} {GetDisplayName(stack)}.";
+        }
+
+        private string GetOtherWindowTitle()
+        {
+            if (_otherInventory is Component component)
+                return $"{component.gameObject.name} Inventory";
+
+            return "Other Inventory";
         }
 
         private static void DrawEmptySlot(int slot)

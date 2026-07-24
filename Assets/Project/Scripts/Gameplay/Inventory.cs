@@ -92,6 +92,60 @@ namespace Project.Scripts.Gameplay
             return TryRemove(stack.Item, stack.Count, stack.Rarity);
         }
 
+        public bool TryRemove(ItemTag tag, int count)
+        {
+            if (tag == null)
+                throw new ArgumentNullException(nameof(tag));
+            if (count <= 0)
+                throw new ArgumentOutOfRangeException(nameof(count), "Count must be greater than zero.");
+            if (GetCount(tag) < count)
+                return false;
+
+            int remaining = count;
+            for (int i = _stacks.Count - 1; i >= 0 && remaining > 0; i--)
+            {
+                ItemStack stack = _stacks[i];
+                if (!stack.Item.HasTag(tag))
+                    continue;
+
+                int removed = Math.Min(stack.Count, remaining);
+                stack.Remove(removed);
+                remaining -= removed;
+
+                if (stack.Count == 0)
+                    RemoveStackAt(i);
+            }
+
+            return true;
+        }
+
+        public bool TryRemoveOne(
+            ItemTag tag,
+            out ItemData item,
+            out ItemData.Rarity rarity)
+        {
+            if (tag == null)
+                throw new ArgumentNullException(nameof(tag));
+
+            for (int i = _stacks.Count - 1; i >= 0; i--)
+            {
+                ItemStack stack = _stacks[i];
+                if (!stack.Item.HasTag(tag))
+                    continue;
+
+                item = stack.Item;
+                rarity = stack.Rarity;
+                stack.Remove(1);
+                if (stack.Count == 0)
+                    RemoveStackAt(i);
+                return true;
+            }
+
+            item = null;
+            rarity = default;
+            return false;
+        }
+
         public int GetCount(ItemData item, ItemData.Rarity rarity)
         {
             if (item == null)
@@ -103,6 +157,22 @@ namespace Project.Scripts.Gameplay
                 ItemStack stack = _stacks[i];
                 if (stack.Item == item && stack.Rarity == rarity)
                     total += stack.Count;
+            }
+
+            return total;
+        }
+
+        public int GetCount(ItemTag tag)
+        {
+            if (tag == null)
+                throw new ArgumentNullException(nameof(tag));
+
+            int total = 0;
+            for (int i = 0; i < _stacks.Count; i++)
+            {
+                ItemStack stack = _stacks[i];
+                if (stack.Item.HasTag(tag))
+                    total = checked(total + stack.Count);
             }
 
             return total;

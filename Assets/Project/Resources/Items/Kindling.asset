@@ -10,12 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
-  m_Name: Rock
+  m_Name: Kindling
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
-  persistentId: SmallRock
-  description: A small gray rock
+  persistentId: Kindling
+  description: Kindling
   maxStack: 32
-  sprite: {fileID: 2387489849992799125, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  sprite: {fileID: 6980786857748427481, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
   goldValue: 1
   fuelValue: 1
-  tags: []
+  tags:
+  - {fileID: 11400000, guid: 60f82f88a77b4ba09cfc6515e57c0374, type: 2}
+  - {fileID: 11400000, guid: 8537dabfd3c259c4f94153e0c0031e43, type: 2}

@@ -23,6 +23,8 @@ MonoBehaviour:
   lightness: 1
   lightnessVariance: 0
   persistentComponents:
+  - {fileID: 11400000, guid: 2d1be99f98489404a970377622a873fa, type: 2}
   - {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
   - {fileID: 11400000, guid: 5b332f95f7f81b44e9054fa5ef6152b3, type: 2}
+  - {fileID: 11400000, guid: 50119b66463060d48ba189a49e877dbd, type: 2}
   resourceType: 0

@@ -594,6 +594,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.ItemCatalog
   items:
   - {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
+  - {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
 --- !u!4 &743799763
 Transform:
   m_ObjectHideFlags: 0
@@ -1610,10 +1611,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.InventoryDebugUI
   inventory: {fileID: 1074488197}
-  visibleOnStart: 1
   windowRect:
     serializedVersion: 2
     x: 16
+    y: 96
+    width: 420
+    height: 360
+  otherWindowRect:
+    serializedVersion: 2
+    x: 452
     y: 96
     width: 420
     height: 360

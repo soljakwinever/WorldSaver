@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.Persistence.PersistentProductionDefinition
   itemData: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
   itemsPerCycle: 1
-  ticksPerCycle: 600
+  ticksPerCycle: 10
   generateRarity: 1
   rarity: 0
+  activationCondition: {fileID: 11400000, guid: b8c8de152ac9161459b208b2411be8fb, type: 2}
