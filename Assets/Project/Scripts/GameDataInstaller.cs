@@ -11,6 +11,7 @@ public class GameDataInstaller : MonoInstaller
 {
     public Chunk chunkPrefab;
     public Node nodePrefab;
+    public ItemStackPickup itemStackPrefab;
 
     public RectTransform worldUi;
     
@@ -31,6 +32,15 @@ public class GameDataInstaller : MonoInstaller
             .WithInitialSize(1024)
             .FromComponentInNewPrefab(nodePrefab)
             .UnderTransformGroup("Nodes");
+
+        Container.BindMemoryPool<ItemStackPickup, ItemStackPickupPool>()
+            .WithInitialSize(30)
+            .WithMaxSize(100)
+            .FromComponentInNewPrefab(itemStackPrefab)
+            .UnderTransformGroup("ItemPickups");
+        Container.Bind<IItemStackPickupPool>()
+            .To<ItemStackPickupPool>()
+            .FromResolve();
 
         Container.Bind<BiomeData[]>().FromMethod(t => Resources.LoadAll<BiomeData>("Biomes") 
         ).AsSingle();

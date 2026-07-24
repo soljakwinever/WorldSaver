@@ -6,6 +6,16 @@ using UnityEngine;
 
 namespace Project.Scripts.Gameplay
 {
+    public interface IItemStackPickupPool
+    {
+        ItemStackPickup Spawn(
+            ItemData item,
+            int count,
+            ItemData.Rarity rarity);
+
+        void Despawn(ItemStackPickup pickup);
+    }
+
     [RequireComponent(typeof(Collider2D))]
     public sealed class ItemStackPickup : MonoBehaviour, IInteractable
     {
@@ -13,6 +23,37 @@ namespace Project.Scripts.Gameplay
         [SerializeField, Min(1)] private int count = 1;
         [SerializeField] private bool generateRarity = true;
         [SerializeField] private ItemData.Rarity rarity = ItemData.Rarity.Common;
+
+        private IItemStackPickupPool _pool;
+
+        public void SetPool(IItemStackPickupPool pool)
+        {
+            _pool = pool;
+        }
+
+        public void Initialize(ItemData item, int count, ItemData.Rarity rarity)
+        {
+            this.item = item;
+            this.count = count;
+            this.rarity = rarity;
+
+            if (TryGetComponent(out SpriteRenderer renderer))
+            {
+                renderer.color = ItemRarityUtility.GetRarityColor(rarity);
+            }
+
+            foreach (Transform child in transform)
+            {
+                if (child.TryGetComponent(out ParticleSystem particle))
+                {
+                    ParticleSystem.MainModule main = particle.main;
+                    main.startColor =
+                        ItemRarityUtility.GetRarityColor(rarity);
+                }
+            }
+            
+            this.generateRarity = false;
+        }
 
         private void Awake()
         {
@@ -55,7 +96,9 @@ namespace Project.Scripts.Gameplay
 
         private void RemovePickup()
         {
-            if (TryGetComponent(out IPersistentEntity persistentEntity))
+            if (_pool != null)
+                _pool.Despawn(this);
+            else if (TryGetComponent(out IPersistentEntity persistentEntity))
                 persistentEntity.RemoveFromWorld();
             else
                 Destroy(gameObject);

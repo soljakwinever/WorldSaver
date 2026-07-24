@@ -25,6 +25,7 @@ namespace Project.Scripts
     
     public enum ToolType
     {
+        None = 0,
         Axe,
         Pickaxe,
         Hoe,
@@ -34,6 +35,5 @@ namespace Project.Scripts
         Hammer,
         Sword,
         Spear,
-        None
     }
 }

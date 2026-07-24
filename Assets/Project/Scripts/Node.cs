@@ -11,7 +11,7 @@ using UnityEngine;
 using Zenject;
 
 [RequireComponent(typeof(PersistentEntity))]
-public class Node : MonoBehaviour, IInteractable, INode
+public class Node : MonoBehaviour, INode
 {
     [SerializeField]
     private SpriteRenderer spriteRenderer;
@@ -127,23 +127,26 @@ public class Node : MonoBehaviour, IInteractable, INode
         _persistentComponentHost.transform.SetParent(
             transform,
             worldPositionStays: false);
-        _persistentEntity.SetComponentHost(_persistentComponentHost);
 
         var context = new NodeComponentSpawnContext(this, persistenceKind);
 
-        if (nodeData.persistentComponents == null)
-            return;
-
-        foreach (var definition in nodeData.persistentComponents)
+        if (nodeData.persistentComponents != null)
         {
-            if (definition == null)
-                continue;
+            foreach (var definition in nodeData.persistentComponents)
+            {
+                if (definition == null)
+                    continue;
 
-            definition.Install(
-                _persistentComponentHost.gameObject,
-                _container,
-                context);
+                definition.Install(
+                    _persistentComponentHost.gameObject,
+                    _container,
+                    context);
+            }
         }
+
+        // Register the host only after all component definitions have installed
+        // their behaviours, so IEntityComponent instances receive their entity.
+        _persistentEntity.SetComponentHost(_persistentComponentHost);
     }
 
     public class Pool : MonoMemoryPool<Project.Scripts.DataTypes.SaveData.NodeId, PropSpawnData, NodeData, TerrainSample, Chunk, Node>
@@ -210,31 +213,5 @@ public class Node : MonoBehaviour, IInteractable, INode
         _persistentEntity = GetComponent<PersistentEntity>();
         if(!_persistentEntity)
             _persistentEntity = gameObject.AddComponent<PersistentEntity>();
-    }
-
-    public Vector3 GetPosition()
-    {
-        return transform.position;
-    }
-    
-    public bool CanInteract(InteractionContext context)
-    {
-        return context.interactionType == InteractionType.Direct;
-    }
-
-    public void Interact(InteractionContext context)
-    {
-        Debug.Log("Interact");
-        if (!TryGetComponent<PersistentEntity>(out var entity))
-        {
-            return;
-        }
-        
-        entity.RemoveFromWorld();
-    }
-
-    public string GetInteractionPrompt(InteractionContext context)
-    {
-        return $"Touch {_nodeData.name}";
     }
 }

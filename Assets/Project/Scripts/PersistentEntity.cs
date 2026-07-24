@@ -33,6 +33,9 @@ namespace Project.Scripts.Core
         public void SetComponentHost(PersistentComponentHost componentHost)
         {
             _componentHost = componentHost;
+
+            if (_componentHost != null)
+                _componentHost.Initialize(this);
         }
 
         public void SetOwner(ChunkPersistenceRoot owner)
@@ -61,8 +64,10 @@ namespace Project.Scripts.Core
         public IEnumerable<IPersistentComponent> GetPersistentComponents()
         {
             if (_componentHost == null)
+            {
                 _componentHost = GetComponentInChildren<PersistentComponentHost>(
                     includeInactive: true);
+            }
 
             return _componentHost != null
                 ? _componentHost.GetPersistentComponents()

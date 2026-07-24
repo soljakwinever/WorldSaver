@@ -1,4 +1,5 @@
 using Project.Scripts.Interface;
+using Project.Scripts.Utility;
 using UnityEngine;
 using Zenject;
 
@@ -132,7 +133,7 @@ namespace Project.Scripts.Gameplay
 
             GUILayout.BeginHorizontal();
             Color previousColor = GUI.color;
-            GUI.color = GetRarityColor(stack.Rarity);
+            GUI.color = ItemRarityUtility.GetRarityColor(stack.Rarity);
             GUILayout.Label($"[{slot + 1}] {GetDisplayName(stack)}", GUILayout.ExpandWidth(true));
             GUILayout.Label(stack.Rarity.ToString(), GUILayout.Width(90f));
             GUI.color = previousColor;
@@ -146,7 +147,7 @@ namespace Project.Scripts.Gameplay
                 float fill = Mathf.Clamp01(stack.Count / (float)stack.Capacity);
                 Rect fillRect = new(progressRect.x, progressRect.y, progressRect.width * fill, progressRect.height);
                 previousColor = GUI.color;
-                GUI.color = GetRarityColor(stack.Rarity);
+                GUI.color = ItemRarityUtility.GetRarityColor(stack.Rarity);
                 GUI.DrawTexture(fillRect, Texture2D.whiteTexture);
                 GUI.color = previousColor;
             }
@@ -172,16 +173,6 @@ namespace Project.Scripts.Gameplay
                 : stack.Item.name;
         }
 
-        private static Color GetRarityColor(Project.Scripts.DataTypes.ItemData.Rarity rarity)
-        {
-            return rarity switch
-            {
-                Project.Scripts.DataTypes.ItemData.Rarity.Uncommon => new Color(0.3f, 0.9f, 0.35f),
-                Project.Scripts.DataTypes.ItemData.Rarity.Rare => new Color(0.25f, 0.55f, 1f),
-                Project.Scripts.DataTypes.ItemData.Rarity.Mythic => new Color(0.75f, 0.3f, 1f),
-                Project.Scripts.DataTypes.ItemData.Rarity.Legendary => new Color(1f, 0.6f, 0.1f),
-                _ => new Color(0.8f, 0.8f, 0.8f)
-            };
-        }
+
     }
 }

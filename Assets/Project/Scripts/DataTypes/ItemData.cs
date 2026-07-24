@@ -12,6 +12,8 @@ namespace Project.Scripts.DataTypes
         public string description;
         public int maxStack;
         
+        public Sprite sprite;
+        
         public int goldValue;
         
         public enum Rarity

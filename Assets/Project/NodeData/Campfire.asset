@@ -22,4 +22,7 @@ MonoBehaviour:
   overrideVisual: {fileID: 6884329029228079750, guid: 12c7bfd9f06ea30428ad30b12073f1eb, type: 3}
   lightness: 1
   lightnessVariance: 0
+  persistentComponents:
+  - {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
+  - {fileID: 11400000, guid: 5b332f95f7f81b44e9054fa5ef6152b3, type: 2}
   resourceType: 0

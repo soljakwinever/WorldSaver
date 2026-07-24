@@ -251,14 +251,25 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         TouchChunks();
     }
 
-    private void UnloadChunks(List<Vector2Int> toRemove)
+    private void UnloadChunks(IEnumerable<Vector2Int> toRemove)
     {
-        foreach (var chunk in toRemove)
+        foreach (var chunkPosition in toRemove)
         {
-            //Todo: Apply changes
-            chunkPool.Despawn(_loadedChunks[chunk].chunk as Chunk);
-            chunkGenerator.ChunkUnloaded(chunk);
-            _loadedChunks.Remove(chunk);
+            if (!_loadedChunks.TryGetValue(chunkPosition, out ChunkInstance instance))
+                continue;
+
+            // Remove ownership before invoking either callback. Despawn performs
+            // persistence work which can synchronously trigger another reload;
+            // leaving the entry visible until afterwards allowed that path to
+            // return the same pooled Chunk a second time.
+            _loadedChunks.Remove(chunkPosition);
+            chunkGenerator.ChunkUnloaded(chunkPosition);
+
+            if (instance.chunk is Chunk chunk)
+                chunkPool.Despawn(chunk);
+            else
+                Debug.LogError(
+                    $"Loaded chunk {chunkPosition} is not a {nameof(Chunk)} and cannot be returned to its pool.");
         }
     }
 }

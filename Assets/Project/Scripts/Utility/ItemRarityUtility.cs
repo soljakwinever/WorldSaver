@@ -35,5 +35,17 @@ namespace Project.Scripts.Utility
                 ? ItemData.Rarity.Uncommon
                 : ItemData.Rarity.Common;
         }
+        
+        public static Color GetRarityColor(Project.Scripts.DataTypes.ItemData.Rarity rarity)
+        {
+            return rarity switch
+            {
+                Project.Scripts.DataTypes.ItemData.Rarity.Uncommon => new Color(0.3f, 0.9f, 0.35f),
+                Project.Scripts.DataTypes.ItemData.Rarity.Rare => new Color(0.25f, 0.55f, 1f),
+                Project.Scripts.DataTypes.ItemData.Rarity.Mythic => new Color(0.75f, 0.3f, 1f),
+                Project.Scripts.DataTypes.ItemData.Rarity.Legendary => new Color(1f, 0.6f, 0.1f),
+                _ => new Color(0.8f, 0.8f, 0.8f)
+            };
+        }
     }
 }

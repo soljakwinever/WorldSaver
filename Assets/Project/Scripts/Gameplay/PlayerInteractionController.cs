@@ -62,17 +62,23 @@ namespace Project.Scripts.Gameplay
 
             foreach (Collider2D candidateCollider in colliders)
             {
-                IInteractable candidate = candidateCollider.GetComponentInParent<IInteractable>();
-                if (candidate == null || !candidate.CanInteract(context))
-                    continue;
-
                 Vector2 closestPoint = candidateCollider.ClosestPoint(interactionCenter);
                 float distanceSquared = (closestPoint - interactionCenter).sqrMagnitude;
                 if (distanceSquared >= closestDistanceSquared)
                     continue;
 
-                closestDistanceSquared = distanceSquared;
-                focusedInteractable = candidate;
+                IInteractable[] interactables =
+                    candidateCollider.GetComponentsInChildren<IInteractable>();
+
+                foreach (IInteractable candidate in interactables)
+                {
+                    if (candidate == null || !candidate.CanInteract(context))
+                        continue;
+
+                    closestDistanceSquared = distanceSquared;
+                    focusedInteractable = candidate;
+                    break;
+                }
             }
 
             _playerBus.RaiseInteractableHovered(focusedInteractable, context);
