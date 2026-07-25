@@ -13,7 +13,7 @@ namespace Project.Tests.EditMode
     public sealed class FuelProductionTests
     {
         private GameObject _host;
-        private ItemTag _fuelTag;
+        private EntityTag _fuelTag;
         private ItemData _fuel;
         private ItemData _output;
         private HasFuelConditionDefinition _hasFuel;
@@ -22,7 +22,7 @@ namespace Project.Tests.EditMode
         public void SetUp()
         {
             _host = new GameObject("Fuel production");
-            _fuelTag = ScriptableObject.CreateInstance<ItemTag>();
+            _fuelTag = ScriptableObject.CreateInstance<EntityTag>();
             _fuel = CreateItem("fuel", 20, _fuelTag);
             _output = CreateItem("output", 20);
             _hasFuel = ScriptableObject.CreateInstance<HasFuelConditionDefinition>();
@@ -205,7 +205,7 @@ namespace Project.Tests.EditMode
         private static ItemData CreateItem(
             string id,
             int maxStack,
-            params ItemTag[] tags)
+            params EntityTag[] tags)
         {
             ItemData item = ScriptableObject.CreateInstance<ItemData>();
             item.persistentId = id;

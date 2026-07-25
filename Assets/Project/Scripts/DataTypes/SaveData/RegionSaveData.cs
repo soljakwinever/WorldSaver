@@ -8,7 +8,7 @@ namespace Project.Scripts.DataTypes.SaveData
     [Serializable]
     public sealed class RegionSaveData
     {
-        public const ushort CurrentVersion = 2;
+        public const ushort CurrentVersion = 3;
 
         public ushort version = CurrentVersion;
         public Vector2Int coordinate;

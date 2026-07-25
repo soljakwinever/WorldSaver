@@ -92,7 +92,7 @@ namespace Project.Scripts.Gameplay
             return TryRemove(stack.Item, stack.Count, stack.Rarity);
         }
 
-        public bool TryRemove(ItemTag tag, int count)
+        public bool TryRemove(EntityTag tag, int count)
         {
             if (tag == null)
                 throw new ArgumentNullException(nameof(tag));
@@ -120,7 +120,7 @@ namespace Project.Scripts.Gameplay
         }
 
         public bool TryRemoveOne(
-            ItemTag tag,
+            EntityTag tag,
             out ItemData item,
             out ItemData.Rarity rarity)
         {
@@ -162,7 +162,7 @@ namespace Project.Scripts.Gameplay
             return total;
         }
 
-        public int GetCount(ItemTag tag)
+        public int GetCount(EntityTag tag)
         {
             if (tag == null)
                 throw new ArgumentNullException(nameof(tag));
@@ -187,6 +187,31 @@ namespace Project.Scripts.Gameplay
             return GetCount(item, rarity) >= count;
         }
 
+        public bool Contains(EntityTag tag, int count = 1,
+            ItemData.Rarity rarity = ItemData.Rarity.Common)
+        {
+            if (tag == null)
+                throw new ArgumentNullException(nameof(tag));
+            if (count <= 0)
+                throw new ArgumentOutOfRangeException(nameof(count), "Count must be greater than zero.");
+            if (!Enum.IsDefined(typeof(ItemData.Rarity), rarity))
+                throw new ArgumentOutOfRangeException(nameof(rarity), rarity, "Unknown item rarity.");
+
+            int total = 0;
+            for (int i = 0; i < _stacks.Count; i++)
+            {
+                ItemStack stack = _stacks[i];
+                if (!stack.Item.HasTag(tag) || stack.Rarity != rarity)
+                    continue;
+
+                total = checked(total + stack.Count);
+                if (total >= count)
+                    return true;
+            }
+
+            return false;
+        }
+
         public bool Contains(IItemStack stack)
         {
             if (stack == null)
@@ -195,10 +220,94 @@ namespace Project.Scripts.Gameplay
             return Contains(stack.Item, stack.Count, stack.Rarity);
         }
 
+        public bool CanApplyChanges(IReadOnlyList<InventoryChange> changes)
+        {
+            return TryBuildChangedStacks(changes, out _);
+        }
+
+        public bool TryApplyChanges(IReadOnlyList<InventoryChange> changes)
+        {
+            if (!TryBuildChangedStacks(changes, out List<ItemStack> changedStacks))
+                return false;
+
+            _stacks.Clear();
+            _stackView.Clear();
+            for (int i = 0; i < changedStacks.Count; i++)
+                AddStack(changedStacks[i]);
+            return true;
+        }
+
         public void Clear()
         {
             _stacks.Clear();
             _stackView.Clear();
+        }
+
+        private bool TryBuildChangedStacks(
+            IReadOnlyList<InventoryChange> changes,
+            out List<ItemStack> changedStacks)
+        {
+            if (changes == null)
+                throw new ArgumentNullException(nameof(changes));
+
+            changedStacks = new List<ItemStack>(_stacks.Count);
+            for (int i = 0; i < _stacks.Count; i++)
+            {
+                ItemStack stack = _stacks[i];
+                changedStacks.Add(new ItemStack(stack.Item, stack.Count, stack.Rarity));
+            }
+
+            for (int changeIndex = 0; changeIndex < changes.Count; changeIndex++)
+            {
+                InventoryChange change = changes[changeIndex];
+                ItemStack.ValidateItem(change.Item);
+
+                int remaining = change.CountDelta;
+                if (remaining < 0)
+                {
+                    remaining = checked(-remaining);
+                    for (int i = changedStacks.Count - 1; i >= 0 && remaining > 0; i--)
+                    {
+                        ItemStack stack = changedStacks[i];
+                        if (stack.Item != change.Item || stack.Rarity != change.Rarity)
+                            continue;
+
+                        int removed = Math.Min(stack.Count, remaining);
+                        stack.Remove(removed);
+                        remaining -= removed;
+                        if (stack.Count == 0)
+                            changedStacks.RemoveAt(i);
+                    }
+
+                    if (remaining > 0)
+                        return false;
+                    continue;
+                }
+
+                for (int i = 0; i < changedStacks.Count && remaining > 0; i++)
+                {
+                    ItemStack stack = changedStacks[i];
+                    if (stack.Item == change.Item &&
+                        stack.Rarity == change.Rarity &&
+                        !stack.IsFull)
+                    {
+                        remaining = stack.Add(remaining);
+                    }
+                }
+
+                while (remaining > 0 && changedStacks.Count < Size)
+                {
+                    int stackCount = Math.Min(remaining, change.Item.maxStack);
+                    changedStacks.Add(
+                        new ItemStack(change.Item, stackCount, change.Rarity));
+                    remaining -= stackCount;
+                }
+
+                if (remaining > 0)
+                    return false;
+            }
+
+            return true;
         }
 
         private void AddStack(ItemStack stack)

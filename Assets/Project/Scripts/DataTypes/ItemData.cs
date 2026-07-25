@@ -1,7 +1,13 @@
 using UnityEngine;
+using System;
+using System.Collections.Generic;
 
 namespace Project.Scripts.DataTypes
 {
+    /// <summary>
+    /// Item definition. The action selects behavior; action data configures that
+    /// behavior for this item.
+    /// </summary>
     [CreateAssetMenu(fileName = "New Item Data", menuName = "Data/Item Data", order = 0)]
     public class ItemData : ScriptableObject
     {
@@ -18,13 +24,21 @@ namespace Project.Scripts.DataTypes
 
         [Tooltip("Optional action performed when this item is used from the HotBar.")]
         public ItemAction action;
+
+        [SerializeReference]
+        [Tooltip("Only add the data records required by this item's action and tool actions.")]
+        private ItemActionData[] actionData = Array.Empty<ItemActionData>();
+
+        /// <summary>All action-specific records stored by this item.</summary>
+        public IReadOnlyList<ItemActionData> ActionData =>
+            actionData ?? Array.Empty<ItemActionData>();
         
         public int goldValue;
         [Min(1)] public int fuelValue = 1;
 
-        [SerializeField] private ItemTag[] tags = System.Array.Empty<ItemTag>();
+        [SerializeField] private EntityTag[] tags = System.Array.Empty<EntityTag>();
 
-        public bool HasTag(ItemTag tag)
+        public bool HasTag(EntityTag tag)
         {
             if (tag == null)
                 return false;
@@ -35,6 +49,23 @@ namespace Project.Scripts.DataTypes
                     return true;
             }
 
+            return false;
+        }
+
+        /// <summary>Finds the first action-data record of the requested type.</summary>
+        public bool TryGetActionData<T>(out T data)
+            where T : ItemActionData
+        {
+            foreach (ItemActionData candidate in ActionData)
+            {
+                if (candidate is T match)
+                {
+                    data = match;
+                    return true;
+                }
+            }
+
+            data = null;
             return false;
         }
 
@@ -53,6 +84,11 @@ namespace Project.Scripts.DataTypes
 
             return checked((long)fuelValue * rarityMultiplier);
         }
+
+        private void OnEnable()
+        {
+            actionData ??= Array.Empty<ItemActionData>();
+        }
         
         public enum Rarity
         {
@@ -67,6 +103,7 @@ namespace Project.Scripts.DataTypes
         private void OnValidate()
         {
             fuelValue = Mathf.Max(1, fuelValue);
+            actionData ??= Array.Empty<ItemActionData>();
         }
 #endif
     }

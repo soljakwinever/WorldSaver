@@ -70,6 +70,7 @@ public static class BiomeSelector
         blend.dominantBiome = closestBiomes[0].biome;
 
         blend.groundColor = Color.black;
+        blend.dirtColor = Color.black;
         blend.pathColor = Color.black;
         blend.waterColor = Color.black;
         blend.cliffColor = Color.black;
@@ -107,6 +108,7 @@ public static class BiomeSelector
             blend.bumpScale += biome.bumpScale * weight;
             
             blend.groundColor += biome.groundColor * weight;
+            blend.dirtColor += biome.dirtColor * weight;
             blend.pathColor += biome.pathColor * weight;
             blend.waterColor += biome.waterColor * weight;
             blend.cliffColor += biome.cliffColor * weight;
@@ -147,6 +149,7 @@ public static class BiomeSelector
         blend.bumpScale += Mathf.Lerp(biomeA.bumpScale, biomeB.bumpScale, weight);
         
         blend.groundColor = Color.Lerp(biomeA.groundColor, biomeB.groundColor, weight);
+        blend.dirtColor = Color.Lerp(biomeA.dirtColor, biomeB.dirtColor, weight);
         blend.pathColor = Color.Lerp(biomeA.pathColor, biomeB.pathColor, weight);
         blend.waterColor = Color.Lerp(biomeA.waterColor, biomeB.waterColor, weight);
         blend.cliffColor = Color.Lerp(biomeA.cliffColor, biomeB.cliffColor, weight);
@@ -176,6 +179,7 @@ public static class BiomeSelector
             townChance = biome.townChance,
 
             groundColor = biome.groundColor,
+            dirtColor = biome.dirtColor,
             pathColor = biome.pathColor,
             waterColor = biome.waterColor,
             cliffColor = biome.cliffColor,

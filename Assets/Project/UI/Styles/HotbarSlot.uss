@@ -1,0 +1,30 @@
+:root {
+}
+
+.hotbar-slot.hotbar-slot__active {
+    background-color: rgb(128, 128, 128);
+    border-left-color: rgb(0, 0, 0);
+    border-right-color: rgb(0, 0, 0);
+    border-top-color: rgb(0, 0, 0);
+    border-bottom-color: rgb(0, 0, 0);
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+}
+
+.hotbar-slot > #hotbar-slot__count {
+    text-shadow: 1px 1px 0.7px rgb(0, 0, 0);
+    color: rgb(255, 255, 255);
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    -unity-font-style: bold;
+    font-size: 18px;
+}
+
+
+
+.hotbar-slot {
+    background-color: rgb(161, 161, 161);
+}

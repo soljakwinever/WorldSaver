@@ -14,11 +14,16 @@ namespace Project.Scripts.Core
         private InputAction _move;
         private InputAction _interact;
         private InputAction _inventory;
+        private InputAction _crafting;
         private InputAction _attack;
         private InputAction _skill;
         private InputAction _hotKeyPressed;
+        private InputAction _mousePosition;
+        
         private bool _ownsSkillAction;
         private int _pendingHotKey = -1;
+        
+        public Vector2 MousePosition => _mousePosition.ReadValue<Vector2>();
 
         public InputContext Context => CreateContext(out _);
         public event Action<InputContext> InputPerformed;
@@ -29,10 +34,16 @@ namespace Project.Scripts.Core
             _move = _inputs.asset.FindAction("Player/Move", true);
             _interact = _inputs.asset.FindAction("Player/Interact", true);
             _inventory = _inputs.asset.FindAction("Player/Inventory", true);
+            _crafting = _inputs.asset.FindAction("Player/Crafting") ??
+                        _inputs.asset.FindAction("Player/Crouch", true);
             _attack = _inputs.asset.FindAction("Player/Attack", true);
             _skill = _inputs.asset.FindAction("Player/Skill");
+            
+            _mousePosition  = _inputs.asset.FindAction("Player/MousePosition", true);
+            
             _hotKeyPressed = _inputs.asset.FindAction("Player/Hotbar", true);
             _hotKeyPressed.performed += OnHotKeyPressed;
+            
             // Keeps play mode usable until Unity regenerates Inputs after the
             // InputSystem_Actions asset gains the Skill action.
             if (_skill == null)
@@ -64,6 +75,7 @@ namespace Project.Scripts.Core
         {
             InputContext context = CreateContext(out var movement);
             if (context.InteractionPressed || context.InventoryPressed ||
+                context.CraftingPressed ||
                 context.AttackPressed || context.SkillPressed ||
                 context.HotBarPressed >= 0 || movement != lastMovement)
             {
@@ -102,6 +114,7 @@ namespace Project.Scripts.Core
                 movement,
                 _interact.WasPressedThisFrame(),
                 _inventory.WasPressedThisFrame(),
+                _crafting.WasPressedThisFrame(),
                 _attack.WasPressedThisFrame(),
                 _skill.WasPressedThisFrame(),
                 GetHotKeyPressed());

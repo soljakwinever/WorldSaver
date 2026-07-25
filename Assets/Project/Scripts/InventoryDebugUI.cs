@@ -12,6 +12,7 @@ namespace Project.Scripts.Gameplay
     {
         [Header("Inventory")]
         [SerializeField] private PersistentInventory inventory;
+        [SerializeField] private PlayerToolbarController toolbarController;
 
         [Header("Display")]
         [SerializeField] private Rect windowRect = new(16f, 96f, 420f, 360f);
@@ -22,6 +23,7 @@ namespace Project.Scripts.Gameplay
         private IInputManager _inputManager;
         private Vector2 _playerScrollPosition;
         private Vector2 _otherScrollPosition;
+        private IItemStack _hoveredPlayerStack;
         private bool _visible;
         private bool _subscribed;
         private string _inventoryBindingDisplay;
@@ -35,6 +37,9 @@ namespace Project.Scripts.Gameplay
             _playerInventory = inventory != null
                 ? inventory
                 : GetComponentInParent<PersistentInventory>();
+            if (toolbarController == null && _playerInventory != null)
+                toolbarController =
+                    _playerInventory.GetComponent<PlayerToolbarController>();
 
             _inventoryBindingDisplay = "I";
         }
@@ -108,6 +113,9 @@ namespace Project.Scripts.Gameplay
 
         private void DrawPlayerWindow(int id)
         {
+            if (Event.current.type == EventType.Repaint)
+                _hoveredPlayerStack = null;
+
             DrawInventory(
                 _playerInventory,
                 _otherInventory,
@@ -171,14 +179,22 @@ namespace Project.Scripts.Gameplay
 
         private void OnInputPerformed(InputContext context)
         {
-            if (!context.InventoryPressed)
-                return;
+            if (_visible &&
+                context.HotBarPressed != InputContext.NoHotbarKeyPressed)
+            {
+                TryAssignHoveredStackToToolbar(
+                    _hoveredPlayerStack,
+                    context.HotBarPressed);
+            }
 
-            PersistentInventory hoveredInventory = GetInventoryUnderMouse();
-            SetInventory(hoveredInventory);
-            _otherScrollPosition = Vector2.zero;
-            _transferMessage = null;
-            _visible = true;
+            if (context.InventoryPressed)
+            {
+                PersistentInventory hoveredInventory = GetInventoryUnderMouse();
+                SetInventory(hoveredInventory);
+                _otherScrollPosition = Vector2.zero;
+                _transferMessage = null;
+                _visible = true;
+            }
         }
 
         private PersistentInventory GetInventoryUnderMouse()
@@ -266,6 +282,33 @@ namespace Project.Scripts.Gameplay
             }
 
             GUILayout.EndVertical();
+
+            Rect stackRect = GUILayoutUtility.GetLastRect();
+            if (ReferenceEquals(source, _playerInventory) &&
+                Event.current.type == EventType.Repaint &&
+                stackRect.Contains(Event.current.mousePosition))
+            {
+                _hoveredPlayerStack = stack;
+            }
+        }
+
+        private void TryAssignHoveredStackToToolbar(
+            IItemStack stack,
+            int hotbarIndex)
+        {
+            if (toolbarController == null || stack?.Item == null)
+                return;
+
+            if (stack.Item.action == null)
+                return;
+
+            // Bind the shared action to this item before it enters the hotbar.
+            IHotbarAction hotbarAction =
+                new ItemActionBinding(stack.Item);
+
+            toolbarController.SetHotbarAction(hotbarIndex, hotbarAction);
+            _transferMessage =
+                $"Assigned {GetDisplayName(stack)} to toolbar slot {hotbarIndex + 1}.";
         }
 
         private void TransferStack(

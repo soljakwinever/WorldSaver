@@ -11,7 +11,7 @@ namespace Project.Scripts.Persistence
         menuName = "World/Components/Inventory Fuel Consumer")]
     public sealed class InventoryFuelConsumerDefinition : NodeComponentDefinition
     {
-        [SerializeField] private ItemTag fuelTag;
+        [SerializeField] private EntityTag fuelTag;
         [FormerlySerializedAs("itemsPerOperation")]
         [SerializeField, Min(1)] private int fuelValuePerOperation = 1;
 

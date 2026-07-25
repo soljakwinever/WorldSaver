@@ -187,6 +187,50 @@ public class Chunk : MonoBehaviour, IChunk
         return entity;
     }
 
+    /// <summary>
+    /// Checks that the chunk is restored and the node has a runtime archetype.
+    /// </summary>
+    public bool CanSpawnRuntimeEntity(NodeData nodeData)
+    {
+        return nodeData != null &&
+               _persistenceRoot != null &&
+               _persistenceRoot.RestoreCompleted &&
+               TryGetRuntimeArchetype(nodeData, out _);
+    }
+
+    /// <summary>
+    /// Spawns and registers a persistent runtime entity from its node data.
+    /// </summary>
+    public bool TrySpawnRuntimeEntity(
+        NodeData nodeData,
+        Vector2 worldPosition,
+        out PersistentEntity entity)
+    {
+        entity = null;
+        if (!CanSpawnRuntimeEntity(nodeData) ||
+            !TryGetRuntimeArchetype(nodeData, out EntityArchetype archetype))
+        {
+            return false;
+        }
+
+        entity = SpawnRuntimeEntity(archetype, worldPosition);
+        return entity != null;
+    }
+
+    // Save records store archetype IDs, so NodeData alone must resolve to one.
+    private bool TryGetRuntimeArchetype(
+        NodeData nodeData,
+        out EntityArchetype archetype)
+    {
+        archetype = worldData.runtimeEntityArchetypes?
+            .FirstOrDefault(candidate =>
+                candidate != null && candidate.NodeData == nodeData);
+
+        archetype ??= Resources.LoadAll<EntityArchetype>(string.Empty)
+            .FirstOrDefault(candidate => candidate.NodeData == nodeData);
+        return archetype != null;
+    }
+
     private PersistentEntity RestoreRuntimeEntity(PersistentEntityRecord record)
     {
         EntityArchetype archetype = worldData.runtimeEntityArchetypes?
@@ -256,11 +300,98 @@ public class Chunk : MonoBehaviour, IChunk
         }
     }
 
+    /// <summary>Checks whether a world cell contains the specified tile on the given layer.</summary>
+    public bool HasTile(
+        Vector3Int worldCell,
+        PersistentTileLayer layer,
+        TileData tile)
+    {
+        return tile != null &&
+               tile.TileBase != null &&
+               TryGetLocalCell(worldCell, layer, out Vector3Int localCell) &&
+               GetTilemap(layer).GetTile(localCell) == tile.TileBase;
+    }
+
+    public bool HasTile(Vector3Int worldCell, PersistentTileLayer layer)
+    {
+        return TryGetLocalCell(worldCell, layer, out Vector3Int localCell) &&
+               GetTilemap(layer).HasTile(localCell);
+    }
+
+    public bool TryGetTileData(
+        Vector3Int worldCell,
+        PersistentTileLayer layer,
+        out TileData tileData)
+    {
+        tileData = null;
+        if (!TryGetLocalCell(worldCell, layer, out Vector3Int localCell))
+            return false;
+
+        TileBase currentTile = GetTilemap(layer).GetTile(localCell);
+        if (currentTile == null || worldData.tiles == null)
+            return false;
+
+        foreach (TileData candidate in worldData.tiles)
+        {
+            if (candidate != null && candidate.TileBase == currentTile)
+            {
+                tileData = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns true when gameplay or persistence has replaced/cleared the
+    /// procedurally generated tile at this cell.
+    /// </summary>
+    public bool IsTileChanged(
+        Vector3Int worldCell,
+        PersistentTileLayer layer)
+    {
+        return TryGetLocalCell(worldCell, layer, out Vector3Int localCell) &&
+               _persistenceRoot.HasTileOverride(
+                   (byte)localCell.x,
+                   (byte)localCell.y,
+                   layer);
+    }
+
     /// <summary>Places a registered tile at a world cell after this chunk has restored.</summary>
     public bool TryPlaceTile(
         Vector3Int worldCell,
         PersistentTileLayer layer,
         TileData tile)
+    {
+        return TryPlaceTile(worldCell, layer, tile, tile != null ? tile.Color : Color.white);
+    }
+
+    /// <summary>
+    /// Places a registered tile with a caller-provided tint and persists the
+    /// tile identity. The tint is visual state derived from the world and does
+    /// not need a separate save entry.
+    /// </summary>
+    public bool TryPlaceTile(
+        Vector3Int worldCell,
+        PersistentTileLayer layer,
+        TileData tile,
+        Color color)
+    {
+        return TryPlaceTile(
+            worldCell,
+            layer,
+            tile,
+            color,
+            PersistentTileTint.TileDefault);
+    }
+
+    public bool TryPlaceTile(
+        Vector3Int worldCell,
+        PersistentTileLayer layer,
+        TileData tile,
+        Color color,
+        PersistentTileTint tint)
     {
         if (!TryGetLocalCell(worldCell, layer, out Vector3Int localCell) || tile == null)
             return false;
@@ -275,15 +406,17 @@ public class Chunk : MonoBehaviour, IChunk
             return false;
         }
 
-        GetTilemap(layer).SetTile(localCell, tile.TileBase);
-        GetTilemap(layer).SetColor(localCell, tile.Color);
+        Tilemap tilemap = GetTilemap(layer);
+        tilemap.SetTile(localCell, tile.TileBase);
+        SetTileColor(tilemap, localCell, color);
         _persistenceRoot.SetTileOverride(new TileOverrideData
         {
             localX = (byte)localCell.x,
             localY = (byte)localCell.y,
             layer = layer,
             kind = TileOverrideKind.Place,
-            tileId = tile.TileId
+            tileId = tile.TileId,
+            tint = tint
         });
         return true;
     }
@@ -304,6 +437,35 @@ public class Chunk : MonoBehaviour, IChunk
             tileId = -1
         });
         return true;
+    }
+
+    /// <summary>
+    /// Replaces a mined tile with the biome override, or the world default when
+    /// no biome override is configured. Clears the tile when neither is assigned.
+    /// </summary>
+    public bool TryReplaceMinedTile(
+        Vector3Int worldCell,
+        PersistentTileLayer layer)
+    {
+        TerrainSample sample =
+            worldGeneration.GetTerrainSample(worldCell.x, worldCell.y);
+        bool usesBiomeOverride =
+            sample.biome != null &&
+            sample.biome.overrideMinedTileReplacement != null;
+        TileData replacement = usesBiomeOverride
+            ? sample.biome.overrideMinedTileReplacement
+            : worldData.minedTileReplacement;
+
+        if (replacement == null)
+            return TryClearTile(worldCell, layer);
+
+        const PersistentTileTint tint = PersistentTileTint.BiomeDirt;
+        return TryPlaceTile(
+            worldCell,
+            layer,
+            replacement,
+            GetTileColor(replacement, sample.biomeBlend, tint),
+            tint);
     }
 
     /// <summary>Removes an override and restores the procedurally generated tile.</summary>
@@ -343,8 +505,42 @@ public class Chunk : MonoBehaviour, IChunk
             }
 
             tilemap.SetTile(localCell, tileData.TileBase);
-            tilemap.SetColor(localCell, tileData.Color);
+            TerrainSample sample = worldGeneration.GetTerrainSample(
+                Position.x * ChunkBuildResult.ChunkSize + localCell.x,
+                Position.y * ChunkBuildResult.ChunkSize + localCell.y);
+            Color color = GetTileColor(
+                tileData,
+                sample.biomeBlend,
+                tileOverride.tint);
+            SetTileColor(tilemap, localCell, color);
         }
+    }
+
+    private static void SetTileColor(
+        Tilemap tilemap,
+        Vector3Int cell,
+        Color color)
+    {
+        TileFlags flags = tilemap.GetTileFlags(cell);
+        tilemap.SetTileFlags(cell, flags & ~TileFlags.LockColor);
+        tilemap.SetColor(cell, color);
+    }
+
+    private static Color GetTileColor(
+        TileData tile,
+        BiomeBlend biome,
+        PersistentTileTint tint)
+    {
+        return tint switch
+        {
+            PersistentTileTint.BiomeGround => biome.groundColor,
+            PersistentTileTint.BiomeDirt => biome.dirtColor,
+            PersistentTileTint.BiomePath => biome.pathColor,
+            PersistentTileTint.BiomeWater => biome.waterColor,
+            PersistentTileTint.BiomeCliff => biome.cliffColor,
+            PersistentTileTint.BiomeBeach => biome.beachColor,
+            _ => tile.Color
+        };
     }
 
     private bool TryGetLocalCell(

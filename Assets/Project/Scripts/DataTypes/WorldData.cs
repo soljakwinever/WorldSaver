@@ -12,6 +12,14 @@ namespace Project.Scripts
     {
         public TileData[] tiles;
 
+        [Header("Tile Actions")]
+        [Tooltip("Tile placed after mining. Individual biomes may override this value.")]
+        public TileData minedTileReplacement;
+
+        [Header("Tile Spreading")]
+        [Tooltip("Rules such as grass spreading onto dirt. Only loaded chunks are simulated.")]
+        public TileSpreadRule[] tileSpreadRules = Array.Empty<TileSpreadRule>();
+
         public bool TryGetTileData(int tileId, out TileData tileData)
         {
             tileData = null;

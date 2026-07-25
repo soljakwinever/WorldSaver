@@ -38,6 +38,7 @@ MonoBehaviour:
   mesaChance: 0
   townChance: 0.3
   groundColor: {r: 0.27450982, g: 0.47058824, b: 0.5882353, a: 1}
+  dirtColor: {r: 0.328235, g: 0.228235, b: 0.288235, a: 1}
   pathColor: {r: 0.47058824, g: 0.4117647, b: 0.627451, a: 1}
   waterColor: {r: 0.37254903, g: 0.37254903, b: 1, a: 1}
   cliffColor: {r: 0.33333334, g: 0.39215687, b: 0.5294118, a: 1}

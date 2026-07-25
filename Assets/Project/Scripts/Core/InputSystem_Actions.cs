@@ -129,7 +129,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""initialStateCheck"": false
                 },
                 {
-                    ""name"": ""Crouch"",
+                    ""name"": ""Crafting"",
                     ""type"": ""Button"",
                     ""id"": ""27c5f898-bc57-4ee1-8800-db469aca5fe3"",
                     ""expectedControlType"": ""Button"",
@@ -196,6 +196,15 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""type"": ""PassThrough"",
                     ""id"": ""7b62a573-e42e-4c3d-b9d6-e15ba99b38b9"",
                     ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""MousePosition"",
+                    ""type"": ""PassThrough"",
+                    ""id"": ""2f974d36-31ca-4ec8-8ac8-41f471525c53"",
+                    ""expectedControlType"": ""Vector2"",
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
@@ -572,7 +581,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Gamepad"",
-                    ""action"": ""Crouch"",
+                    ""action"": ""Crafting"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -583,7 +592,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
-                    ""action"": ""Crouch"",
+                    ""action"": ""Crafting"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 },
@@ -626,7 +635,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/0"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -637,7 +646,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/1"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -648,7 +657,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/2"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -659,7 +668,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/3"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -670,7 +679,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/4"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -681,7 +690,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/5"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -692,7 +701,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/6"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -703,7 +712,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/7"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -714,7 +723,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/8"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
@@ -725,8 +734,19 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
                     ""path"": ""<Keyboard>/9"",
                     ""interactions"": """",
                     ""processors"": """",
-                    ""groups"": """",
+                    ""groups"": "";Keyboard&Mouse"",
                     ""action"": ""Hotbar"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""8a446721-2166-48b8-ae68-3b22b8994ba5"",
+                    ""path"": ""<Mouse>/position"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""MousePosition"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -1318,7 +1338,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
         m_Player_Look = m_Player.FindAction("Look", throwIfNotFound: true);
         m_Player_Attack = m_Player.FindAction("Attack", throwIfNotFound: true);
         m_Player_Interact = m_Player.FindAction("Interact", throwIfNotFound: true);
-        m_Player_Crouch = m_Player.FindAction("Crouch", throwIfNotFound: true);
+        m_Player_Crafting = m_Player.FindAction("Crafting", throwIfNotFound: true);
         m_Player_Jump = m_Player.FindAction("Jump", throwIfNotFound: true);
         m_Player_Previous = m_Player.FindAction("Previous", throwIfNotFound: true);
         m_Player_Next = m_Player.FindAction("Next", throwIfNotFound: true);
@@ -1326,6 +1346,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
         m_Player_Inventory = m_Player.FindAction("Inventory", throwIfNotFound: true);
         m_Player_Skill = m_Player.FindAction("Skill", throwIfNotFound: true);
         m_Player_Hotbar = m_Player.FindAction("Hotbar", throwIfNotFound: true);
+        m_Player_MousePosition = m_Player.FindAction("MousePosition", throwIfNotFound: true);
         // UI
         m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
         m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -1423,7 +1444,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Look;
     private readonly InputAction m_Player_Attack;
     private readonly InputAction m_Player_Interact;
-    private readonly InputAction m_Player_Crouch;
+    private readonly InputAction m_Player_Crafting;
     private readonly InputAction m_Player_Jump;
     private readonly InputAction m_Player_Previous;
     private readonly InputAction m_Player_Next;
@@ -1431,6 +1452,7 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Inventory;
     private readonly InputAction m_Player_Skill;
     private readonly InputAction m_Player_Hotbar;
+    private readonly InputAction m_Player_MousePosition;
     /// <summary>
     /// Provides access to input actions defined in input action map "Player".
     /// </summary>
@@ -1459,9 +1481,9 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
         /// </summary>
         public InputAction @Interact => m_Wrapper.m_Player_Interact;
         /// <summary>
-        /// Provides access to the underlying input action "Player/Crouch".
+        /// Provides access to the underlying input action "Player/Crafting".
         /// </summary>
-        public InputAction @Crouch => m_Wrapper.m_Player_Crouch;
+        public InputAction @Crafting => m_Wrapper.m_Player_Crafting;
         /// <summary>
         /// Provides access to the underlying input action "Player/Jump".
         /// </summary>
@@ -1490,6 +1512,10 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Player/Hotbar".
         /// </summary>
         public InputAction @Hotbar => m_Wrapper.m_Player_Hotbar;
+        /// <summary>
+        /// Provides access to the underlying input action "Player/MousePosition".
+        /// </summary>
+        public InputAction @MousePosition => m_Wrapper.m_Player_MousePosition;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1528,9 +1554,9 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
             @Interact.started += instance.OnInteract;
             @Interact.performed += instance.OnInteract;
             @Interact.canceled += instance.OnInteract;
-            @Crouch.started += instance.OnCrouch;
-            @Crouch.performed += instance.OnCrouch;
-            @Crouch.canceled += instance.OnCrouch;
+            @Crafting.started += instance.OnCrafting;
+            @Crafting.performed += instance.OnCrafting;
+            @Crafting.canceled += instance.OnCrafting;
             @Jump.started += instance.OnJump;
             @Jump.performed += instance.OnJump;
             @Jump.canceled += instance.OnJump;
@@ -1552,6 +1578,9 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
             @Hotbar.started += instance.OnHotbar;
             @Hotbar.performed += instance.OnHotbar;
             @Hotbar.canceled += instance.OnHotbar;
+            @MousePosition.started += instance.OnMousePosition;
+            @MousePosition.performed += instance.OnMousePosition;
+            @MousePosition.canceled += instance.OnMousePosition;
         }
 
         /// <summary>
@@ -1575,9 +1604,9 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
             @Interact.started -= instance.OnInteract;
             @Interact.performed -= instance.OnInteract;
             @Interact.canceled -= instance.OnInteract;
-            @Crouch.started -= instance.OnCrouch;
-            @Crouch.performed -= instance.OnCrouch;
-            @Crouch.canceled -= instance.OnCrouch;
+            @Crafting.started -= instance.OnCrafting;
+            @Crafting.performed -= instance.OnCrafting;
+            @Crafting.canceled -= instance.OnCrafting;
             @Jump.started -= instance.OnJump;
             @Jump.performed -= instance.OnJump;
             @Jump.canceled -= instance.OnJump;
@@ -1599,6 +1628,9 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
             @Hotbar.started -= instance.OnHotbar;
             @Hotbar.performed -= instance.OnHotbar;
             @Hotbar.canceled -= instance.OnHotbar;
+            @MousePosition.started -= instance.OnMousePosition;
+            @MousePosition.performed -= instance.OnMousePosition;
+            @MousePosition.canceled -= instance.OnMousePosition;
         }
 
         /// <summary>
@@ -1928,12 +1960,12 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnInteract(InputAction.CallbackContext context);
         /// <summary>
-        /// Method invoked when associated input action "Crouch" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// Method invoked when associated input action "Crafting" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
         /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-        void OnCrouch(InputAction.CallbackContext context);
+        void OnCrafting(InputAction.CallbackContext context);
         /// <summary>
         /// Method invoked when associated input action "Jump" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
         /// </summary>
@@ -1983,6 +2015,13 @@ public partial class @Inputs: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnHotbar(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "MousePosition" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnMousePosition(InputAction.CallbackContext context);
     }
     /// <summary>
     /// Interface to implement callback methods for all input action callbacks associated with input actions defined by "UI" which allows adding and removing callbacks.

@@ -2,25 +2,54 @@ using UnityEngine;
 
 namespace Project.Scripts.DataTypes
 {
-    public readonly struct ItemActionContext
+    /// <summary>Runtime inputs shared by item actions.</summary>
+    public readonly struct ActionContext
     {
         public GameObject User { get; }
         public Vector3 TargetPosition { get; }
+        public ItemData Item { get; }
 
-        public ItemActionContext(GameObject user, Vector3 targetPosition)
+        /// <param name="item">
+        /// Item bound to the action. Bindings supply this automatically.
+        /// </param>
+        public ActionContext(
+            GameObject user,
+            Vector3 targetPosition,
+            ItemData item = null)
         {
             User = user;
             TargetPosition = targetPosition;
+            Item = item;
         }
     }
 
-    public abstract class ItemAction : ScriptableObject
+    /// <summary>Base type for actions that can validate and execute.</summary>
+    public abstract class AssignableAction : ScriptableObject
+    {
+        public abstract bool CanPerform(ActionContext context);
+        public abstract bool Perform(ActionContext context);
+    }
+
+    /// <summary>
+    /// Reusable item behavior. Item-specific values come from
+    /// <see cref="ItemData.ActionData"/>.
+    /// </summary>
+    public abstract class ItemAction : AssignableAction
     {
         [field: SerializeField]
         [field: Tooltip("Remove one item after a successful action.")]
         public bool ConsumesItem { get; private set; }
 
-        public abstract bool CanPerform(ItemActionContext context);
-        public abstract bool Perform(ItemActionContext context);
+        // Display methods receive the item because one action asset may be shared.
+        public virtual string GetPersistentId(ItemData item) =>
+            item != null ? item.persistentId : string.Empty;
+        public virtual string GetDisplayName(ItemData item) =>
+            item != null ? item.name : string.Empty;
+        public virtual string GetTooltip(ItemData item) =>
+            item != null ? item.description : string.Empty;
+        public virtual int GetCount(ItemData item) => 0;
+        public virtual float Refresh => 0f;
+        public virtual bool DisplayCount => false;
     }
+
 }

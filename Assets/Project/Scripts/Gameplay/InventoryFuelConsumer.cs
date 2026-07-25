@@ -13,7 +13,7 @@ namespace Project.Scripts.Gameplay
         public const ushort TypeId = 8;
         private const ushort CurrentVersion = 2;
 
-        [SerializeField] private ItemTag fuelTag;
+        [SerializeField] private EntityTag fuelTag;
         [FormerlySerializedAs("itemsPerOperation")]
         [SerializeField, Min(1)] private int fuelValuePerOperation = 1;
 
@@ -42,7 +42,7 @@ namespace Project.Scripts.Gameplay
         public double StoredFuelValue =>
             _storedFuelUnits / (double)ItemData.FuelUnitsPerBaseValue;
 
-        public void Initialize(ItemTag tag, int valueRequiredPerOperation)
+        public void Initialize(EntityTag tag, int valueRequiredPerOperation)
         {
             fuelTag = tag != null ? tag : throw new ArgumentNullException(nameof(tag));
             fuelValuePerOperation = Math.Max(1, valueRequiredPerOperation);

@@ -1,6 +1,8 @@
+using Project.Scripts.Bus;
 using Project.Scripts.Core;
 using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
+using Project.Scripts.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Zenject;
@@ -13,26 +15,33 @@ namespace Project.Scripts
         private PanelRenderer _uiDocument;
     
         [Inject] private PlayerDataController playerDataController;
-        private IInputManager inputManager;
+        private PlayerBus playerBus;
+        
+        private HotbarSlot[] hotbarSlots = new HotbarSlot[10];
 
         [Inject]
-        public void Construct([Inject] IInputManager inputManager)
+        public void Construct([Inject] PlayerBus playerBus)
         {
-            this.inputManager = inputManager;
-            inputManager.InputPerformed += InputManagerOnInputPerformed;
+            playerBus.hotbarIndexChanged += PlayerBusOnhotbarIndexChanged;
+            playerBus.hotbarActionSet += PlayerBusOnhotbarActionSet;
         }
 
-        private void InputManagerOnInputPerformed(InputContext context)
+        private void PlayerBusOnhotbarActionSet(int index, IHotbarAction action)
         {
-            if (context.HotBarPressed >= 0)
-            {
-                
-            }
+            hotbarSlots[index].Action = action;
+        }
+
+        private void PlayerBusOnhotbarIndexChanged(int index, IHotbarAction[] hotbarActions)
+        {
+            HandleHotBar(index);
         }
 
         private void HandleHotBar(int hotbarPressed)
         {
-            
+            for(int i = 0; i < hotbarSlots.Length; i++)
+            {
+                hotbarSlots[i].Active = hotbarPressed == i;
+            }
         }
 
         private void Awake()
@@ -49,6 +58,19 @@ namespace Project.Scripts
         private void ReloadCallback(PanelRenderer panel, VisualElement root)
         {
             root.Q("NeedsDisplay").dataSource = playerDataController;
+
+            var hotbar = root.Q("Toolbar");
+            hotbar.Clear();
+            
+            for (int i = 0; i < hotbarSlots.Length; i++)
+            {
+                var slot = new HotbarSlot();
+                slot.Action = null;
+                
+                hotbarSlots[i] = slot;
+
+                hotbar.Add(slot);
+            }
         }
     }
 }

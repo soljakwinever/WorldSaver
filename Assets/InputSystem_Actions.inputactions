@@ -43,7 +43,7 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "Crouch",
+                    "name": "Crafting",
                     "type": "Button",
                     "id": "27c5f898-bc57-4ee1-8800-db469aca5fe3",
                     "expectedControlType": "Button",
@@ -110,6 +110,15 @@
                     "type": "PassThrough",
                     "id": "7b62a573-e42e-4c3d-b9d6-e15ba99b38b9",
                     "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "MousePosition",
+                    "type": "PassThrough",
+                    "id": "2f974d36-31ca-4ec8-8ac8-41f471525c53",
+                    "expectedControlType": "Vector2",
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
@@ -486,7 +495,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Gamepad",
-                    "action": "Crouch",
+                    "action": "Crafting",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -497,7 +506,7 @@
                     "interactions": "",
                     "processors": "",
                     "groups": "Keyboard&Mouse",
-                    "action": "Crouch",
+                    "action": "Crafting",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },
@@ -540,7 +549,7 @@
                     "path": "<Keyboard>/0",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -551,7 +560,7 @@
                     "path": "<Keyboard>/1",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -562,7 +571,7 @@
                     "path": "<Keyboard>/2",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -573,7 +582,7 @@
                     "path": "<Keyboard>/3",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -584,7 +593,7 @@
                     "path": "<Keyboard>/4",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -595,7 +604,7 @@
                     "path": "<Keyboard>/5",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -606,7 +615,7 @@
                     "path": "<Keyboard>/6",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -617,7 +626,7 @@
                     "path": "<Keyboard>/7",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -628,7 +637,7 @@
                     "path": "<Keyboard>/8",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
                     "isComposite": false,
                     "isPartOfComposite": false
@@ -639,8 +648,19 @@
                     "path": "<Keyboard>/9",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Keyboard&Mouse",
                     "action": "Hotbar",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "8a446721-2166-48b8-ae68-3b22b8994ba5",
+                    "path": "<Mouse>/position",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "MousePosition",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

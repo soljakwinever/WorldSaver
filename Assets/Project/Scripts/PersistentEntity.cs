@@ -18,6 +18,7 @@ namespace Project.Scripts.Core
         public int ArchetypeId => archetypeId;
         public EntityPersistenceKind PersistenceKind => _persistenceKind;
         public PersistentComponentHost ComponentHost => _componentHost;
+        public bool CanRemoveFromWorld => _owner != null;
 
         public void Initialize(
             NodeId id,

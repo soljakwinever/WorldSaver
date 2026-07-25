@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1bebaaf5f170494a8c3312df9bb022ea, type: 3}
+  m_Name: Level1Pickaxe
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.ToolData
+  _toolName: Level1Pickaxe
+  _toolType: 2
+  _power: 1
+  _staminaCost: 1
+  _actions:
+  - {fileID: 11400000, guid: f68a33b49cecac541aba9a318ca2f831, type: 2}

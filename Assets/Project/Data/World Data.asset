@@ -1,0 +1,673 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c66ea53700b40698fab6aadc5faca19, type: 3}
+  m_Name: World Data
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.WorldData
+  tiles:
+  - {fileID: 11400000, guid: 10111111111141118111111111111111, type: 2}
+  - {fileID: 11400000, guid: 20222222222242228222222222222222, type: 2}
+  - {fileID: 11400000, guid: 30333333333343338333333333333333, type: 2}
+  - {fileID: 11400000, guid: 40444444444444448444444444444444, type: 2}
+  - {fileID: 11400000, guid: 50555555555545558555555555555555, type: 2}
+  - {fileID: 11400000, guid: 60666666666646668666666666666666, type: 2}
+  - {fileID: 11400000, guid: 70777777777747778777777777777777, type: 2}
+  - {fileID: 11400000, guid: 80888888888848888888888888888888, type: 2}
+  - {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
+  - {fileID: 11400000, guid: a0aaaaaaaaaa4aaa8aaaaaaaaaaaaaaa, type: 2}
+  - {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+  minedTileReplacement: {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
+  tileSpreadRules:
+  - {fileID: 11400000, guid: c5077881638646b5be27072cfec50c92, type: 2}
+  seed: 44
+  heightMapDebug: 0
+  previewNoiseLayer: 1
+  waterHeight: 0.1
+  beachHeight: 0.15
+  mountainHeight: 0.9
+  cliffHeight: 0.085
+  outCropStrength: 2
+  outCropThreshold: 0.7
+  outCropNoiseScale: 1
+  continentalNoiseScale: 16
+  moistureNoiseScale: 48
+  temperatureNoiseScale: 64
+  erosionNoiseScale: 0.5
+  valleyNoiseScale: 32
+  peakValleyNoiseScale: 0.5
+  valleyDepth: 0.22
+  valleyWidth: 0.12
+  lakeDepth: 1
+  lakeNoiseScale: 0.5
+  hillStrength: 0
+  bumpStrength: 8
+  featureCellSize: 1024
+  featureChancePerCell: 0.1
+  minFeatureRadius: 32
+  maxFeatureRadius: 96
+  propSpawnRules:
+  - name: Oak Tree
+    nodeData: {fileID: 11400000, guid: d9eaf2b8e259b4e41b604c1ebe576e32, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.205
+    maxHeight: 0.78
+    minMoisture: 0.3
+    maxMoisture: 1
+    minTemperature: 0.3
+    maxTemperature: 0.6
+    maxSlope: 0
+    density: 0.21
+    cellSize: 2
+    minSpacing: 1
+    noiseScale: 1
+    noiseThreshold: 0.45
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1.15
+    randomFlipX: 1
+  - name: Pine
+    nodeData: {fileID: 11400000, guid: 936a8bbb38815664a88614bc13daf719, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.2
+    maxHeight: 0.5
+    minMoisture: 0
+    maxMoisture: 1
+    minTemperature: 0.15
+    maxTemperature: 0.4
+    maxSlope: 0
+    density: 0.3
+    cellSize: 3
+    minSpacing: 1
+    noiseScale: 1
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Pine Tall
+    nodeData: {fileID: 11400000, guid: 1590b6d2a6b29624fa367150d6bb50c9, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.3
+    maxHeight: 0.5
+    minMoisture: 0
+    maxMoisture: 1
+    minTemperature: 0.15
+    maxTemperature: 0.4
+    maxSlope: 0
+    density: 0.3
+    cellSize: 3
+    minSpacing: 1
+    noiseScale: 1
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Cherryblossom
+    nodeData: {fileID: 11400000, guid: 720ab2ba67372ab46bacd4ebd2a2cd1e, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.32
+    maxHeight: 0.4
+    minMoisture: 0.4
+    maxMoisture: 0.6
+    minTemperature: 0.34
+    maxTemperature: 0.42
+    maxSlope: 0
+    density: 0.32
+    cellSize: 8
+    minSpacing: 1
+    noiseScale: 1
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Bush
+    nodeData: {fileID: 11400000, guid: afec299825490ef439f5a27ab36eb0d1, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.32
+    maxHeight: 0.4
+    minMoisture: 0.2
+    maxMoisture: 1
+    minTemperature: 0.1
+    maxTemperature: 0.7
+    maxSlope: 0
+    density: 0.32
+    cellSize: 8
+    minSpacing: 1
+    noiseScale: 4
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Rock
+    nodeData: {fileID: 11400000, guid: 5a9f7b4e3b6830a4d95dc81d4685f3a8, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.3
+    maxHeight: 0.5
+    minMoisture: 0
+    maxMoisture: 1
+    minTemperature: 0
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.5
+    cellSize: 8
+    minSpacing: 1
+    noiseScale: 4
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Ruin Rock
+    nodeData: {fileID: 11400000, guid: bd9b01cf4dca8c14198c98d4121d6f29, type: 2}
+    allowedBiomes:
+    - {fileID: 11400000, guid: 0d17a442b8506fe479e9b7ff7b0cbd41, type: 2}
+    disallowedBiomes: []
+    minHeight: 0.3
+    maxHeight: 0.4
+    minMoisture: 0.4
+    maxMoisture: 0.5
+    minTemperature: 0
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.8
+    cellSize: 16
+    minSpacing: 1
+    noiseScale: 0.5
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Dead Tree
+    nodeData: {fileID: 11400000, guid: 62cd563ced4ddf84a943f775e1fb45eb, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.32
+    maxHeight: 0.49
+    minMoisture: 0.1
+    maxMoisture: 0.6
+    minTemperature: 0.5
+    maxTemperature: 0.8
+    maxSlope: 0
+    density: 0.32
+    cellSize: 8
+    minSpacing: 1
+    noiseScale: 1
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Wildflower Pink
+    nodeData: {fileID: 11400000, guid: c137edf4f08d71e48a45177b2be969dc, type: 2}
+    allowedBiomes:
+    - {fileID: 11400000, guid: 88cd43d05ce724647b64d84071a7e0dd, type: 2}
+    - {fileID: 11400000, guid: 03b094fd2b4ccdc478b1329ce73f5582, type: 2}
+    - {fileID: 11400000, guid: dc785bbff5047cf4db1a436c96544af2, type: 2}
+    disallowedBiomes: []
+    minHeight: 0.1
+    maxHeight: 0.8
+    minMoisture: 0.33
+    maxMoisture: 0.6
+    minTemperature: 0
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.21
+    cellSize: 2
+    minSpacing: 1
+    noiseScale: 5
+    noiseThreshold: 0.5
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Wildflower Blue
+    nodeData: {fileID: 11400000, guid: 2870616ff93bae04ca3eb77d69972b10, type: 2}
+    allowedBiomes:
+    - {fileID: 11400000, guid: 03b094fd2b4ccdc478b1329ce73f5582, type: 2}
+    - {fileID: 11400000, guid: 88cd43d05ce724647b64d84071a7e0dd, type: 2}
+    - {fileID: 11400000, guid: b91cbe7ffeb94214b8b3d10a65459664, type: 2}
+    - {fileID: 11400000, guid: 2d224441b0820944f99821383bdb7027, type: 2}
+    - {fileID: 11400000, guid: f7e5d03f83b83ca4ba906988822a61fb, type: 2}
+    - {fileID: 11400000, guid: 461c4f3d7bdea58449cc2af9ff8c2dfd, type: 2}
+    disallowedBiomes: []
+    minHeight: 0.2
+    maxHeight: 0.85
+    minMoisture: 0
+    maxMoisture: 1
+    minTemperature: 0
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.32
+    cellSize: 10
+    minSpacing: 1
+    noiseScale: 4
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Wildflower Yellow
+    nodeData: {fileID: 11400000, guid: 38ea3f53aa17c354b9b007948c3666d2, type: 2}
+    allowedBiomes:
+    - {fileID: 11400000, guid: ebb2faebccdb2e34287bd925be134686, type: 2}
+    - {fileID: 11400000, guid: 03b094fd2b4ccdc478b1329ce73f5582, type: 2}
+    - {fileID: 11400000, guid: 79dbc5a5ee2025848812a6b5d1eb5b59, type: 2}
+    - {fileID: 11400000, guid: 809e6c852363c3c459bf3b1b2522e7a2, type: 2}
+    - {fileID: 11400000, guid: 461c4f3d7bdea58449cc2af9ff8c2dfd, type: 2}
+    disallowedBiomes: []
+    minHeight: 0.33
+    maxHeight: 0.85
+    minMoisture: 0
+    maxMoisture: 1
+    minTemperature: 0
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.32
+    cellSize: 8
+    minSpacing: 1
+    noiseScale: 4
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Small Cactus
+    nodeData: {fileID: 11400000, guid: 6358c047313c28a4d859574dde9f5805, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.33
+    maxHeight: 0.85
+    minMoisture: 0.1
+    maxMoisture: 0.3
+    minTemperature: 0.832
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.32
+    cellSize: 7
+    minSpacing: 2
+    noiseScale: 1
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Large Cactus
+    nodeData: {fileID: 11400000, guid: ee84fe814de23a2459c805b95786c45e, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.33
+    maxHeight: 0.85
+    minMoisture: 0.1
+    maxMoisture: 0.3
+    minTemperature: 0.832
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.32
+    cellSize: 7
+    minSpacing: 2
+    noiseScale: 1
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Small Rock
+    nodeData: {fileID: 11400000, guid: 897b0fb3c56c9c74e831470f0ea91516, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.25
+    maxHeight: 0.85
+    minMoisture: 0
+    maxMoisture: 1
+    minTemperature: 0.2
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.4
+    cellSize: 12
+    minSpacing: 2
+    noiseScale: 8
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Small Snowy Rock
+    nodeData: {fileID: 11400000, guid: 898f851ef9e2d774eb4d546677ae1f4d, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.25
+    maxHeight: 1
+    minMoisture: -1
+    maxMoisture: 1
+    minTemperature: -1
+    maxTemperature: 0.2
+    maxSlope: 0
+    density: 0.4
+    cellSize: 12
+    minSpacing: 2
+    noiseScale: 2
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Palm Tree
+    nodeData: {fileID: 11400000, guid: 89135d37d617b1048a1c83b55145d736, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.255
+    maxHeight: 1
+    minMoisture: 0.3
+    maxMoisture: 1
+    minTemperature: 0.66
+    maxTemperature: 0.79
+    maxSlope: 0
+    density: 0.4
+    cellSize: 8
+    minSpacing: 2
+    noiseScale: 0.6
+    noiseThreshold: 0.15
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Tropical Tree
+    nodeData: {fileID: 11400000, guid: 19bd3094a6e89c845bec71997289c3d3, type: 2}
+    allowedBiomes:
+    - {fileID: 11400000, guid: 461c4f3d7bdea58449cc2af9ff8c2dfd, type: 2}
+    disallowedBiomes: []
+    minHeight: 0.33
+    maxHeight: 1
+    minMoisture: 0.6
+    maxMoisture: 1
+    minTemperature: 0.7
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.2
+    cellSize: 8
+    minSpacing: 2
+    noiseScale: 1
+    noiseThreshold: 0.15
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Sycamore
+    nodeData: {fileID: 11400000, guid: a5268431b0d923b4dae8924ef53ffd37, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.33
+    maxHeight: 1
+    minMoisture: 0.4
+    maxMoisture: 1
+    minTemperature: 0.6
+    maxTemperature: 0.73
+    maxSlope: 0
+    density: 0.1
+    cellSize: 3
+    minSpacing: 4
+    noiseScale: 1
+    noiseThreshold: 0.15
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Leafy Tree
+    nodeData: {fileID: 11400000, guid: 0cc8d582f0e2e9f49be24540fa5d7c32, type: 2}
+    allowedBiomes:
+    - {fileID: 11400000, guid: 461c4f3d7bdea58449cc2af9ff8c2dfd, type: 2}
+    disallowedBiomes: []
+    minHeight: 0.33
+    maxHeight: 1
+    minMoisture: 0.6
+    maxMoisture: 1
+    minTemperature: 0.7
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.13
+    cellSize: 5
+    minSpacing: 1
+    noiseScale: 1
+    noiseThreshold: 0.15
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Kindling
+    nodeData: {fileID: 11400000, guid: 3ae718fd6cf67354180ad887b7b7c262, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.3
+    maxHeight: 0.5
+    minMoisture: 0
+    maxMoisture: 1
+    minTemperature: 0
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.5
+    cellSize: 4
+    minSpacing: 1
+    noiseScale: 1
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  runtimeEntityArchetypes:
+  - {fileID: 11400000, guid: f54a64c4914aedb45a88fb4adc14ed5d, type: 2}
+  daysInMonth: 30
+  minutesPerDay: 5
+  startHour: 8
+  startSeason: 0
+  dayColorGradient:
+    serializedVersion: 2
+    key0: {r: 0.003395893, g: 0.003536755, b: 0.0064858496, a: 1}
+    key1: {r: 0.15643805, g: 0.12156863, b: 0.21176471, a: 1}
+    key2: {r: 1.6055589, g: 1.4589809, b: 0.67112356, a: 0}
+    key3: {r: 2.0914981, g: 2.297397, b: 2.2912223, a: 0}
+    key4: {r: 2.828427, g: 2.7912436, b: 2.5749362, a: 0}
+    key5: {r: 2.143547, g: 1.4781544, b: 0.5466045, a: 0}
+    key6: {r: 0.42654443, g: 0.240784, b: 0.59599996, a: 0}
+    key7: {r: 0.005574282, g: 0.005574282, b: 0.010352237, a: 0}
+    ctime0: 10601
+    ctime1: 13878
+    ctime2: 17155
+    ctime3: 22937
+    ctime4: 37008
+    ctime5: 46838
+    ctime6: 53006
+    ctime7: 65535
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 2
+    m_ColorSpace: -1
+    m_NumColorKeys: 8
+    m_NumAlphaKeys: 2
+  playerSettings:
+    hungerRate: 1.005
+    energyRate: 0.15
+    movementEnergyMulpiplier: 15

@@ -27,6 +27,7 @@ public class Node : MonoBehaviour, INode
     private PersistentComponentHost _persistentComponentHost;
     
     private NodeData _nodeData;
+    public NodeData NodeData => _nodeData;
 
     private GameObject _overrideVisual;
     

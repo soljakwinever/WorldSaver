@@ -90,13 +90,13 @@ namespace Project.Scripts.Gameplay
             return GetInventory().TryRemove(stack);
         }
 
-        public bool TryRemove(ItemTag tag, int count)
+        public bool TryRemove(EntityTag tag, int count)
         {
             return GetInventory().TryRemove(tag, count);
         }
 
         public bool TryRemoveOne(
-            ItemTag tag,
+            EntityTag tag,
             out ItemData item,
             out ItemData.Rarity rarity)
         {
@@ -108,7 +108,7 @@ namespace Project.Scripts.Gameplay
             return GetInventory().GetCount(item, rarity);
         }
 
-        public int GetCount(ItemTag tag)
+        public int GetCount(EntityTag tag)
         {
             return GetInventory().GetCount(tag);
         }
@@ -119,10 +119,28 @@ namespace Project.Scripts.Gameplay
             return GetInventory().Contains(item, count, rarity);
         }
 
+        public bool Contains(EntityTag tag, int count = 1,
+            ItemData.Rarity rarity = ItemData.Rarity.Common)
+        {
+            return GetInventory().Contains(tag, count, rarity);
+        }
+
         public bool Contains(IItemStack stack)
         {
             ValidateStack(stack);
             return GetInventory().Contains(stack);
+        }
+
+        public bool CanApplyChanges(IReadOnlyList<InventoryChange> changes)
+        {
+            ValidateChanges(changes);
+            return GetInventory().CanApplyChanges(changes);
+        }
+
+        public bool TryApplyChanges(IReadOnlyList<InventoryChange> changes)
+        {
+            ValidateChanges(changes);
+            return GetInventory().TryApplyChanges(changes);
         }
 
         public void Clear()
@@ -267,6 +285,15 @@ namespace Project.Scripts.Gameplay
 
             this.size = size;
             _inventory = new Inventory(size);
+        }
+
+        private void ValidateChanges(IReadOnlyList<InventoryChange> changes)
+        {
+            if (changes == null)
+                throw new ArgumentNullException(nameof(changes));
+
+            for (int i = 0; i < changes.Count; i++)
+                EnsureCatalogContains(changes[i].Item);
         }
     }
 }

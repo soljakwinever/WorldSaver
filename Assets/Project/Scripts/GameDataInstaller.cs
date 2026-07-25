@@ -4,6 +4,7 @@ using Project.Scripts.Gameplay;
 using Project.Scripts.Core;
 using Project.Scripts.Interface;
 using Project.Scripts.Persistence;
+using Project.Scripts.UI;
 using UnityEngine;
 using Zenject;
 
@@ -18,6 +19,14 @@ public class GameDataInstaller : MonoInstaller
     public override void InstallBindings()
     {
         Container.Bind<ItemCatalog>().FromComponentInHierarchy().AsSingle();
+        Container.Bind<ICraftingRandom>()
+            .To<CraftingService.UnityCraftingRandom>()
+            .AsSingle();
+        Container.Bind<ICraftingService>().To<CraftingService>().AsSingle();
+        Container.BindInterfacesAndSelfTo<ComponentWindowService>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
         Container.BindInterfacesAndSelfTo<InputManager>().AsSingle().NonLazy();
         Container.Bind<Chunk>().FromInstance(chunkPrefab);
 
@@ -51,6 +60,10 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<WorldGeneration>().FromNew().AsSingle();
 
         Container.Bind<Chunkloader>().FromComponentInHierarchy().AsSingle();
+        Container.BindInterfacesAndSelfTo<TileSpreadSystem>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
 
         Container.Bind<IRegionDiskStore>().To<FileRegionDiskStore>().AsSingle();
         Container.Bind<IRegionRepository>().To<RegionRepository>().AsSingle();

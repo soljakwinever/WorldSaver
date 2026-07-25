@@ -155,7 +155,8 @@ namespace Project.Scripts.Persistence
                 {
                     int tileCount = ReadCount(reader, "tile override");
                     for (int tileIndex = 0; tileIndex < tileCount; tileIndex++)
-                        chunk.tileOverrides.Add(ReadTileOverride(reader));
+                        chunk.tileOverrides.Add(
+                            ReadTileOverride(reader, save.version));
                 }
 
                 save.changedChunks.Add(chunk);
@@ -169,9 +170,12 @@ namespace Project.Scripts.Persistence
             writer.Write((byte)tile.layer);
             writer.Write((byte)tile.kind);
             writer.Write(tile.tileId);
+            writer.Write((byte)tile.tint);
         }
 
-        private static TileOverrideData ReadTileOverride(BinaryReader reader)
+        private static TileOverrideData ReadTileOverride(
+            BinaryReader reader,
+            ushort saveVersion)
         {
             TileOverrideData tile = new()
             {
@@ -179,14 +183,18 @@ namespace Project.Scripts.Persistence
                 localY = reader.ReadByte(),
                 layer = (PersistentTileLayer)reader.ReadByte(),
                 kind = (TileOverrideKind)reader.ReadByte(),
-                tileId = reader.ReadInt32()
+                tileId = reader.ReadInt32(),
+                tint = saveVersion >= 3
+                    ? (PersistentTileTint)reader.ReadByte()
+                    : PersistentTileTint.TileDefault
             };
 
             if (tile.localX >= ChunkBuildResult.ChunkSize ||
                 tile.localY >= ChunkBuildResult.ChunkSize)
                 throw new InvalidDataException("Tile override is outside its chunk.");
             if (!Enum.IsDefined(typeof(PersistentTileLayer), tile.layer) ||
-                !Enum.IsDefined(typeof(TileOverrideKind), tile.kind))
+                !Enum.IsDefined(typeof(TileOverrideKind), tile.kind) ||
+                !Enum.IsDefined(typeof(PersistentTileTint), tile.tint))
                 throw new InvalidDataException("Invalid tile override enum value.");
             if ((tile.kind == TileOverrideKind.Place && tile.tileId < 0) ||
                 (tile.kind == TileOverrideKind.Clear && tile.tileId != -1))

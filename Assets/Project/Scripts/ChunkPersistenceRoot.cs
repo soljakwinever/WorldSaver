@@ -199,6 +199,15 @@ namespace Project.Scripts.Core
             return _tileOverrides.Remove(GetTileKey(localX, localY, layer));
         }
 
+        public bool HasTileOverride(
+            byte localX,
+            byte localY,
+            PersistentTileLayer layer)
+        {
+            return _tileOverrides.ContainsKey(
+                GetTileKey(localX, localY, layer));
+        }
+
         public void NotifyEntityRemoved(PersistentEntity entity)
         {
             if (!_entities.Remove(entity.Id))

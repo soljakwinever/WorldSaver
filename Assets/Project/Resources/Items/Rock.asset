@@ -17,6 +17,17 @@ MonoBehaviour:
   maxStack: 32
   sprite: {fileID: 2387489849992799125, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
   action: {fileID: 11400000, guid: 0bc3db94bcaae05419fead9fa817326e, type: 2}
+  actionData:
+  - rid: 7218491099281098753
   goldValue: 1
   fuelValue: 1
-  tags: []
+  tags:
+  - {fileID: 11400000, guid: 6dd4ca9af4e337680cab072a651c8e64, type: 2}
+  references:
+    version: 2
+    RefIds:
+    - rid: 7218491099281098753
+      type: {class: PlaceTileItemActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        tile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+        layer: 0

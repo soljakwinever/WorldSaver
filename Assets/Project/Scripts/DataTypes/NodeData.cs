@@ -1,3 +1,4 @@
+using System;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
@@ -25,6 +26,25 @@ namespace Project.Scripts
         public NodeComponentDefinition[] persistentComponents;
         
         public ResourceType resourceType;
+
+        [SerializeField]
+        [Tooltip("Categories used by tools and other node filters.")]
+        private EntityTag[] tags = Array.Empty<EntityTag>();
+
+        /// <summary>Returns whether this node has the given tag.</summary>
+        public bool HasTag(EntityTag tag)
+        {
+            if (tag == null)
+                return false;
+
+            for (int i = 0; i < (tags?.Length ?? 0); i++)
+            {
+                if (tags[i] == tag)
+                    return true;
+            }
+
+            return false;
+        }
 
         //Todo: Resource
 

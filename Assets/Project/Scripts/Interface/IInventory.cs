@@ -14,15 +14,19 @@ namespace Project.Scripts.Interface
             ItemData.Rarity rarity = ItemData.Rarity.Common);
         bool TryRemove(IItemStack stack);
         bool TryRemove(ItemData item, int count, ItemData.Rarity rarity = ItemData.Rarity.Common);
-        bool TryRemove(ItemTag tag, int count);
+        bool TryRemove(EntityTag tag, int count);
         bool TryRemoveOne(
-            ItemTag tag,
+            EntityTag tag,
             out ItemData item,
             out ItemData.Rarity rarity);
         int GetCount(ItemData item, ItemData.Rarity rarity = ItemData.Rarity.Common);
-        int GetCount(ItemTag tag);
+        int GetCount(EntityTag tag);
         bool Contains(IItemStack stack);
         bool Contains(ItemData item, int count = 1, ItemData.Rarity rarity = ItemData.Rarity.Common);
+        bool Contains(EntityTag tag, int count = 1,
+            ItemData.Rarity rarity = ItemData.Rarity.Common);
+        bool CanApplyChanges(IReadOnlyList<InventoryChange> changes);
+        bool TryApplyChanges(IReadOnlyList<InventoryChange> changes);
         void Clear();
     }
 }
