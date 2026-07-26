@@ -29,6 +29,7 @@ namespace Project.Scripts
         private IWorldClock _worldClock;
         private WorldGeneration _worldGeneration;
         private SpreadWork _work;
+        private readonly SpreadWork _reusableWork = new();
         private CancellationTokenSource _cancellation;
 
         [Inject]
@@ -76,7 +77,8 @@ namespace Project.Scripts
                     continue;
 
                 _chunkloader.CopyLoadedChunks(_loadedChunks);
-                _work = new SpreadWork(CreateRuleSnapshot(rule), _loadedChunks);
+                _reusableWork.Begin(CreateRuleSnapshot(rule), _loadedChunks);
+                _work = _reusableWork;
                 _nextRuleTicks[rule] = SaturatingAdd(currentTick, rule.intervalTicks);
                 return;
             }
@@ -138,11 +140,9 @@ namespace Project.Scripts
             if (_work.ChunkIndex < _work.Chunks.Count)
                 return;
 
-            RuleSnapshot rule = _work.Rule;
-            Dictionary<CellKey, CellState> cells = _work.Cells;
             CancellationToken token = _cancellation.Token;
             _work.CandidateTask = Task.Run(
-                () => FindCandidates(rule, cells, token),
+                () => FindCandidates(_work, token),
                 token);
             _work.Phase = WorkPhase.FindingCandidates;
         }
@@ -158,7 +158,6 @@ namespace Project.Scripts
                 return;
             }
 
-            _work.Candidates = _work.CandidateTask.Result;
             _work.Phase = WorkPhase.CapturingTerrain;
         }
 
@@ -178,13 +177,11 @@ namespace Project.Scripts
             if (_work.TerrainIndex < _work.Candidates.Count)
                 return;
 
-            RuleSnapshot rule = _work.Rule;
-            List<CellKey> candidates = _work.Candidates;
-            Dictionary<CellKey, TerrainState> terrain = _work.Terrain;
             CancellationToken token = _cancellation.Token;
-            int seed = unchecked((int)_worldClock.CurrentTick * 397 ^ rule.RuleId);
+            int seed = unchecked(
+                (int)_worldClock.CurrentTick * 397 ^ _work.Rule.RuleId);
             _work.ResultTask = Task.Run(
-                () => FilterCandidates(rule, candidates, terrain, seed, token),
+                () => FilterCandidates(_work, seed, token),
                 token);
             _work.Phase = WorkPhase.FilteringCandidates;
         }
@@ -200,7 +197,7 @@ namespace Project.Scripts
                 return;
             }
 
-            foreach (CellKey cell in _work.ResultTask.Result)
+            foreach (CellKey cell in _work.FilteredResults)
             {
                 TerrainSample sample =
                     _worldGeneration.GetTerrainSample(cell.X, cell.Y);
@@ -258,23 +255,23 @@ namespace Project.Scripts
             return false;
         }
 
-        private static List<CellKey> FindCandidates(
-            RuleSnapshot rule,
-            Dictionary<CellKey, CellState> cells,
-            CancellationToken token)
+        private static void FindCandidates(SpreadWork work, CancellationToken token)
         {
-            HashSet<CellKey> candidates = new();
-            foreach (KeyValuePair<CellKey, CellState> entry in cells)
+            foreach (KeyValuePair<CellKey, CellState> entry in work.Cells)
             {
                 token.ThrowIfCancellationRequested();
-                if (entry.Value.TileId != rule.SourceTileId ||
-                    !AllowsOrigin(entry.Value.Changed, rule.SourceOrigins))
+                if (entry.Value.TileId != work.Rule.SourceTileId ||
+                    !AllowsOrigin(entry.Value.Changed, work.Rule.SourceOrigins))
                     continue;
 
-                AddNeighbours(entry.Key, rule, cells, candidates);
+                AddNeighbours(
+                    entry.Key,
+                    work.Rule,
+                    work.Cells,
+                    work.CandidateSet);
             }
 
-            return new List<CellKey>(candidates);
+            work.Candidates.AddRange(work.CandidateSet);
         }
 
         private static void AddNeighbours(
@@ -294,25 +291,21 @@ namespace Project.Scripts
             }
         }
 
-        private static List<CellKey> FilterCandidates(
-            RuleSnapshot rule,
-            List<CellKey> candidates,
-            Dictionary<CellKey, TerrainState> terrain,
+        private static void FilterCandidates(
+            SpreadWork work,
             int seed,
             CancellationToken token)
         {
-            System.Random random = new(seed);
-            List<CellKey> results = new();
-            for (int i = 0; i < candidates.Count; i++)
+            FastRandom random = new(seed);
+            for (int i = 0; i < work.Candidates.Count; i++)
             {
                 token.ThrowIfCancellationRequested();
-                CellKey cell = candidates[i];
-                if (terrain.TryGetValue(cell, out TerrainState state) &&
-                    MatchesTerrain(rule, state) &&
-                    random.NextDouble() <= rule.Chance)
-                    results.Add(cell);
+                CellKey cell = work.Candidates[i];
+                if (work.Terrain.TryGetValue(cell, out TerrainState state) &&
+                    MatchesTerrain(work.Rule, state) &&
+                    random.NextFloat() <= work.Rule.Chance)
+                    work.FilteredResults.Add(cell);
             }
-            return results;
         }
 
         private static bool MatchesTerrain(RuleSnapshot rule, TerrainState sample)
@@ -395,26 +388,65 @@ namespace Project.Scripts
 
         private sealed class SpreadWork
         {
-            public readonly RuleSnapshot Rule;
-            public readonly TileData ResultTile;
-            public readonly BiomeData[] AllowedBiomes;
-            public readonly List<Chunk> Chunks;
+            public RuleSnapshot Rule;
+            public TileData ResultTile;
+            public BiomeData[] AllowedBiomes;
+            public readonly List<Chunk> Chunks = new();
             public readonly Dictionary<CellKey, CellState> Cells = new();
             public readonly Dictionary<CellKey, TerrainState> Terrain = new();
+            public readonly HashSet<CellKey> CandidateSet = new();
+            public readonly List<CellKey> Candidates = new();
+            public readonly List<CellKey> FilteredResults = new();
             public WorkPhase Phase;
             public int ChunkIndex;
             public int LocalCellIndex;
             public int TerrainIndex;
-            public Task<List<CellKey>> CandidateTask;
-            public Task<List<CellKey>> ResultTask;
-            public List<CellKey> Candidates;
+            public Task CandidateTask;
+            public Task ResultTask;
 
-            public SpreadWork(RuleSnapshot rule, List<Chunk> chunks)
+            public void Begin(RuleSnapshot rule, List<Chunk> chunks)
             {
                 Rule = rule;
                 ResultTile = rule.ResultTile;
                 AllowedBiomes = rule.AllowedBiomes;
-                Chunks = new List<Chunk>(chunks);
+                Chunks.Clear();
+                Chunks.AddRange(chunks);
+                Cells.Clear();
+                Terrain.Clear();
+                CandidateSet.Clear();
+                Candidates.Clear();
+                FilteredResults.Clear();
+                Phase = WorkPhase.CapturingTiles;
+                ChunkIndex = 0;
+                LocalCellIndex = 0;
+                TerrainIndex = 0;
+                CandidateTask = null;
+                ResultTask = null;
+            }
+        }
+
+        /// <summary>
+        /// Small allocation-free PRNG used only for independent spread rolls.
+        /// </summary>
+        private struct FastRandom
+        {
+            private uint _state;
+
+            public FastRandom(int seed)
+            {
+                _state = unchecked((uint)seed);
+                if (_state == 0)
+                    _state = 0x6D2B79F5u;
+            }
+
+            public float NextFloat()
+            {
+                uint value = _state;
+                value ^= value << 13;
+                value ^= value >> 17;
+                value ^= value << 5;
+                _state = value;
+                return (value >> 8) * (1f / 16777216f);
             }
         }
 

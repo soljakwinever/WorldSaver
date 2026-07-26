@@ -35,6 +35,9 @@ namespace Project.Scripts.Core
 
         private void Start()
         {
+            worldId = PlayerPrefs.GetString(
+                "WorldSaver.ActiveWorld",
+                worldId);
             TryLoad();
             _loaded = true;
             _nextAutoSaveTime = Time.unscaledTime + autoSaveInterval;

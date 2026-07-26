@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Project.Scripts.Interface;
 using UnityEngine;
 
@@ -16,6 +18,7 @@ namespace Project.Scripts.Pathfinding
         private readonly IPathFindingMap _map;
         private readonly WalkabilityQuadtree _walkability;
         private readonly bool _allowDiagonals;
+        private readonly object _syncRoot = new();
 
         public PathFindingService(
             IPathFindingMap map,
@@ -32,6 +35,48 @@ namespace Project.Scripts.Pathfinding
             Vector2Int destination,
             List<Vector2Int> path,
             int maxVisitedTiles = 100000)
+        {
+            lock (_syncRoot)
+                return TryFindPathCore(
+                    start,
+                    destination,
+                    path,
+                    maxVisitedTiles,
+                    CancellationToken.None);
+        }
+
+        public Task<List<Vector2Int>> FindPathAsync(
+            Vector2Int start,
+            Vector2Int destination,
+            int maxVisitedTiles = 100000,
+            CancellationToken cancellationToken = default)
+        {
+            if (maxVisitedTiles <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxVisitedTiles));
+
+            return Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                List<Vector2Int> path = new();
+                lock (_syncRoot)
+                {
+                    bool found = TryFindPathCore(
+                        start,
+                        destination,
+                        path,
+                        maxVisitedTiles,
+                        cancellationToken);
+                    return found ? path : null;
+                }
+            }, cancellationToken);
+        }
+
+        private bool TryFindPathCore(
+            Vector2Int start,
+            Vector2Int destination,
+            List<Vector2Int> path,
+            int maxVisitedTiles,
+            CancellationToken cancellationToken)
         {
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
@@ -60,6 +105,7 @@ namespace Project.Scripts.Pathfinding
             int visited = 0;
             while (open.Count > 0 && visited < maxVisitedTiles)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 OpenNode currentEntry = open.Pop();
                 if (closed.Contains(currentEntry.Position) ||
                     !records.TryGetValue(currentEntry.Position, out NodeRecord current) ||
@@ -89,10 +135,18 @@ namespace Project.Scripts.Pathfinding
         }
 
         /// <summary>Invalidates cached navigation data after a world edit.</summary>
-        public void Invalidate(Vector2Int worldCell) => _walkability.Invalidate(worldCell);
+        public void Invalidate(Vector2Int worldCell)
+        {
+            lock (_syncRoot)
+                _walkability.Invalidate(worldCell);
+        }
 
         /// <summary>Clears all spatially cached walkability values.</summary>
-        public void InvalidateAll() => _walkability.Clear();
+        public void InvalidateAll()
+        {
+            lock (_syncRoot)
+                _walkability.Clear();
+        }
 
         private void VisitNeighbours(
             Vector2Int current,

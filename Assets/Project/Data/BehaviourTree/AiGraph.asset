@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1bd44f627541f4bb26a31878c026a1, type: 3}
+  m_Name: AiGraph
+  m_EditorClassIdentifier: Playwinever.AI::Project.Scripts.AI.AiNodeData
+  _root:
+    rid: 1367514882178548044
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1367514882178548044
+      type: {class: RootNode, ns: Project.Scripts.AI, asm: Playwinever.AI}
+      data:
+        firstChild:
+          rid: 1367514882178548046
+    - rid: 1367514882178548046
+      type: {class: SequenceNode, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
+      data:
+        _children:
+        - rid: 1367514882178548082
+        - rid: -2
+    - rid: 1367514882178548082
+      type: {class: SequenceNode, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
+      data:
+        _children:
+        - rid: 1367514882178548083
+        - rid: -2
+    - rid: 1367514882178548083
+      type: {class: CheckHealth, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
+      data:
+        _healthSource: {fileID: 0}
+        _threshold: 0.5
+        _useBlackboardSource: 0
+        _blackboardSourceKey: 0

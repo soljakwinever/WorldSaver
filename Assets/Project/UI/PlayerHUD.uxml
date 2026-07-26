@@ -1,5 +1,56 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Assets/Project/UI/Styles/HotbarSlot.uss?fileID=7433441132597879392&amp;guid=b3b63687d12d97046bc5b72283739c98&amp;type=3#HotbarSlot"/>
+    <Style src="project://database/Assets/Project/UI/Styles/DebugUSS.uss?fileID=7433441132597879392&amp;guid=8410b91e7c269ca4cac429041bc83802&amp;type=3#DebugUSS"/>
+    <ui:VisualElement data-source-type="Project.Scripts.PlayerHUD+BiomeDebugData, Assembly-CSharp" name="DebugPanel" class="debug-panel">
+        <ui:VisualElement class="debug-row">
+            <ui:Label text="Chunk Position"/>
+            <ui:Label text="Label">
+                <Bindings>
+                    <ui:DataBinding property="text" data-source-path="chunkPosition" binding-mode="ToTarget"/>
+                </Bindings>
+            </ui:Label>
+        </ui:VisualElement>
+        <ui:VisualElement class="debug-row" style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Cursor Position"/>
+            <ui:Label text="Label">
+                <Bindings>
+                    <ui:DataBinding property="text" data-source-path="cursorPosition" binding-mode="ToTarget"/>
+                </Bindings>
+            </ui:Label>
+        </ui:VisualElement>
+        <ui:VisualElement class="debug-row" style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Continentalness"/>
+            <ui:Label text="Label">
+                <Bindings>
+                    <ui:DataBinding property="text" data-source-path="continentalness" binding-mode="ToTarget"/>
+                </Bindings>
+            </ui:Label>
+        </ui:VisualElement>
+        <ui:VisualElement class="debug-row" style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Temperature"/>
+            <ui:Label text="Label">
+                <Bindings>
+                    <ui:DataBinding property="text" data-source-path="temperature" binding-mode="ToTarget"/>
+                </Bindings>
+            </ui:Label>
+        </ui:VisualElement>
+        <ui:VisualElement class="debug-row" style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Moisture"/>
+            <ui:Label text="Label">
+                <Bindings>
+                    <ui:DataBinding property="text" data-source-path="moisture" binding-mode="ToTarget"/>
+                </Bindings>
+            </ui:Label>
+        </ui:VisualElement>
+        <ui:VisualElement class="debug-row" style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Biome"/>
+            <ui:Label text="Label">
+                <Bindings>
+                    <ui:DataBinding property="text" data-source-path="biome" binding-mode="ToTarget"/>
+                </Bindings>
+            </ui:Label>
+        </ui:VisualElement>
+    </ui:VisualElement>
     <ui:VisualElement name="NeedsDisplay" data-source-type="Project.Scripts.Gameplay.PlayerDataController, Playwinever.Gameplay" style="flex-grow: 0; bottom: 0; left: 0; width: 420px; height: 128px; background-color: rgb(99, 99, 99); position: absolute; border-top-left-radius: 24px; border-top-right-radius: 24px; border-bottom-right-radius: 24px; border-bottom-left-radius: 24px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px; padding-top: 12px; padding-right: 12px; padding-bottom: 12px; padding-left: 12px;">
         <ui:VisualElement style="flex-grow: 1; flex-direction: row;">
             <ui:Label text="Hunger" style="color: rgb(255, 255, 255); text-shadow: 8px 8px 0 rgb(0, 0, 0); flex-grow: 0.1; width: 32px;"/>

@@ -1,0 +1,22 @@
+{
+    "name": "Playwinever.AI.Graph.Editor",
+    "rootNamespace": "Project.Editor.AI",
+    "references": [
+        "Playwinever.AI",
+        "Playwinever.Interface",
+        "Unity.GraphToolkit.Common.Editor",
+        "Unity.GraphToolkit.Utility.Editor",
+        "Unity.GraphToolkit.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

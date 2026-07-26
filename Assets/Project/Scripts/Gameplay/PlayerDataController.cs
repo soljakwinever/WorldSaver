@@ -41,6 +41,7 @@ namespace Project.Scripts.Gameplay
         private bool _loaded;
 
         public int Health => _health.Health;
+        public int MaxHealth => _health.MaxHealth;
         public float Hunger { get => hunger; set => hunger = Mathf.Clamp01(value); }
         public float Energy { get => energy; set => energy = Mathf.Clamp01(value); }
         public float EnergyDrainRate { get => energyDrainRate; set => energyDrainRate = Mathf.Max(0f, value); }
@@ -65,6 +66,9 @@ namespace Project.Scripts.Gameplay
 
         private void Start()
         {
+            worldId = PlayerPrefs.GetString(
+                "WorldSaver.ActiveWorld",
+                worldId);
             TryLoad();
             _loaded = true;
             _nextAutoSaveTime = Time.unscaledTime + autoSaveInterval;

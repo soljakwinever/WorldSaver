@@ -23,8 +23,10 @@
     font-size: 18px;
 }
 
-
-
 .hotbar-slot {
     background-color: rgb(161, 161, 161);
 }
+
+
+
+

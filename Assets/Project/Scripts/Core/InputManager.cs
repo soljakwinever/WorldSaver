@@ -31,6 +31,11 @@ namespace Project.Scripts.Core
         public void Initialize()
         {
             _inputs = new Inputs();
+            string bindingOverrides = PlayerPrefs.GetString(
+                "WorldSaver.BindingOverrides",
+                string.Empty);
+            if (!string.IsNullOrEmpty(bindingOverrides))
+                _inputs.asset.LoadBindingOverridesFromJson(bindingOverrides);
             _move = _inputs.asset.FindAction("Player/Move", true);
             _interact = _inputs.asset.FindAction("Player/Interact", true);
             _inventory = _inputs.asset.FindAction("Player/Inventory", true);

@@ -1,3 +1,4 @@
+using System;
 using Project.Scripts.Bus;
 using Project.Scripts.Core;
 using Project.Scripts.Gameplay;
@@ -15,12 +16,29 @@ namespace Project.Scripts
         private PanelRenderer _uiDocument;
     
         [Inject] private PlayerDataController playerDataController;
+        [Inject] private WorldGeneration worldGeneration;
+        [Inject] private IInputManager inputManager;
+        [Inject] private Grid gameGrid;
+        
         private PlayerToolbarController toolbarController;
         private PlayerBus playerBus;
         
         private HotbarSlot[] hotbarSlots =
             new HotbarSlot[PlayerToolbarController.SlotCount];
 
+        private BiomeDebugData debugData = new BiomeDebugData();
+        
+        [Serializable]
+        public class BiomeDebugData
+        {
+            public Vector2Int chunkPosition;
+            public Vector2Int cursorPosition;
+            public float continentalness;
+            public float temperature;
+            public float moisture;
+            public string biome;
+        }
+        
         [Inject]
         public void Construct([Inject] PlayerBus playerBus)
         {
@@ -64,6 +82,36 @@ namespace Project.Scripts
             _uiDocument.RegisterUIReloadCallback(ReloadCallback);
         }
 
+        private int pollingRate = 20;
+        private int poll = 0;
+
+        private void Update()
+        {
+            poll--;
+            if (poll <= 0)
+            {
+                var screenMouse = inputManager.MousePosition;
+                var mousePosition = new Vector3(screenMouse.x, screenMouse.y, -10);
+                var worldMouse = Camera.main.ScreenToWorldPoint(mousePosition);
+
+                var position = gameGrid.WorldToCell(worldMouse);
+
+                var tileSample = worldGeneration.GetTerrainSample(position.x, position.y);
+
+                int chunkX = Mathf.FloorToInt(worldMouse.x / ChunkBuildResult.ChunkSize);
+                int chunkY = Mathf.FloorToInt(worldMouse.y / ChunkBuildResult.ChunkSize);
+
+
+                debugData.biome = tileSample.biome.biomeName;
+                debugData.continentalness = tileSample.height;
+                debugData.temperature = tileSample.temperature;
+                debugData.moisture = tileSample.moisture;
+                debugData.chunkPosition = new Vector2Int(chunkX, chunkY);
+                debugData.cursorPosition = new Vector2Int(position.x, position.y);
+                poll = pollingRate;
+            }
+        }
+
         private void ReloadCallback(PanelRenderer panel, VisualElement root)
         {
             root.Q("NeedsDisplay").dataSource = playerDataController;
@@ -72,6 +120,8 @@ namespace Project.Scripts
 
             var hotbar = root.Q("Toolbar");
             hotbar.Clear();
+            
+            root.Q("DebugPanel").dataSource = debugData;
             
             for (int i = 0; i < hotbarSlots.Length; i++)
             {

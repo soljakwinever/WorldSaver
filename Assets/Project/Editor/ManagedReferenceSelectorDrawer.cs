@@ -263,7 +263,7 @@ namespace Project.Editor
                 return;
             }
 
-            DrawGenericElement(position, property, label);
+            DrawGenericElement(position, property, label, baseType);
         }
 
         private static float GetGenericElementHeight(SerializedProperty property)
@@ -286,18 +286,43 @@ namespace Project.Editor
         private static void DrawGenericElement(
             Rect position,
             SerializedProperty property,
-            GUIContent label)
+            GUIContent label,
+            Type baseType)
         {
             Rect header = new(
                 position.x,
                 position.y,
                 position.width,
                 EditorGUIUtility.singleLineHeight);
+            const float pickerWidth = 140f;
+            Rect foldoutRect = new(
+                header.x,
+                header.y,
+                Mathf.Max(0f, header.width - pickerWidth - Spacing),
+                header.height);
+            Rect pickerRect = new(
+                foldoutRect.xMax + Spacing,
+                header.y,
+                pickerWidth,
+                header.height);
+
             property.isExpanded = EditorGUI.Foldout(
-                header,
+                foldoutRect,
                 property.isExpanded,
                 GetElementLabel(property, label),
                 true);
+
+            string pickerLabel = property.managedReferenceValue == null
+                ? $"Select {ObjectNames.NicifyVariableName(baseType.Name)}"
+                : ObjectNames.NicifyVariableName(
+                    property.managedReferenceValue.GetType().Name);
+            if (EditorGUI.DropdownButton(
+                    pickerRect,
+                    new GUIContent(pickerLabel),
+                    FocusType.Keyboard))
+            {
+                ShowSingleTypeMenu(property, baseType, pickerRect);
+            }
 
             if (!property.isExpanded)
                 return;
@@ -318,6 +343,53 @@ namespace Project.Editor
             }
 
             EditorGUI.indentLevel = oldIndent;
+        }
+
+        private static void ShowSingleTypeMenu(
+            SerializedProperty property,
+            Type baseType,
+            Rect buttonRect)
+        {
+            UnityEngine.Object[] targets = property.serializedObject.targetObjects;
+            string propertyPath = property.propertyPath;
+            GenericMenu menu = new();
+
+            menu.AddItem(
+                new GUIContent("None"),
+                property.managedReferenceValue == null,
+                () => Assign(targets, propertyPath, null));
+            menu.AddSeparator(string.Empty);
+
+            foreach (Type type in TypeCache.GetTypesDerivedFrom(baseType)
+                         .Where(IsConstructible)
+                         .OrderBy(GetMenuName))
+            {
+                Type selectedType = type;
+                bool selected = property.managedReferenceValue?.GetType() == type;
+                menu.AddItem(
+                    new GUIContent(GetMenuName(type)),
+                    selected,
+                    () => Assign(targets, propertyPath, selectedType));
+            }
+
+            menu.DropDown(buttonRect);
+        }
+
+        private static void Assign(
+            UnityEngine.Object[] targets,
+            string propertyPath,
+            Type type)
+        {
+            SerializedObject serializedObject = new(targets);
+            serializedObject.Update();
+            SerializedProperty property =
+                serializedObject.FindProperty(propertyPath);
+            if (property == null)
+                return;
+
+            property.managedReferenceValue =
+                type == null ? null : Activator.CreateInstance(type);
+            serializedObject.ApplyModifiedProperties();
         }
 
         private static GUIContent GetElementLabel(

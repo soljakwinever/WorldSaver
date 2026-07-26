@@ -110,5 +110,6 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<EntityBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<IAttackService>().To<AttackService>().AsSingle();
 
+        Container.Bind<Grid>().FromComponentInHierarchy().AsSingle();
     }
 }

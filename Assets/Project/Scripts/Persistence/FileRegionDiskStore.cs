@@ -15,7 +15,7 @@ namespace Project.Scripts.Persistence
             _regionDirectory = Path.Combine(
                 Application.persistentDataPath,
                 "Worlds",
-                "default",
+                PlayerPrefs.GetString("WorldSaver.ActiveWorld", "default"),
                 "regions");
         }
 

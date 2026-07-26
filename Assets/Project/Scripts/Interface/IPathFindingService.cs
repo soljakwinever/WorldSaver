@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Project.Scripts.Interface
@@ -14,6 +16,16 @@ namespace Project.Scripts.Interface
             Vector2Int destination,
             List<Vector2Int> path,
             int maxVisitedTiles = 100000);
+
+        /// <summary>
+        /// Finds a path on a worker thread. Returns null when no path exists.
+        /// The returned list is not shared with the pathfinder's internal state.
+        /// </summary>
+        Task<List<Vector2Int>> FindPathAsync(
+            Vector2Int start,
+            Vector2Int destination,
+            int maxVisitedTiles = 100000,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>

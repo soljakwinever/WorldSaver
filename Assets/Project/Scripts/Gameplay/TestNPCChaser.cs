@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Project.Scripts.Interface;
 using UnityEngine;
 using Zenject;
@@ -27,6 +29,9 @@ namespace Project.Scripts.Gameplay
         private bool _hasPlannedDestination;
         private Vector2 _heading;
         private Vector2 _headingVelocity;
+        private Task<List<Vector2Int>> _pendingPath;
+        private CancellationTokenSource _pathCancellation;
+        private Vector2Int _pendingDestination;
 
         [Inject]
         public void Construct(IPathFindingService pathFinder)
@@ -98,12 +103,17 @@ namespace Project.Scripts.Gameplay
             _hasPlannedDestination = false;
             _heading = Vector2.zero;
             _headingVelocity = Vector2.zero;
+            _pendingPath = null;
+            _pathCancellation = new CancellationTokenSource();
         }
 
         private void Update()
         {
+            ApplyCompletedPath();
+
             if (_player == null || _pathFinder == null ||
-                Time.time < _nextRepathTime)
+                Time.time < _nextRepathTime ||
+                (_pendingPath != null && !_pendingPath.IsCompleted))
                 return;
 
             _nextRepathTime = Time.time + repathInterval;
@@ -119,23 +129,44 @@ namespace Project.Scripts.Gameplay
                 _waypointIndex < _path.Count)
                 return;
 
-            if (_pathFinder.TryFindPath(
-                    start,
-                    destination,
-                    _path,
-                    maximumVisitedTiles))
+            _pendingDestination = destination;
+            _pendingPath = _pathFinder.FindPathAsync(
+                start,
+                destination,
+                maximumVisitedTiles,
+                _pathCancellation.Token);
+        }
+
+        private void ApplyCompletedPath()
+        {
+            if (_pendingPath == null || !_pendingPath.IsCompleted)
+                return;
+
+            Task<List<Vector2Int>> completed = _pendingPath;
+            _pendingPath = null;
+
+            if (completed.IsCanceled)
+                return;
+            if (completed.IsFaulted)
             {
-                _plannedDestination = destination;
-                _hasPlannedDestination = true;
-                _waypointIndex = _path.Count > 1 ? 1 : 0;
-                SkipReachedWaypoints();
+                Debug.LogException(completed.Exception, this);
+                return;
             }
-            else
+
+            List<Vector2Int> result = completed.Result;
+            _path.Clear();
+            if (result == null)
             {
-                _path.Clear();
                 _waypointIndex = 0;
                 _hasPlannedDestination = false;
+                return;
             }
+
+            _path.AddRange(result);
+            _plannedDestination = _pendingDestination;
+            _hasPlannedDestination = true;
+            _waypointIndex = _path.Count > 1 ? 1 : 0;
+            SkipReachedWaypoints();
         }
 
         private void FixedUpdate()
@@ -239,12 +270,28 @@ namespace Project.Scripts.Gameplay
                 return;
 
             _player = null;
+            CancelPendingPath();
             _path.Clear();
             _waypointIndex = 0;
             _hasPlannedDestination = false;
             _heading = Vector2.zero;
             _headingVelocity = Vector2.zero;
             _body.linearVelocity = Vector2.zero;
+        }
+
+        private void OnDisable()
+        {
+            CancelPendingPath(false);
+        }
+
+        private void CancelPendingPath(bool createReplacement = true)
+        {
+            _pathCancellation?.Cancel();
+            _pathCancellation?.Dispose();
+            _pathCancellation = createReplacement
+                ? new CancellationTokenSource()
+                : null;
+            _pendingPath = null;
         }
     }
 }

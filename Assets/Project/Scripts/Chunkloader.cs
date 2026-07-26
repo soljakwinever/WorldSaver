@@ -29,6 +29,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     [Inject] private MapSignalBus mapSignalBus;
     
     private Vector2Int _lastPosition;
+    private Grid gameGrid;
     
     private float tickTimer;
     public const int TickTime = 1;
@@ -62,6 +63,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        gameGrid = FindAnyObjectByType<Grid>();
         mapSignalBus.ChunkBuilt += MapSignalBusOnChunkBuilt;
         if (!chunkGenerator.IsRunning)
             chunkGenerator.Run(this,destroyCancellationToken);
@@ -163,35 +165,34 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         chunkGenerator.RequestChunk(position);
     }
 
-    private void OnGUI()
-    {
-        var labelPosition = new Rect(0, 16, 256, 16);
-        GUI.Label(labelPosition, Position.ToString());
-
-        var screenMouse = Mouse.current.position.ReadValue();
-        var mousePosition = new Vector3(screenMouse.x, screenMouse.y, -10);
-        var worldMouse = Camera.main.ScreenToWorldPoint(mousePosition);
-
-        var grid = FindFirstObjectByType<Grid>();
-        var position = grid.WorldToCell(worldMouse);
-                
-        labelPosition.y += 16;
-        GUI.Label(labelPosition, $"Cursor: {position}");
-        
-        cursor.transform.position = position;
-        
-        var tile = worldGeneration.GetTerrainSample(position.x, position.y);
-        
-        labelPosition.y += 16;
-        GUI.Label(labelPosition, $"Height: {tile.height}");
-        labelPosition.y += 16;
-        GUI.Label(labelPosition, $"Moisture: {tile.moisture}");
-        labelPosition.y += 16;
-        GUI.Label(labelPosition, $"Temperature: {tile.temperature}");
-        
-        labelPosition.y += 16;
-        GUI.Label(labelPosition, $"Biome: {tile.biome.name}");
-    }
+    // private void OnGUI()
+    // {
+    //     var labelPosition = new Rect(0, 16, 256, 16);
+    //     GUI.Label(labelPosition, Position.ToString());
+    //
+    //     var screenMouse = Mouse.current.position.ReadValue();
+    //     var mousePosition = new Vector3(screenMouse.x, screenMouse.y, -10);
+    //     var worldMouse = Camera.main.ScreenToWorldPoint(mousePosition);
+    //
+    //     var position = gameGrid.WorldToCell(worldMouse);
+    //             
+    //     labelPosition.y += 16;
+    //     GUI.Label(labelPosition, $"Cursor: {position}");
+    //     
+    //     cursor.transform.position = position;
+    //     
+    //     var tile = worldGeneration.GetTerrainSample(position.x, position.y);
+    //     
+    //     labelPosition.y += 16;
+    //     GUI.Label(labelPosition, $"Height: {tile.height}");
+    //     labelPosition.y += 16;
+    //     GUI.Label(labelPosition, $"Moisture: {tile.moisture}");
+    //     labelPosition.y += 16;
+    //     GUI.Label(labelPosition, $"Temperature: {tile.temperature}");
+    //     
+    //     labelPosition.y += 16;
+    //     GUI.Label(labelPosition, $"Biome: {tile.biome.name}");
+    // }
 
     // Update is called once per frame
     void Update()
