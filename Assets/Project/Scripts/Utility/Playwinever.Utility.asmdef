@@ -1,3 +1,6 @@
 {
-  "name": "Playwinever.Utility"
+  "name": "Playwinever.Utility",
+  "references": [
+    "GUID:01774982fb3f4e5ba026295d79692e5d"
+  ]
 }

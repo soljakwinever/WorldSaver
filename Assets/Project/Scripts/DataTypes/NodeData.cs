@@ -1,3 +1,5 @@
+using System;
+using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
 using Zenject.ReflectionBaking.Mono.Cecil;
@@ -20,8 +22,37 @@ namespace Project.Scripts
 
         public float lightness = 1;
         public float lightnessVariance = 0.0f;
+
+        public NodeComponentDefinition[] persistentComponents;
         
         public ResourceType resourceType;
+
+        [Header("Destruction Drop")]
+        [Tooltip("Item dropped when this node is successfully destroyed.")]
+        public ItemData droppedItem;
+
+        [Range(0f, 1f)]
+        [Tooltip("Chance that destroying this node drops its associated item.")]
+        public float dropChance = 1f;
+
+        [SerializeField]
+        [Tooltip("Categories used by tools and other node filters.")]
+        private EntityTag[] tags = Array.Empty<EntityTag>();
+
+        /// <summary>Returns whether this node has the given tag.</summary>
+        public bool HasTag(EntityTag tag)
+        {
+            if (tag == null)
+                return false;
+
+            for (int i = 0; i < (tags?.Length ?? 0); i++)
+            {
+                if (tags[i] == tag)
+                    return true;
+            }
+
+            return false;
+        }
 
         //Todo: Resource
 

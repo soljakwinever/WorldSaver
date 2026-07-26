@@ -14,6 +14,17 @@ namespace Project.Scripts.DataTypes.SaveData
         Clear = 1
     }
 
+    public enum PersistentTileTint : byte
+    {
+        TileDefault = 0,
+        BiomeGround = 1,
+        BiomePath = 2,
+        BiomeWater = 3,
+        BiomeCliff = 4,
+        BiomeBeach = 5,
+        BiomeDirt = 6
+    }
+
     [Serializable]
     public sealed class TileOverrideData
     {
@@ -22,6 +33,7 @@ namespace Project.Scripts.DataTypes.SaveData
         public PersistentTileLayer layer;
         public TileOverrideKind kind;
         public int tileId = -1;
+        public PersistentTileTint tint;
 
         public TileOverrideData CreateSnapshot()
         {
@@ -31,7 +43,8 @@ namespace Project.Scripts.DataTypes.SaveData
                 localY = localY,
                 layer = layer,
                 kind = kind,
-                tileId = tileId
+                tileId = tileId,
+                tint = tint
             };
         }
     }

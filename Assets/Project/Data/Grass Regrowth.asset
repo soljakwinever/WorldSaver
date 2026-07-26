@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e4746bc9b6e4d54a7a93432d1ef78ab, type: 3}
+  m_Name: Grass Regrowth
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TileSpreadRule
+  sourceTile: {fileID: 11400000, guid: 30333333333343338333333333333333, type: 2}
+  resultTile: {fileID: 0}
+  validTargets:
+  - {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
+  layer: 0
+  allowedSourceOrigins: -1
+  allowedTargetOrigins: 2
+  restrictByTerrain: 1
+  allowedBiomes: []
+  minHeight: 0.15
+  maxHeight: 1
+  minMoisture: 0
+  maxMoisture: 1
+  minTemperature: 0
+  maxTemperature: 1
+  water: 2
+  cliff: 2
+  road: 2
+  trail: 2
+  intervalTicks: 30
+  chancePerTarget: 0.1
+  includeDiagonals: 0

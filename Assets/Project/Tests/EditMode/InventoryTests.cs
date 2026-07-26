@@ -1,5 +1,6 @@
 #if UNITY_INCLUDE_TESTS
 using System;
+using System.Reflection;
 using NUnit.Framework;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Gameplay;
@@ -106,6 +107,29 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void ContainsByTagOnlyCountsRequestedRarity()
+        {
+            EntityTag tag = ScriptableObject.CreateInstance<EntityTag>();
+            try
+            {
+                typeof(ItemData)
+                    .GetField("tags", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(_item, new[] { tag });
+                _inventory.TryAdd(_item, 4, out _, ItemData.Rarity.Common);
+                _inventory.TryAdd(_item, 3, out _, ItemData.Rarity.Rare);
+
+                Assert.That(_inventory.Contains(tag, 4, ItemData.Rarity.Common), Is.True);
+                Assert.That(_inventory.Contains(tag, 5, ItemData.Rarity.Common), Is.False);
+                Assert.That(_inventory.Contains(tag, 3, ItemData.Rarity.Rare), Is.True);
+                Assert.That(_inventory.Contains(tag, 4, ItemData.Rarity.Rare), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(tag);
+            }
+        }
+
+        [Test]
         public void InvalidConstructionAndCountsAreRejected()
         {
             Assert.That(() => new Inventory(0), Throws.TypeOf<ArgumentOutOfRangeException>());
@@ -115,6 +139,8 @@ namespace Project.Tests.EditMode
                 Throws.TypeOf<ArgumentOutOfRangeException>());
             Assert.That(() => _inventory.Contains(_item, 0),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(() => _inventory.Contains((EntityTag)null),
+                Throws.TypeOf<ArgumentNullException>());
         }
     }
 }

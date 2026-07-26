@@ -1,0 +1,16 @@
+{
+    "name": "Playwinever.Pathfinding",
+    "rootNamespace": "",
+    "references": [
+        "GUID:93ca76a137a23b64b981e3a67e948a8d"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

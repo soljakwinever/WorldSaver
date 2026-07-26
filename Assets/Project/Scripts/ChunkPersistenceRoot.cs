@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.Interface;
 using UnityEngine;
 
 namespace Project.Scripts.Core
@@ -103,6 +104,39 @@ namespace Project.Scripts.Core
                 entity.SetPersistenceReady(true);
         }
 
+        public void SimulateOffline(
+            long fromTick,
+            long toTick,
+            OfflineSimulationPolicy policy)
+        {
+            if (policy == OfflineSimulationPolicy.None || toTick <= fromTick)
+                return;
+
+            MonoBehaviour[] chunkBehaviours =
+                GetComponents<MonoBehaviour>();
+
+            foreach (MonoBehaviour behaviour in chunkBehaviours)
+            {
+                if (behaviour is IOfflineSimulatable simulatable)
+                    simulatable.SimulateOffline(fromTick, toTick, policy);
+            }
+
+            foreach (PersistentEntity entity in _entities.Values)
+            {
+                foreach (IPersistentComponent component
+                         in entity.GetPersistentComponents())
+                {
+                    if (component is IOfflineSimulatable simulatable)
+                    {
+                        simulatable.SimulateOffline(
+                            fromTick,
+                            toTick,
+                            policy);
+                    }
+                }
+            }
+        }
+
         public void FailRestore()
         {
             _restoreCompleted = false;
@@ -163,6 +197,15 @@ namespace Project.Scripts.Core
                 throw new InvalidOperationException("Cannot edit tiles before chunk restore completes.");
 
             return _tileOverrides.Remove(GetTileKey(localX, localY, layer));
+        }
+
+        public bool HasTileOverride(
+            byte localX,
+            byte localY,
+            PersistentTileLayer layer)
+        {
+            return _tileOverrides.ContainsKey(
+                GetTileKey(localX, localY, layer));
         }
 
         public void NotifyEntityRemoved(PersistentEntity entity)

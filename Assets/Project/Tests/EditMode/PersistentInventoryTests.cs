@@ -126,7 +126,7 @@ namespace Project.Tests.EditMode
             ItemData unregistered = CreateItem("unregistered", 5);
             try
             {
-                ItemStack stack = new(unregistered, 1, ItemData.Rarity.Epic);
+                ItemStack stack = new(unregistered, 1, ItemData.Rarity.Mythic);
                 Assert.That(() => _source.TryAdd(stack, out _),
                     Throws.ArgumentException);
             }

@@ -12,10 +12,26 @@ namespace Project.Scripts
     public sealed class DataController : MonoBehaviour
     {
         [Inject] private IRegionRepository _regions;
+        [Inject] private IRegionSimulationService _regionSimulation;
         [Inject] private IWorldClock _worldClock;
+        [Inject] private Chunkloader _chunkloader;
+
+        [SerializeField]
+        private OfflineSimulationPolicy offlineSimulationPolicy =
+            OfflineSimulationPolicy.CatchUp;
+        [Min(1)]
+        [SerializeField] private int regionalSimulationIntervalTicks = 60;
+        [Min(0)]
+        [SerializeField] private int regionalSimulationRadius = 1;
+        [Min(1)]
+        [SerializeField] private int regionalRegionsPerPass = 2;
 
         private readonly Dictionary<Vector2Int, ActiveChunk> _activeChunks = new();
+        private readonly HashSet<RuntimeRegion> _simulatedRegions = new();
+        private readonly Queue<Vector2Int> _regionalSimulationQueue = new();
         private int _nextLoadVersion;
+        private long _nextRegionalSimulationTick;
+        private bool _regionalSimulationInProgress;
         private bool _saveRequested;
         private bool _saveInProgress;
 
@@ -26,6 +42,24 @@ namespace Project.Scripts
             public RuntimeRegion region;
             public int loadVersion;
             public bool restoreComplete;
+        }
+
+        private void Update()
+        {
+            long currentTick = _worldClock.CurrentTick;
+
+            if (!_regionalSimulationInProgress &&
+                currentTick >= _nextRegionalSimulationTick)
+            {
+                if (_regionalSimulationQueue.Count == 0)
+                {
+                    _nextRegionalSimulationTick =
+                        checked(currentTick + regionalSimulationIntervalTicks);
+                    QueueNearbyRegions();
+                }
+
+                SimulateQueuedRegionsAsync();
+            }
         }
 
         public async Awaitable RestoreChunkAsync(Chunk chunk)
@@ -75,6 +109,11 @@ namespace Project.Scripts
 
                 region.TryGetChunkState(localIndex, out ChunkState state);
                 root.Restore(state);
+
+                long currentTick = _worldClock.CurrentTick;
+                long regionFromTick = SimulateRegion(region, currentTick);
+                SimulateChunk(root, state, regionFromTick, currentTick);
+
                 root.CompleteRestore();
                 active.restoreComplete = true;
             }
@@ -117,6 +156,8 @@ namespace Project.Scripts
 
         public async Awaitable SaveAsync()
         {
+            _worldClock.Save();
+
             // Capture currently loaded chunks as well as chunks that happened to
             // unload since the previous save.
             ActiveChunk[] active = new ActiveChunk[_activeChunks.Count];
@@ -181,6 +222,117 @@ namespace Project.Scripts
                 active.region.RemoveChunkState(localIndex);
 
             _regions.MarkDirty(active.region);
+        }
+
+        private long SimulateRegion(RuntimeRegion region, long currentTick)
+        {
+            long fromTick = region.LastSimulatedTick;
+
+            if (!_simulatedRegions.Add(region))
+                return fromTick;
+
+            if (currentTick <= fromTick)
+                return fromTick;
+
+            if (_regionSimulation.Simulate(
+                    region,
+                    currentTick,
+                    offlineSimulationPolicy))
+            {
+                _regions.MarkDirty(region);
+            }
+
+            return fromTick;
+        }
+
+        private void SimulateChunk(
+            ChunkPersistenceRoot root,
+            ChunkState state,
+            long regionFromTick,
+            long currentTick)
+        {
+            if (offlineSimulationPolicy == OfflineSimulationPolicy.None ||
+                state == null)
+            {
+                return;
+            }
+
+            long fromTick = state.lastSimulatedTick;
+
+            // Version-one saves and early version-two saves can contain a
+            // changed chunk without a chunk timestamp. The region timestamp is
+            // the safest available lower bound for those records.
+            if (fromTick <= 0)
+                fromTick = regionFromTick;
+
+            root.SimulateOffline(
+                fromTick,
+                currentTick,
+                offlineSimulationPolicy);
+        }
+
+        private void QueueNearbyRegions()
+        {
+            _regionalSimulationQueue.Clear();
+
+            Vector2Int center =
+                WorldPartition.ChunkToRegion(_chunkloader.Position);
+
+            for (int radius = 0; radius <= regionalSimulationRadius; radius++)
+            {
+                for (int y = -radius; y <= radius; y++)
+                {
+                    for (int x = -radius; x <= radius; x++)
+                    {
+                        if (Mathf.Max(Mathf.Abs(x), Mathf.Abs(y)) != radius)
+                            continue;
+
+                        _regionalSimulationQueue.Enqueue(
+                            center + new Vector2Int(x, y));
+                    }
+                }
+            }
+        }
+
+        private async void SimulateQueuedRegionsAsync()
+        {
+            _regionalSimulationInProgress = true;
+
+            try
+            {
+                int processed = 0;
+                long currentTick = _worldClock.CurrentTick;
+
+                while (_regionalSimulationQueue.Count > 0 &&
+                       processed < regionalRegionsPerPass)
+                {
+                    Vector2Int position =
+                        _regionalSimulationQueue.Dequeue();
+                    RuntimeRegion region =
+                        await _regions.GetReadyAsync(position, currentTick);
+
+                    if (_regionSimulation.Simulate(
+                            region,
+                            currentTick,
+                            OfflineSimulationPolicy.Regional))
+                    {
+                        _regions.MarkDirty(region);
+                    }
+
+                    processed++;
+                }
+
+                if (_regionalSimulationQueue.Count > 0)
+                    _nextRegionalSimulationTick = currentTick + 1;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, this);
+            }
+            finally
+            {
+                _regionalSimulationInProgress = false;
+            }
         }
 
         private bool IsCurrent(

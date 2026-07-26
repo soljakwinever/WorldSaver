@@ -13,6 +13,9 @@ namespace Project.Scripts
             PersistentEntity entity,
             long currentTick)
         {
+            if (entity == null)
+                throw new System.ArgumentNullException(nameof(entity));
+
             PersistentEntityRecord record = new()
             {
                 id = entity.Id,
@@ -22,8 +25,18 @@ namespace Project.Scripts
                 lastSimulatedTick = currentTick
             };
 
+            HashSet<ushort> capturedTypes = new();
             foreach (IPersistentComponent component in entity.GetPersistentComponents())
             {
+                if (!capturedTypes.Add(component.PersistentTypeId))
+                {
+                    Debug.LogError(
+                        $"Entity {entity.Id} has duplicate persistent component " +
+                        $"type {component.PersistentTypeId}.",
+                        entity);
+                    continue;
+                }
+
                 if (component.IsAtBaseline())
                     continue;
 
@@ -48,6 +61,11 @@ namespace Project.Scripts
             PersistentEntity entity,
             PersistentEntityRecord record)
         {
+            if (entity == null)
+                throw new System.ArgumentNullException(nameof(entity));
+            if (record == null)
+                throw new System.ArgumentNullException(nameof(record));
+
             Dictionary<ushort, IPersistentComponent> components = new();
 
             foreach (IPersistentComponent component in entity.GetPersistentComponents())

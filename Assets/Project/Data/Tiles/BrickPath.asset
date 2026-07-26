@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cdc5e0be4c94981ba57dd5d82eaa634, type: 3}
+  m_Name: BrickPath
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TileData
+  TileId: 10
+  TileBase: {fileID: 11400000, guid: e529185ec86e2ee4d9c0ea7d15dab6b2, type: 2}
+  Color: {r: 1, g: 0.514151, b: 0.514151, a: 1}
+  droppedItem: {fileID: 11400000, guid: 3fba5b75b008c824383f8792639f9856, type: 2}
+  dropChance: 1
+  tags:
+  - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}

@@ -120,6 +120,7 @@ public static class BiomeDataAssetGenerator
         target.townChance = source.townChance;
 
         target.groundColor = source.groundColor;
+        //target.dirtColor = source.dirtColor;
         target.pathColor = source.pathColor;
         target.waterColor = source.waterColor;
         target.cliffColor = source.cliffColor;

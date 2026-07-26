@@ -17,12 +17,12 @@ namespace Project.Scripts.GameTime
         
         private int dayInMonth; 
         private Season season;
-        private Season _season;
         private int _year;
 
         private int _lastHour;
 
         private int secondsPerDay;
+        private bool _initialized;
         public string timeString;
 
         public float DayProgress => dayTime / secondsPerDay;
@@ -32,11 +32,21 @@ namespace Project.Scripts.GameTime
         
         private void Start()
         {
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            if (_initialized)
+                return;
+
             secondsPerDay = Mathf.FloorToInt(_worldData.minutesPerDay * SecondsPerMinute);
             
             season = _worldData.startSeason;
             dayInMonth = 1;
             dayTime = (_worldData.startHour /24f) * secondsPerDay;
+            _lastHour = Hour;
+            _initialized = true;
         }
 
         private void Update()
@@ -58,7 +68,7 @@ namespace Project.Scripts.GameTime
 
         public int DayInMonth => dayInMonth;
 
-        public Season Season => _season;
+        public Season Season => season;
 
         public int Year => _year;
 
@@ -68,6 +78,23 @@ namespace Project.Scripts.GameTime
         private float MinutesPerHour => _worldData.minutesPerDay / HoursInDay;
         private float SecondsPerHour => (MinutesPerHour * SecondsPerMinute);
 
+        public void RestoreTime(
+            int restoredDayInMonth,
+            Season restoredSeason,
+            int restoredYear,
+            float restoredDayProgress)
+        {
+            Initialize();
+
+            dayInMonth = Mathf.Clamp(
+                restoredDayInMonth,
+                1,
+                _worldData.daysInMonth);
+            season = restoredSeason;
+            _year = Mathf.Max(0, restoredYear);
+            dayTime = Mathf.Clamp01(restoredDayProgress) * secondsPerDay;
+            _lastHour = Hour;
+        }
 
         private TimeChangedArgs CreateTimeChangedArgs()
         {

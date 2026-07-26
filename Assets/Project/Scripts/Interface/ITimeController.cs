@@ -11,6 +11,12 @@ namespace Project.Scripts.Interface
         public int Hour { get; }
         public int Minute { get; }
         public float DayProgress { get; }
+
+        public void RestoreTime(
+            int dayInMonth,
+            Season season,
+            int year,
+            float dayProgress);
         
         public void AdvanceDay();
         public void AdvanceMonth();

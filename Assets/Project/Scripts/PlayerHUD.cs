@@ -1,30 +1,89 @@
-using System;
+using Project.Scripts.Bus;
+using Project.Scripts.Core;
 using Project.Scripts.Gameplay;
+using Project.Scripts.Interface;
+using Project.Scripts.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Zenject;
 
-[RequireComponent(typeof(UIDocument))]
-public class PlayerHUD : MonoBehaviour
+namespace Project.Scripts
 {
-    private UIDocument _uiDocument;
+    [RequireComponent(typeof(PanelRenderer))]
+    public class PlayerHUD : MonoBehaviour
+    {
+        private PanelRenderer _uiDocument;
     
-    [Inject] private PlayerDataController playerDataController;
-    
-    private void Awake()
-    {
-        _uiDocument = GetComponent<UIDocument>();
-    }
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        _uiDocument.rootVisualElement.Q("NeedsDisplay").dataSource = playerDataController;    
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
+        [Inject] private PlayerDataController playerDataController;
+        private PlayerToolbarController toolbarController;
+        private PlayerBus playerBus;
         
+        private HotbarSlot[] hotbarSlots =
+            new HotbarSlot[PlayerToolbarController.SlotCount];
+
+        [Inject]
+        public void Construct([Inject] PlayerBus playerBus)
+        {
+            playerBus.hotbarIndexChanged += PlayerBusOnhotbarIndexChanged;
+            playerBus.hotbarActionSet += PlayerBusOnhotbarActionSet;
+        }
+
+        private void PlayerBusOnhotbarActionSet(int index, IHotbarAction action)
+        {
+            if (index < 0 || index >= hotbarSlots.Length ||
+                hotbarSlots[index] == null)
+                return;
+
+            hotbarSlots[index].Action = action;
+        }
+
+        private void PlayerBusOnhotbarIndexChanged(int index, IHotbarAction[] hotbarActions)
+        {
+            HandleHotBar(index);
+        }
+
+        private void HandleHotBar(int hotbarPressed)
+        {
+            for(int i = 0; i < hotbarSlots.Length; i++)
+            {
+                if (hotbarSlots[i] != null)
+                    hotbarSlots[i].Active = hotbarPressed == i;
+            }
+        }
+
+        private void Awake()
+        {
+            _uiDocument = GetComponent<PanelRenderer>();
+            toolbarController =
+                playerDataController.GetComponent<PlayerToolbarController>();
+        }
+
+        // Start is called once before the first execution of Update after the MonoBehaviour is created
+        void Start()
+        {
+            _uiDocument.RegisterUIReloadCallback(ReloadCallback);
+        }
+
+        private void ReloadCallback(PanelRenderer panel, VisualElement root)
+        {
+            root.Q("NeedsDisplay").dataSource = playerDataController;
+            toolbarController ??=
+                playerDataController.GetComponent<PlayerToolbarController>();
+
+            var hotbar = root.Q("Toolbar");
+            hotbar.Clear();
+            
+            for (int i = 0; i < hotbarSlots.Length; i++)
+            {
+                var slot = new HotbarSlot();
+                slot.Action = toolbarController.HotbarActions[i];
+                
+                hotbarSlots[i] = slot;
+
+                hotbar.Add(slot);
+            }
+
+            HandleHotBar(toolbarController.SelectedIndex);
+        }
     }
 }

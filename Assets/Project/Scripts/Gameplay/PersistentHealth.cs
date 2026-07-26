@@ -1,45 +1,91 @@
+using System;
 using System.IO;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using UnityEngine;
 
-namespace Project.Scripts.Core
+namespace Project.Scripts.Gameplay
 {
-    public class PersistentHealth : IHasHealth, IPersistentComponent
+    public sealed class PersistentHealth : MonoBehaviour, IHasHealth, IDamageable,
+        IPersistentComponent
     {
-        private int _health;
-        private const ushort _persistentTypeId = 1;
+        public const ushort TypeId = 1;
+        private const ushort CurrentVersion = 1;
 
-        public int Health => _health;
-        public int MaxHealth => 100;
+        [SerializeField, Min(1)] private int maxHealth = 100;
+        [SerializeField] private int health = 100;
+
+        public int Health => health;
+        public int MaxHealth => maxHealth;
+        public ushort PersistentTypeId => TypeId;
+        public ushort PersistentVersion => CurrentVersion;
+
+        private void Awake()
+        {
+            health = Mathf.Clamp(health, 0, maxHealth);
+        }
 
         public void TakeDamage(int damage)
         {
-            _health = Mathf.Max(0, _health - damage);
+            if (damage < 0)
+                throw new ArgumentOutOfRangeException(nameof(damage));
+
+            health = Mathf.Max(0, health - damage);
+        }
+
+        public int TakeDamage(AttackContext context)
+        {
+            int previousHealth = health;
+            TakeDamage(context.Force);
+            return previousHealth - health;
         }
 
         public void Heal(int amount)
         {
-            throw new System.NotImplementedException();
+            if (amount < 0)
+                throw new ArgumentOutOfRangeException(nameof(amount));
+
+            health = Mathf.Min(maxHealth, health + amount);
         }
-
-        public ushort PersistentTypeId => _persistentTypeId;
-
-        public ushort PersistentVersion => 1;
 
         public void WriteState(BinaryWriter writer)
         {
-            writer.Write(_health);
+            if (writer == null)
+                throw new ArgumentNullException(nameof(writer));
+
+            writer.Write(health);
         }
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
         {
-            _health = reader.ReadInt32();
+            if (reader == null)
+                throw new ArgumentNullException(nameof(reader));
+            if (savedVersion != CurrentVersion)
+                throw new InvalidDataException($"Unsupported health state version {savedVersion}.");
+
+            int restoredHealth = reader.ReadInt32();
+            if (restoredHealth < 0 || restoredHealth > maxHealth)
+                throw new InvalidDataException(
+                    $"Saved health {restoredHealth} is outside the valid range 0..{maxHealth}.");
+
+            health = restoredHealth;
         }
 
         public bool IsAtBaseline()
         {
-            return _health == MaxHealth;
+            return health == maxHealth;
+        }
+
+        private void OnValidate()
+        {
+            maxHealth = Mathf.Max(1, maxHealth);
+            health = Mathf.Clamp(health, 0, maxHealth);
+        }
+
+        public void Initialize(int maximumHealth)
+        {
+            this.maxHealth = health = maximumHealth;
         }
     }
 }

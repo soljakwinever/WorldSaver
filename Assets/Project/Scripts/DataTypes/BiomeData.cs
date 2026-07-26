@@ -43,6 +43,7 @@ namespace Project.Scripts
         public float townChance = 0f;
             
         public Color groundColor = Color.green;
+        public Color dirtColor = new(0.45f, 0.3f, 0.18f);
         public Color pathColor = Color.lightGoldenRodYellow;
         public Color waterColor = Color.blue;
         public Color cliffColor = Color.red;
@@ -53,6 +54,10 @@ namespace Project.Scripts
         public TileData overrideWaterTile;
         public TileData overrideCliffTile;
         public TileData overrideBeachTile;
+
+        [Header("Tile Actions")]
+        [Tooltip("Tile placed after mining in this biome. Leave empty to use the WorldData default.")]
+        public TileData overrideMinedTileReplacement;
 
     }
 }

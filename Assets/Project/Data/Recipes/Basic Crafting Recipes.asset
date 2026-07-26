@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01b99904458d4e72afc7fe60e62da9dd, type: 3}
+  m_Name: Basic Crafting Recipes
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.RecipeList
+  recipes:
+  - {fileID: 11400000, guid: 65b2bc6f8c13e754a979b50d6043dbc3, type: 2}
+  - {fileID: 11400000, guid: c684f6dff3d0c76489d94a83bf07fa60, type: 2}
+  - {fileID: 11400000, guid: d2a41f3e89b2fe745b8cdcde678a1a59, type: 2}
