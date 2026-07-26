@@ -395,6 +395,7 @@ MonoBehaviour:
   items:
   - {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
   - {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
+  - {fileID: 11400000, guid: ba1814196f0fc264ab5417d72c8fd3ff, type: 2}
 --- !u!4 &743799763
 Transform:
   m_ObjectHideFlags: 0
@@ -471,10 +472,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   cursor: {fileID: 1582733738}
-  mouseSpawnArchetype: {fileID: 11400000, guid: f54a64c4914aedb45a88fb4adc14ed5d, type: 2}
-  mousePlacementTiles:
-  - {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
-  - {fileID: 11400000, guid: 20222222222242228222222222222222, type: 2}
   LoadDistance: 4
   track: {fileID: 1074488191}
 --- !u!1 &1472087391
@@ -1005,6 +1002,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.InventoryDebugUI
   inventory: {fileID: 1074488197}
+  toolbarController: {fileID: 0}
   windowRect:
     serializedVersion: 2
     x: 16

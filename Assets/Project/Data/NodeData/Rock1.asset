@@ -25,3 +25,7 @@ MonoBehaviour:
   persistentComponents:
   - {fileID: 11400000, guid: 14b14804f4f3f8941b2848620eb57d69, type: 2}
   resourceType: 0
+  droppedItem: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
+  dropChance: 1
+  tags:
+  - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}

@@ -9,7 +9,6 @@ using UnityEngine;
 
 namespace Project.Editor
 {
-    [CustomPropertyDrawer(typeof(EntityTag[]))]
     public sealed class EntityTagArrayDrawer : PropertyDrawer
     {
         private const float PillHeight = 20f;
@@ -20,6 +19,9 @@ namespace Project.Editor
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
+            if (!property.isArray)
+                return EditorGUI.GetPropertyHeight(property, label, true);
+
             float availableWidth = Mathf.Max(
                 100f,
                 EditorGUIUtility.currentViewWidth - EditorGUIUtility.labelWidth - 42f);
@@ -169,18 +171,18 @@ namespace Project.Editor
 
         private sealed class EntityTagDropdown : AdvancedDropdown
         {
-            private readonly SerializedObject serializedObject;
+            private readonly UnityEngine.Object[] targets;
             private readonly string propertyPath;
             private readonly HashSet<EntityTag> assignedTags;
-            private readonly Dictionary<int, EntityTag> tagsById = new();
-            private int nextId = 1;
+            private readonly Dictionary<AdvancedDropdownItem, EntityTag> tagsByItem = new();
+            private AdvancedDropdownItem createItem;
 
             public EntityTagDropdown(
                 AdvancedDropdownState state,
                 SerializedObject serializedObject,
                 string propertyPath) : base(state)
             {
-                this.serializedObject = serializedObject;
+                targets = serializedObject.targetObjects;
                 this.propertyPath = propertyPath;
                 minimumSize = new Vector2(260f, 320f);
                 assignedTags = ReadAssignedTags(serializedObject.FindProperty(propertyPath));
@@ -189,7 +191,8 @@ namespace Project.Editor
             protected override AdvancedDropdownItem BuildRoot()
             {
                 AdvancedDropdownItem root = new("Entity Tags");
-                root.AddChild(new AdvancedDropdownItem("Create New Entity Tag...") { id = 0 });
+                createItem = new AdvancedDropdownItem("Create New Entity Tag...");
+                root.AddChild(createItem);
 
                 string[] guids = AssetDatabase.FindAssets("t:EntityTag");
                 IEnumerable<EntityTag> tags = guids
@@ -200,9 +203,9 @@ namespace Project.Editor
 
                 foreach (EntityTag tag in tags)
                 {
-                    int id = nextId++;
-                    tagsById[id] = tag;
-                    root.AddChild(new AdvancedDropdownItem(tag.name) { id = id });
+                    AdvancedDropdownItem item = new(tag.name);
+                    tagsByItem[item] = tag;
+                    root.AddChild(item);
                 }
 
                 return root;
@@ -210,13 +213,15 @@ namespace Project.Editor
 
             protected override void ItemSelected(AdvancedDropdownItem item)
             {
-                if (item.id == 0)
+                if (ReferenceEquals(item, createItem))
                 {
-                    CreateTagAndAssign();
+                    // Opening a modal file panel inside AdvancedDropdown's GUI
+                    // callback can cause the selection event to be swallowed.
+                    EditorApplication.delayCall += CreateTagAndAssign;
                     return;
                 }
 
-                if (tagsById.TryGetValue(item.id, out EntityTag tag))
+                if (tagsByItem.TryGetValue(item, out EntityTag tag))
                     Assign(tag);
             }
 
@@ -243,15 +248,22 @@ namespace Project.Editor
 
             private void Assign(EntityTag tag)
             {
-                serializedObject.Update();
-                SerializedProperty array = serializedObject.FindProperty(propertyPath);
-                if (array == null || !array.isArray)
-                    return;
+                foreach (UnityEngine.Object target in targets)
+                {
+                    if (target == null)
+                        continue;
 
-                int index = array.arraySize;
-                array.InsertArrayElementAtIndex(index);
-                array.GetArrayElementAtIndex(index).objectReferenceValue = tag;
-                serializedObject.ApplyModifiedProperties();
+                    SerializedObject currentObject = new(target);
+                    currentObject.Update();
+                    SerializedProperty array = currentObject.FindProperty(propertyPath);
+                    if (array == null || !array.isArray)
+                        continue;
+
+                    int index = array.arraySize;
+                    array.arraySize = index + 1;
+                    array.GetArrayElementAtIndex(index).objectReferenceValue = tag;
+                    currentObject.ApplyModifiedProperties();
+                }
             }
 
             private static HashSet<EntityTag> ReadAssignedTags(SerializedProperty array)

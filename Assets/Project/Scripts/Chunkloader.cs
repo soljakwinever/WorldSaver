@@ -74,7 +74,9 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
 
     private void MapSignalBusOnChunkBuilt(ChunkBuildResult result)
     {
-        _loadedChunks.Add(result.chunkPosition, new ChunkInstance {chunk = chunkPool.Spawn(result)}); 
+        Chunk chunk = chunkPool.Spawn(result);
+        _loadedChunks.Add(result.chunkPosition, new ChunkInstance {chunk = chunk});
+        mapSignalBus.RaiseChunkLoaded(result.chunkPosition, chunk);
     }
 
     public void ReloadChunks()
@@ -226,6 +228,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
             // return the same pooled Chunk a second time.
             _loadedChunks.Remove(chunkPosition);
             chunkGenerator.ChunkUnloaded(chunkPosition);
+            mapSignalBus.RaiseChunkUnloaded(chunkPosition);
 
             if (instance.chunk is Chunk chunk)
                 chunkPool.Despawn(chunk);

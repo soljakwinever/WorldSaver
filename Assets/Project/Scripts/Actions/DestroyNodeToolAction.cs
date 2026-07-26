@@ -23,36 +23,48 @@ namespace Project.Scripts.Actions
 
         public override bool CanPerform(ToolActionContext context)
         {
-            return TryGetTarget(context, out _);
+            return TryGetTarget(context, out _, out _);
         }
 
         public override bool Perform(ToolActionContext context)
         {
-            if (!TryGetTarget(context, out PersistentEntity entity))
+            if (!TryGetTarget(
+                    context,
+                    out PersistentEntity entity,
+                    out Node node))
                 return false;
 
+            NodeData nodeData = node.NodeData;
+            Vector3 dropPosition = node.transform.position;
             entity.RemoveFromWorld();
+            TrySpawnDrop(context, nodeData, dropPosition);
             return true;
         }
 
         private bool TryGetTarget(
             ToolActionContext context,
-            out PersistentEntity entity)
+            out PersistentEntity entity,
+            out Node node)
         {
             entity = null;
+            node = null;
             if (context.User == null)
                 return false;
 
+            // Nodes are pooled and positioned through their transforms while
+            // Physics2D auto-sync is disabled. Ensure their colliders are at
+            // their current world positions before performing the query.
+            Physics2D.SyncTransforms();
             Collider2D[] colliders =
                 Physics2D.OverlapPointAll(context.TargetPosition);
             foreach (Collider2D candidate in colliders)
             {
-                Node node = candidate.GetComponentInParent<Node>();
-                if (node == null || !CanDestroy(node.NodeData))
+                Node candidateNode = candidate.GetComponentInParent<Node>();
+                if (candidateNode == null || !CanDestroy(candidateNode.NodeData))
                     continue;
 
                 PersistentEntity persistentEntity =
-                    node.GetComponent<PersistentEntity>();
+                    candidateNode.GetComponent<PersistentEntity>();
                 if (persistentEntity == null ||
                     !persistentEntity.CanRemoveFromWorld)
                 {
@@ -60,10 +72,28 @@ namespace Project.Scripts.Actions
                 }
 
                 entity = persistentEntity;
+                node = candidateNode;
                 return true;
             }
 
             return false;
+        }
+
+        private static void TrySpawnDrop(
+            ToolActionContext context,
+            NodeData nodeData,
+            Vector3 position)
+        {
+            if (context.SpawnItemDrop == null ||
+                nodeData?.droppedItem == null ||
+                nodeData.dropChance <= 0f ||
+                (nodeData.dropChance < 1f &&
+                 UnityEngine.Random.value >= nodeData.dropChance))
+            {
+                return;
+            }
+
+            context.SpawnItemDrop(nodeData.droppedItem, position);
         }
 
         private bool CanDestroy(NodeData nodeData)

@@ -12,6 +12,7 @@ namespace Project.Scripts.Gameplay
     [RequireComponent(typeof(PersistentInventory))]
     [RequireComponent(typeof(PersistentHealth))]
     [RequireComponent(typeof(PersistentTransform))]
+    [RequireComponent(typeof(PlayerToolbarController))]
     public sealed class PlayerDataController : MonoBehaviour, IHasHealth, IHasNeeds, IHasStats,
         IPersistentComponent
     {

@@ -11,6 +11,14 @@ namespace Project.Scripts.DataTypes
         public TileBase TileBase;
         public Color Color = Color.white;
 
+        [Header("Mining Drop")]
+        [Tooltip("Item dropped when this tile is successfully mined.")]
+        public ItemData droppedItem;
+
+        [Range(0f, 1f)]
+        [Tooltip("Chance that mining this tile drops its associated item.")]
+        public float dropChance = 1f;
+
         [SerializeField]
         private EntityTag[] tags = Array.Empty<EntityTag>();
 

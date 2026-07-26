@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64fae307152044dea3ccec62007174f8, type: 3}
   m_Name: HarvestStone
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.Persistence.HarvestableComponentDefinition
-  interactionType: 0
-  toolType: 0
+  interactionType: 1
+  toolType: 2
   itemData: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
-  minimumItemsSpawned: 1
-  maximumItemsSpawned: 1
+  minimumItemsSpawned: 3
+  maximumItemsSpawned: 6
   useRarity: 1
   destroyOnPickup: 1

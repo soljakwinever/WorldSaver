@@ -26,6 +26,7 @@ namespace Project.Scripts.DataTypes
         public ItemAction action;
 
         [SerializeReference]
+        [ManagedReferenceSelector(typeof(ItemActionData))]
         [Tooltip("Only add the data records required by this item's action and tool actions.")]
         private ItemActionData[] actionData = Array.Empty<ItemActionData>();
 
@@ -36,7 +37,8 @@ namespace Project.Scripts.DataTypes
         public int goldValue;
         [Min(1)] public int fuelValue = 1;
 
-        [SerializeField] private EntityTag[] tags = System.Array.Empty<EntityTag>();
+        [SerializeField]
+        private EntityTag[] tags = System.Array.Empty<EntityTag>();
 
         public bool HasTag(EntityTag tag)
         {

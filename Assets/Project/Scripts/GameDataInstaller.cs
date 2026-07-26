@@ -4,6 +4,7 @@ using Project.Scripts.Gameplay;
 using Project.Scripts.Core;
 using Project.Scripts.Interface;
 using Project.Scripts.Persistence;
+using Project.Scripts.Pathfinding;
 using Project.Scripts.UI;
 using UnityEngine;
 using Zenject;
@@ -47,6 +48,12 @@ public class GameDataInstaller : MonoInstaller
             .WithMaxSize(100)
             .FromComponentInNewPrefab(itemStackPrefab)
             .UnderTransformGroup("ItemPickups");
+
+        Container.BindMemoryPool<NPCSpawnInstance, NPCSpawnPool>()
+            .WithInitialSize(32)
+            .WithMaxSize(512)
+            .FromNewComponentOnNewGameObject()
+            .UnderTransformGroup("NPCs");
         Container.Bind<IItemStackPickupPool>()
             .To<ItemStackPickupPool>()
             .FromResolve();
@@ -58,10 +65,23 @@ public class GameDataInstaller : MonoInstaller
 
         Container.BindInterfacesAndSelfTo<ChunkGenerator>().AsSingle().NonLazy();
         Container.Bind<WorldGeneration>().FromNew().AsSingle();
+        Container.Bind<IPathFindingMap>()
+            .To<WorldPathFindingMap>()
+            .AsSingle();
+        Container.Bind<IPathFindingService>()
+            .To<PathFindingService>()
+            .AsSingle();
 
         Container.Bind<Chunkloader>().FromComponentInHierarchy().AsSingle();
         Container.BindInterfacesAndSelfTo<TileSpreadSystem>()
             .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
+        Container.Bind<INPCSpawnEnvironmentProvider>()
+            .To<NullNPCSpawnEnvironmentProvider>()
+            .AsSingle()
+            .IfNotBound();
+        Container.BindInterfacesAndSelfTo<NPCSpawnController>()
             .AsSingle()
             .NonLazy();
 
@@ -87,6 +107,8 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<MapSignalBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<TimeSignalBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<PlayerBus>().FromNew().AsSingle().NonLazy();
+        Container.Bind<EntityBus>().FromNew().AsSingle().NonLazy();
+        Container.Bind<IAttackService>().To<AttackService>().AsSingle();
 
     }
 }

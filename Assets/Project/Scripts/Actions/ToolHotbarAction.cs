@@ -36,7 +36,8 @@ namespace Project.Scripts.Actions
                         context.User,
                         context.TargetPosition,
                         tool,
-                        context.Item));
+                        context.Item,
+                        context.SpawnItemDrop));
             }
 
             // Legacy tools interact with the currently focused object.
@@ -58,7 +59,8 @@ namespace Project.Scripts.Actions
                         context.User,
                         context.TargetPosition,
                         tool,
-                        context.Item));
+                        context.Item,
+                        context.SpawnItemDrop));
             }
 
             return context.User.TryGetComponent(

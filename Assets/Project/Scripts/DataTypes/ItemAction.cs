@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Project.Scripts.DataTypes
@@ -8,6 +9,7 @@ namespace Project.Scripts.DataTypes
         public GameObject User { get; }
         public Vector3 TargetPosition { get; }
         public ItemData Item { get; }
+        public Action<ItemData, Vector3> SpawnItemDrop { get; }
 
         /// <param name="item">
         /// Item bound to the action. Bindings supply this automatically.
@@ -15,11 +17,13 @@ namespace Project.Scripts.DataTypes
         public ActionContext(
             GameObject user,
             Vector3 targetPosition,
-            ItemData item = null)
+            ItemData item = null,
+            Action<ItemData, Vector3> spawnItemDrop = null)
         {
             User = user;
             TargetPosition = targetPosition;
             Item = item;
+            SpawnItemDrop = spawnItemDrop;
         }
     }
 

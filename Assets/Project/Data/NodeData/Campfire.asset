@@ -27,3 +27,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
   - {fileID: 11400000, guid: 55e1abd1172112b45bd1a8caf5d3b0b1, type: 2}
   resourceType: 0
+  droppedItem: {fileID: 11400000, guid: 6a8222c88e101ac4bad5be160c204b22, type: 2}
+  dropChance: 1
+  tags:
+  - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}

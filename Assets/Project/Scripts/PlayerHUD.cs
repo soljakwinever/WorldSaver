@@ -15,9 +15,11 @@ namespace Project.Scripts
         private PanelRenderer _uiDocument;
     
         [Inject] private PlayerDataController playerDataController;
+        private PlayerToolbarController toolbarController;
         private PlayerBus playerBus;
         
-        private HotbarSlot[] hotbarSlots = new HotbarSlot[10];
+        private HotbarSlot[] hotbarSlots =
+            new HotbarSlot[PlayerToolbarController.SlotCount];
 
         [Inject]
         public void Construct([Inject] PlayerBus playerBus)
@@ -28,6 +30,10 @@ namespace Project.Scripts
 
         private void PlayerBusOnhotbarActionSet(int index, IHotbarAction action)
         {
+            if (index < 0 || index >= hotbarSlots.Length ||
+                hotbarSlots[index] == null)
+                return;
+
             hotbarSlots[index].Action = action;
         }
 
@@ -40,13 +46,16 @@ namespace Project.Scripts
         {
             for(int i = 0; i < hotbarSlots.Length; i++)
             {
-                hotbarSlots[i].Active = hotbarPressed == i;
+                if (hotbarSlots[i] != null)
+                    hotbarSlots[i].Active = hotbarPressed == i;
             }
         }
 
         private void Awake()
         {
             _uiDocument = GetComponent<PanelRenderer>();
+            toolbarController =
+                playerDataController.GetComponent<PlayerToolbarController>();
         }
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -58,6 +67,8 @@ namespace Project.Scripts
         private void ReloadCallback(PanelRenderer panel, VisualElement root)
         {
             root.Q("NeedsDisplay").dataSource = playerDataController;
+            toolbarController ??=
+                playerDataController.GetComponent<PlayerToolbarController>();
 
             var hotbar = root.Q("Toolbar");
             hotbar.Clear();
@@ -65,12 +76,14 @@ namespace Project.Scripts
             for (int i = 0; i < hotbarSlots.Length; i++)
             {
                 var slot = new HotbarSlot();
-                slot.Action = null;
+                slot.Action = toolbarController.HotbarActions[i];
                 
                 hotbarSlots[i] = slot;
 
                 hotbar.Add(slot);
             }
+
+            HandleHotBar(toolbarController.SelectedIndex);
         }
     }
 }

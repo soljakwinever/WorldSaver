@@ -39,6 +39,10 @@ namespace Project.Scripts.Interface
 
         // Replace any caller item with the item owned by this binding.
         private ActionContext WithItem(ActionContext context) =>
-            new(context.User, context.TargetPosition, _item);
+            new(
+                context.User,
+                context.TargetPosition,
+                _item,
+                context.SpawnItemDrop);
     }
 }

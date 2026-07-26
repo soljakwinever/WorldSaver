@@ -27,6 +27,14 @@ namespace Project.Scripts
         
         public ResourceType resourceType;
 
+        [Header("Destruction Drop")]
+        [Tooltip("Item dropped when this node is successfully destroyed.")]
+        public ItemData droppedItem;
+
+        [Range(0f, 1f)]
+        [Tooltip("Chance that destroying this node drops its associated item.")]
+        public float dropChance = 1f;
+
         [SerializeField]
         [Tooltip("Categories used by tools and other node filters.")]
         private EntityTag[] tags = Array.Empty<EntityTag>();

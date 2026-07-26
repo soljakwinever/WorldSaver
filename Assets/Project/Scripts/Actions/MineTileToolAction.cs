@@ -15,28 +15,37 @@ namespace Project.Scripts.Actions
     {
         public override bool CanPerform(ToolActionContext context)
         {
-            return TryGetTarget(context, out _, out _, out _);
+            return TryGetTarget(context, out _, out _, out _, out _);
         }
 
         public override bool Perform(ToolActionContext context)
         {
-            return TryGetTarget(
-                       context,
-                       out Chunk chunk,
-                       out Vector3Int cell,
-                       out MineTileToolActionData data) &&
-                   chunk.TryReplaceMinedTile(cell, data.layer);
+            if (!TryGetTarget(
+                    context,
+                    out Chunk chunk,
+                    out Vector3Int cell,
+                    out MineTileToolActionData data,
+                    out TileData tile) ||
+                !chunk.TryReplaceMinedTile(cell, data.layer))
+            {
+                return false;
+            }
+
+            TrySpawnDrop(context, tile, cell + new Vector3(0.5f, 0.5f));
+            return true;
         }
 
         private bool TryGetTarget(
             ToolActionContext context,
             out Chunk chunk,
             out Vector3Int cell,
-            out MineTileToolActionData data)
+            out MineTileToolActionData data,
+            out TileData targetTile)
         {
             cell = Vector3Int.FloorToInt(context.TargetPosition);
             chunk = null;
             data = null;
+            targetTile = null;
 
             Chunkloader chunkloader = FindFirstObjectByType<Chunkloader>();
             if (context.User == null ||
@@ -48,12 +57,12 @@ namespace Project.Scripts.Actions
                 return false;
             }
 
+            if (!chunk.TryGetTileData(cell, data.layer, out targetTile))
+                return false;
+
             // No tags means every tile on the configured layer is mineable.
             if (data.mineableTags == null || data.mineableTags.Length == 0)
-                return chunk.HasTile(cell, data.layer);
-
-            if (!chunk.TryGetTileData(cell, data.layer, out TileData targetTile))
-                return false;
+                return true;
 
             foreach (EntityTag mineableTag in data.mineableTags)
             {
@@ -64,6 +73,22 @@ namespace Project.Scripts.Actions
             }
 
             return false;
+        }
+
+        private static void TrySpawnDrop(
+            ToolActionContext context,
+            TileData tile,
+            Vector3 position)
+        {
+            if (context.SpawnItemDrop == null ||
+                tile?.droppedItem == null ||
+                tile.dropChance <= 0f ||
+                (tile.dropChance < 1f && Random.value >= tile.dropChance))
+            {
+                return;
+            }
+
+            context.SpawnItemDrop(tile.droppedItem, position);
         }
     }
 }

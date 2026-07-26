@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0601214a8eb444409db783645d86b44, type: 3}
+  m_Name: Test NPC Spawn Rule
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemySpawnRule
+  rules: []
+  npcPrefab: {fileID: 100000, guid: 21e1850f50e74f3cb96516e45b82a56b, type: 3}
+  persistentNodeData: {fileID: 0}
+  persistence: 0
+  minimumPerChunk: 1
+  maximumPerChunk: 1
+  spawnChance: 1
+  minimumSpacing: 2
+  seasons: 15
+  firstHour: 0
+  lastHour: 24
+  allowedBiomes: []
+  restrictedBiomes: []
+  requiredEvent:
+  requiredWeather:

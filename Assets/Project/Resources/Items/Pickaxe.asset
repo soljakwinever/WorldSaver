@@ -20,7 +20,7 @@ MonoBehaviour:
   actionData:
   - rid: 7218491099281098754
   - rid: 7218491099281098755
-  goldValue: 0
+  goldValue: 12
   fuelValue: 1
   tags:
   - {fileID: 11400000, guid: 87a56f66d863cfa48b50585a9adf051d, type: 2}
@@ -36,4 +36,8 @@ MonoBehaviour:
       type: {class: MineTileToolActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
       data:
         layer: 0
-        mineableTags: []
+        mineableTags:
+        - {fileID: 11400000, guid: 6dd4ca9af4e337680cab072a651c8e64, type: 2}
+        - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
+        - {fileID: 11400000, guid: a951317ce095888e72cfe7ec71f6fc6a, type: 2}
+        - {fileID: 11400000, guid: 87a56f66d863cfa48b50585a9adf051d, type: 2}

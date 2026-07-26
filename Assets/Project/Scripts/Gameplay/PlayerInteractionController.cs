@@ -3,6 +3,7 @@ using Project.Scripts.DataTypes;
 using System;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
+using Project.Scripts.Utility;
 using UnityEngine;
 using Zenject;
 
@@ -32,6 +33,7 @@ namespace Project.Scripts.Gameplay
         private PersistentInventory _inventory;
         private IComponentWindowService _windowService;
         private ICraftingService _craftingService;
+        private IItemStackPickupPool _pickupPool;
         private bool _inventoryCraftingOpen;
 
         private void Awake()
@@ -44,12 +46,14 @@ namespace Project.Scripts.Gameplay
         public void Construct(
             IInputManager inputManager,
             IComponentWindowService windowService,
-            ICraftingService craftingService)
+            ICraftingService craftingService,
+            IItemStackPickupPool pickupPool)
         {
             UnsubscribeFromInput();
             this.inputManager = inputManager;
             _windowService = windowService;
             _craftingService = craftingService;
+            _pickupPool = pickupPool;
 
             if (isActiveAndEnabled)
                 SubscribeToInput();
@@ -217,7 +221,22 @@ namespace Project.Scripts.Gameplay
                     : transform.position;
             }
 
-            return new ActionContext(gameObject, targetPosition);
+            return new ActionContext(
+                gameObject,
+                targetPosition,
+                spawnItemDrop: SpawnItemDrop);
+        }
+
+        private void SpawnItemDrop(ItemData item, Vector3 position)
+        {
+            if (item == null || _pickupPool == null)
+                return;
+
+            _pickupPool.Spawn(
+                item,
+                1,
+                ItemRarityUtility.Generate(),
+                position);
         }
 
         private InteractionContext CreateDirectInteractionContext()

@@ -13,3 +13,6 @@ MonoBehaviour:
   m_Name: Destroy Nodes
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.Actions.DestroyNodeToolAction
   targetNodes: []
+  targetTags:
+  - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
+  - {fileID: 11400000, guid: 87a56f66d863cfa48b50585a9adf051d, type: 2}

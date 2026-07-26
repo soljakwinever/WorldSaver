@@ -198,6 +198,15 @@ public class Chunk : MonoBehaviour, IChunk
                TryGetRuntimeArchetype(nodeData, out _);
     }
 
+    public bool ContainsRuntimeEntity(NodeData nodeData)
+    {
+        return nodeData != null && props.Any(node =>
+            node != null &&
+            node.NodeData == nodeData &&
+            node.GetComponent<PersistentEntity>().PersistenceKind ==
+            EntityPersistenceKind.RuntimeSpawned);
+    }
+
     /// <summary>
     /// Spawns and registers a persistent runtime entity from its node data.
     /// </summary>

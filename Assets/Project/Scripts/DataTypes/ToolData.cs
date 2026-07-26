@@ -12,17 +12,20 @@ namespace Project.Scripts
         public Vector3 TargetPosition { get; }
         public ToolData Tool { get; }
         public ItemData Item { get; }
+        public Action<ItemData, Vector3> SpawnItemDrop { get; }
 
         public ToolActionContext(
             GameObject user,
             Vector3 targetPosition,
             ToolData tool,
-            ItemData item = null)
+            ItemData item = null,
+            Action<ItemData, Vector3> spawnItemDrop = null)
         {
             User = user;
             TargetPosition = targetPosition;
             Tool = tool;
             Item = item;
+            SpawnItemDrop = spawnItemDrop;
         }
     }
 

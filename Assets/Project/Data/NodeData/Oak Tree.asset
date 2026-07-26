@@ -20,5 +20,9 @@ MonoBehaviour:
   toolRequirement: 0
   overrideMaterial: {fileID: 2100000, guid: b92cef41cc5e98940a34a2711c9948bf, type: 2}
   tintColor: {r: 1, g: 1, b: 1, a: 1}
+  overrideVisual: {fileID: 0}
   lightness: 1
   lightnessVariance: 2
+  persistentComponents: []
+  resourceType: 0
+  tags: []

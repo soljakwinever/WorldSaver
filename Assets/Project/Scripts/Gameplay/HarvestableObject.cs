@@ -74,9 +74,11 @@ namespace Project.Scripts.Gameplay
                 ? ItemRarityUtility.Generate()
                 : rarity;
 
-            ItemStackPickup pickup =
-                _pickupPool.Spawn(itemData, count, spawnedRarity);
-            pickup.transform.position = transform.position;
+            _pickupPool.Spawn(
+                itemData,
+                count,
+                spawnedRarity,
+                transform.position);
 
             if (despawnOnHarvest)
             {

@@ -6,18 +6,8 @@ using UnityEngine;
 
 namespace Project.Scripts.Gameplay
 {
-    public interface IItemStackPickupPool
-    {
-        ItemStackPickup Spawn(
-            ItemData item,
-            int count,
-            ItemData.Rarity rarity);
-
-        void Despawn(ItemStackPickup pickup);
-    }
-
     [RequireComponent(typeof(Collider2D))]
-    public sealed class ItemStackPickup : MonoBehaviour, IInteractable
+    public sealed class ItemStackPickup : MonoBehaviour, IInteractable, IItemStackPickup
     {
         [SerializeField] private ItemData item;
         [SerializeField, Min(1)] private int count = 1;

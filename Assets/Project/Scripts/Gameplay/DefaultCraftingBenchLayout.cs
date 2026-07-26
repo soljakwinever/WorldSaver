@@ -20,9 +20,6 @@ namespace Project.Scripts.Gameplay
             DrawRecipeList(context);
             DrawRecipeDetails(context);
             GUILayout.EndHorizontal();
-
-            if (!string.IsNullOrWhiteSpace(context.StatusMessage))
-                GUILayout.Label(context.StatusMessage, GUI.skin.box);
         }
 
         private void DrawRecipeList(CraftingBenchWindowContext context)

@@ -1,12 +1,14 @@
 using System;
 using System.IO;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using UnityEngine;
 
 namespace Project.Scripts.Gameplay
 {
-    public sealed class PersistentHealth : MonoBehaviour, IHasHealth, IPersistentComponent
+    public sealed class PersistentHealth : MonoBehaviour, IHasHealth, IDamageable,
+        IPersistentComponent
     {
         public const ushort TypeId = 1;
         private const ushort CurrentVersion = 1;
@@ -30,6 +32,13 @@ namespace Project.Scripts.Gameplay
                 throw new ArgumentOutOfRangeException(nameof(damage));
 
             health = Mathf.Max(0, health - damage);
+        }
+
+        public int TakeDamage(AttackContext context)
+        {
+            int previousHealth = health;
+            TakeDamage(context.Force);
+            return previousHealth - health;
         }
 
         public void Heal(int amount)

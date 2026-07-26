@@ -53,6 +53,8 @@ MonoBehaviour:
   featureChancePerCell: 0.1
   minFeatureRadius: 32
   maxFeatureRadius: 96
+  enemySpawnRules:
+  - {fileID: 11400000, guid: 5a0c59a17f84480eb1b9dc64730a3c28, type: 2}
   propSpawnRules:
   - name: Oak Tree
     nodeData: {fileID: 11400000, guid: d9eaf2b8e259b4e41b604c1ebe576e32, type: 2}

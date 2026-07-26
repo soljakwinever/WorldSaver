@@ -108,6 +108,9 @@ namespace Project.Scripts
         
         public PropSpawnRule[] propSpawnRules;
 
+        [Header("NPC Spawning")]
+        public EnemySpawnRule[] enemySpawnRules = Array.Empty<EnemySpawnRule>();
+
         [Header("Runtime Entities")]
         public DataTypes.EntityArchetype[] runtimeEntityArchetypes;
         
