@@ -30,6 +30,7 @@ namespace Project.Scripts.Gameplay
             if (TryGetComponent(out SpriteRenderer renderer))
             {
                 renderer.color = ItemRarityUtility.GetRarityColor(rarity);
+                renderer.sprite  = item.sprite;
             }
 
             foreach (Transform child in transform)

@@ -34,6 +34,19 @@ namespace Project.Scripts.DataTypes
         public Color waterColor;
         public Color cliffColor;
         public Color beachColor;
+
+        public Color untintedGroundColor;
+        public Color untintedDirtColor;
+        public Color untintedPathColor;
+        public Color untintedWaterColor;
+        public Color untintedCliffColor;
+        public Color untintedBeachColor;
+
+        public Color springTint;
+        public Color summerTint;
+        public Color fallTint;
+        public Color winterTint;
+        public float SeasonColorEffectMod;
         public float lakeStrength;
     }
 }

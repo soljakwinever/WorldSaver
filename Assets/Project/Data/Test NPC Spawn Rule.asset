@@ -20,10 +20,10 @@ MonoBehaviour:
   maximumPerChunk: 1
   spawnChance: 1
   minimumSpacing: 2
-  seasons: 15
+  seasons: -1
   firstHour: 0
   lastHour: 24
   allowedBiomes: []
   restrictedBiomes: []
-  requiredEvent:
-  requiredWeather:
+  requiredEvent: 
+  requiredWeather: 

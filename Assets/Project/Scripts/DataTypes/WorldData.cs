@@ -120,6 +120,15 @@ namespace Project.Scripts
         public int startHour = 8;
         public Season startSeason = Season.Spring;
 
+        [Header("Seasonal Biome Tint")]
+        public Color springTint = Color.white;
+        public Color summerTint = Color.white;
+        public Color fallTint = Color.white;
+        public Color winterTint = Color.white;
+
+        [Tooltip("Controls how quickly biome colors transition from the previous season's tint to the current season's tint.")]
+        public AnimationCurve seasonalTintCurve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
+
         [GradientUsage(true)]
         public Gradient dayColorGradient;
         

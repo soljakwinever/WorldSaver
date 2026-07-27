@@ -23,10 +23,14 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         }
     }
 
+    public int LoadedChunks => _loadedChunks.Count;
+
     [SerializeField] private GameObject cursor;
     
     [Inject] private WorldGeneration worldGeneration;
     [Inject] private MapSignalBus mapSignalBus;
+    [Inject] private TimeSignalBus timeSignalBus;
+    [Inject] private WorldData worldData;
     
     private Vector2Int _lastPosition;
     private Grid gameGrid;
@@ -35,12 +39,22 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     public const int TickTime = 1;
 
     public int LoadDistance = 3;
+
+    [Header("Seasonal Color Refresh")]
+    [SerializeField, Min(1)]
+    private int biomeColorCellsPerChunkStep = 64;
+
+    [SerializeField, Min(1)]
+    private int maxBiomeColorCellsPerFrame = 4096;
     
     public const int ChunkUnloadTicks = 4; 
 
     public Transform track;
     
     private Dictionary<Vector2Int, ChunkInstance> _loadedChunks = new Dictionary<Vector2Int, ChunkInstance>();
+    private readonly Queue<Chunk> _biomeColorRefreshQueue = new();
+    private float _biomeColorRefreshCellsPerSecond;
+    private float _biomeColorRefreshCellAccumulator;
 
     [Inject] private Chunk.Pool chunkPool;
 
@@ -65,6 +79,9 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     {
         gameGrid = FindAnyObjectByType<Grid>();
         mapSignalBus.ChunkBuilt += MapSignalBusOnChunkBuilt;
+        timeSignalBus.HourChanged += OnHourChanged;
+        timeSignalBus.DayChanged += OnDayChanged;
+        timeSignalBus.MonthChanged += OnMonthChanged;
         if (!chunkGenerator.IsRunning)
             chunkGenerator.Run(this,destroyCancellationToken);
     }
@@ -72,6 +89,93 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     private void OnDestroy()
     {
         mapSignalBus.ChunkBuilt -= MapSignalBusOnChunkBuilt;
+        timeSignalBus.HourChanged -= OnHourChanged;
+        timeSignalBus.DayChanged -= OnDayChanged;
+        timeSignalBus.MonthChanged -= OnMonthChanged;
+    }
+
+    private void OnHourChanged(TimeChangedArgs args)
+    {
+        if (args.Hour < SeasonalBiomeTint.HoursInDay)
+            RefreshLoadedChunkColors(args.Hour);
+    }
+
+    private void OnDayChanged(TimeChangedArgs _)
+    {
+        RefreshLoadedChunkColors(0);
+    }
+
+    private void OnMonthChanged(TimeChangedArgs _)
+    {
+        // DayChanged is raised before TimeController advances an overflowing
+        // day into its new season, so refresh once more with the final season.
+        RefreshLoadedChunkColors(0);
+    }
+
+    private void RefreshLoadedChunkColors(int hour)
+    {
+        _biomeColorRefreshQueue.Clear();
+        int pendingCellCount = 0;
+        foreach (ChunkInstance instance in _loadedChunks.Values)
+        {
+            if (instance.chunk is Chunk chunk)
+            {
+                chunk.BeginBiomeColorRefresh(hour);
+                if (chunk.RemainingBiomeColorRefreshCells > 0)
+                {
+                    _biomeColorRefreshQueue.Enqueue(chunk);
+                    pendingCellCount += chunk.RemainingBiomeColorRefreshCells;
+                }
+            }
+        }
+
+        _biomeColorRefreshCellsPerSecond =
+            pendingCellCount / Mathf.Max(
+                0.1f,
+                worldData.minutesPerDay * 60f /
+                SeasonalBiomeTint.HoursInDay);
+        _biomeColorRefreshCellAccumulator = 0f;
+    }
+
+    private void ProcessBiomeColorRefresh()
+    {
+        if (_biomeColorRefreshQueue.Count == 0)
+            return;
+
+        _biomeColorRefreshCellAccumulator +=
+            _biomeColorRefreshCellsPerSecond * Time.deltaTime;
+        int remainingBudget = Mathf.Min(
+            Mathf.FloorToInt(_biomeColorRefreshCellAccumulator),
+            maxBiomeColorCellsPerFrame);
+        _biomeColorRefreshCellAccumulator -= remainingBudget;
+
+        while (remainingBudget > 0 && _biomeColorRefreshQueue.Count > 0)
+        {
+            Chunk chunk = _biomeColorRefreshQueue.Dequeue();
+            if (!IsLoaded(chunk))
+                continue;
+
+            int applied = Mathf.Min(
+                remainingBudget,
+                biomeColorCellsPerChunkStep,
+                chunk.RemainingBiomeColorRefreshCells);
+            bool completed = chunk.RefreshBiomeColorCells(applied);
+            remainingBudget -= applied;
+
+            if (!completed)
+                _biomeColorRefreshQueue.Enqueue(chunk);
+        }
+    }
+
+    private bool IsLoaded(Chunk chunk)
+    {
+        foreach (ChunkInstance instance in _loadedChunks.Values)
+        {
+            if (ReferenceEquals(instance.chunk, chunk))
+                return true;
+        }
+
+        return false;
     }
 
     private void MapSignalBusOnChunkBuilt(ChunkBuildResult result)
@@ -197,6 +301,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     // Update is called once per frame
     void Update()
     {
+        ProcessBiomeColorRefresh();
+
         tickTimer += Time.deltaTime;
         if (tickTimer >= TickTime)
         {

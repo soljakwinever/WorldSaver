@@ -37,6 +37,7 @@ namespace Project.Scripts
             public float temperature;
             public float moisture;
             public string biome;
+            public int fps;
         }
         
         [Inject]
@@ -69,11 +70,14 @@ namespace Project.Scripts
             }
         }
 
+        private Fps fps;
+
         private void Awake()
         {
             _uiDocument = GetComponent<PanelRenderer>();
             toolbarController =
                 playerDataController.GetComponent<PlayerToolbarController>();
+            fps = GetComponent<Fps>();
         }
 
         // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -108,6 +112,7 @@ namespace Project.Scripts
                 debugData.moisture = tileSample.moisture;
                 debugData.chunkPosition = new Vector2Int(chunkX, chunkY);
                 debugData.cursorPosition = new Vector2Int(position.x, position.y);
+                debugData.fps = fps.FrameRate;
                 poll = pollingRate;
             }
         }

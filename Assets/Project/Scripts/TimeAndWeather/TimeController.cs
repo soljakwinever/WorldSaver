@@ -57,7 +57,7 @@ namespace Project.Scripts.GameTime
             {
                 _lastHour = Hour;
                 _timeSignalBus.TriggerHourChanged(CreateTimeChangedArgs());
-                if (Hour == 24)
+                if (Hour >= 24)
                 {
                     AdvanceDay();
                 }
@@ -93,7 +93,7 @@ namespace Project.Scripts.GameTime
             season = restoredSeason;
             _year = Mathf.Max(0, restoredYear);
             dayTime = Mathf.Clamp01(restoredDayProgress) * secondsPerDay;
-            _lastHour = Hour;
+            _lastHour = Mathf.Clamp(Hour,0, HoursInDay);
         }
 
         private TimeChangedArgs CreateTimeChangedArgs()

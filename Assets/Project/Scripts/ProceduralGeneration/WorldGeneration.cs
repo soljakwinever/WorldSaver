@@ -1,6 +1,7 @@
 using System.Linq;
 using Project.Scripts;
 using Project.Scripts.DataTypes;
+using Project.Scripts.Enums;
 using Project.Scripts.Interface;
 using UnityEngine;
 using Zenject;
@@ -30,6 +31,7 @@ public class WorldGeneration : IWorldGenerator
     FastNoiseLite volcanoRidgeNoise;
     
     private WorldData worldData;
+    private readonly ITimeController timeController;
     [Inject] private BiomeData[] biomeLibrary;
 
     private uint seed;
@@ -53,8 +55,15 @@ public class WorldGeneration : IWorldGenerator
     public float maxFeatureRadius = 256f;
     
     public WorldGeneration(WorldData worldData)
+        : this(worldData, null)
+    {
+    }
+
+    [Inject]
+    public WorldGeneration(WorldData worldData, ITimeController timeController)
     {
         this.worldData = worldData;
+        this.timeController = timeController;
         this.seed = (uint)worldData.seed;
         
         continentalNoise = new FastNoiseLite();
@@ -278,6 +287,12 @@ public class WorldGeneration : IWorldGenerator
         temperature = blendedValues.z;
         
         biomeData = BiomeSelector.GetBiomeBlend(biomeLibrary, blendedValues.x, blendedValues.y, blendedValues.z);
+        SeasonalBiomeTint.Apply(
+            ref biomeData,
+            worldData,
+            timeController,
+            x,
+            y);
         
         //Local Height Adjustment
         //Less Eroded = More Height
@@ -862,4 +877,180 @@ public class WorldGeneration : IWorldGenerator
 
 
     #endregion
+}
+
+public static class SeasonalBiomeTint
+{
+    public const int HoursInDay = 24;
+
+    public static void Apply(
+        ref BiomeBlend biome,
+        WorldData worldData,
+        ITimeController timeController,
+        int worldX,
+        int worldY)
+    {
+        biome.untintedGroundColor = biome.groundColor;
+        biome.untintedDirtColor = biome.dirtColor;
+        biome.untintedPathColor = biome.pathColor;
+        biome.untintedWaterColor = biome.waterColor;
+        biome.untintedCliffColor = biome.cliffColor;
+        biome.untintedBeachColor = biome.beachColor;
+        ApplyCurrentTint(
+            ref biome,
+            worldData,
+            timeController,
+            worldX,
+            worldY);
+    }
+
+    public static void Reapply(
+        ref BiomeBlend biome,
+        WorldData worldData,
+        ITimeController timeController,
+        int worldX,
+        int worldY)
+    {
+        biome.groundColor = biome.untintedGroundColor;
+        biome.dirtColor = biome.untintedDirtColor;
+        biome.pathColor = biome.untintedPathColor;
+        biome.waterColor = biome.untintedWaterColor;
+        biome.cliffColor = biome.untintedCliffColor;
+        biome.beachColor = biome.untintedBeachColor;
+        ApplyCurrentTint(
+            ref biome,
+            worldData,
+            timeController,
+            worldX,
+            worldY);
+    }
+
+    private static void ApplyCurrentTint(
+        ref BiomeBlend biome,
+        WorldData worldData,
+        ITimeController timeController,
+        int worldX,
+        int worldY)
+    {
+        int dayInMonth = timeController?.DayInMonth ?? 1;
+        Season season = timeController?.Season ?? worldData.startSeason;
+        int year = timeController?.Year ?? 0;
+        int hour = timeController?.Hour ?? HoursInDay;
+
+        if (hour < GetScheduledHour(
+                worldX,
+                worldY,
+                dayInMonth,
+                season,
+                year))
+        {
+            MoveToPreviousDay(
+                ref dayInMonth,
+                ref season,
+                ref year,
+                worldData.daysInMonth);
+        }
+
+        float monthProgress = Mathf.Clamp01(
+            (float)dayInMonth /
+            Mathf.Max(1, worldData.daysInMonth));
+        float blend = worldData.seasonalTintCurve == null
+            ? monthProgress
+            : Mathf.Clamp01(worldData.seasonalTintCurve.Evaluate(monthProgress));
+
+        Color worldTint = Color.Lerp(
+            GetWorldTint(worldData, Previous(season)),
+            GetWorldTint(worldData, season),
+            blend);
+        Color biomeTint = Color.Lerp(
+            GetBiomeTint(biome, Previous(season)),
+            GetBiomeTint(biome, season),
+            blend);
+        Color tint = Color.LerpUnclamped(
+            Color.white,
+            worldTint * biomeTint,
+            biome.SeasonColorEffectMod);
+
+        biome.groundColor *= tint;
+        biome.dirtColor *= tint;
+        biome.pathColor *= tint;
+        biome.waterColor *= tint;
+        biome.cliffColor *= tint;
+        biome.beachColor *= tint;
+    }
+
+    public static int GetScheduledHour(
+        int worldX,
+        int worldY,
+        int dayInMonth,
+        Season season,
+        int year)
+    {
+        uint hash = unchecked((uint)worldX * 0x8da6b343u);
+        hash ^= unchecked((uint)worldY * 0xd8163841u);
+        hash ^= unchecked((uint)dayInMonth * 0xcb1ab31fu);
+        hash ^= unchecked((uint)season * 0x165667b1u);
+        hash ^= unchecked((uint)year * 0xa24baed5u);
+        hash ^= hash >> 16;
+        hash *= 0x7feb352du;
+        hash ^= hash >> 15;
+        hash *= 0x846ca68bu;
+        hash ^= hash >> 16;
+        return (int)(hash % HoursInDay);
+    }
+
+    public static int GetDayKey(
+        int dayInMonth,
+        Season season,
+        int year)
+    {
+        return unchecked(year * 1000 + (int)season * 100 + dayInMonth);
+    }
+
+    private static void MoveToPreviousDay(
+        ref int dayInMonth,
+        ref Season season,
+        ref int year,
+        int daysInMonth)
+    {
+        if (dayInMonth > 1)
+        {
+            dayInMonth--;
+            return;
+        }
+
+        season = Previous(season);
+        dayInMonth = Mathf.Max(1, daysInMonth);
+        if (season == Season.Winter)
+            year = Mathf.Max(0, year - 1);
+    }
+
+    private static Season Previous(Season season)
+    {
+        return (Season)(((int)season + 3) % 4);
+    }
+
+    private static Color GetWorldTint(WorldData worldData, Season season)
+    {
+        return season switch
+        {
+            Season.Spring => worldData.springTint,
+            Season.Summer => worldData.summerTint,
+            Season.Autumn => worldData.fallTint,
+            Season.Winter => worldData.winterTint,
+            _ => Color.white
+        };
+    }
+
+    private static Color GetBiomeTint(BiomeBlend biome, Season season)
+    {
+        return season switch
+        {
+            Season.Spring => biome.springTint,
+            Season.Summer => biome.summerTint,
+            Season.Autumn => biome.fallTint,
+            Season.Winter => biome.winterTint,
+            _ => Color.white
+        };
+    }
 }

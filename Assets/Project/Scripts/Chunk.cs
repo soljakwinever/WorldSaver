@@ -26,6 +26,7 @@ public class Chunk : MonoBehaviour, IChunk
 
     [Inject] private WorldData worldData;
     [Inject] private WorldGeneration worldGeneration;
+    [Inject] private ITimeController timeController;
 
     [Header("Debug")]
     public TileData DebugTile;
@@ -53,6 +54,24 @@ public class Chunk : MonoBehaviour, IChunk
         new Color[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize],
         new Color[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize]
     };
+    private readonly PersistentTileTint[][] _baselineTints =
+    {
+        new PersistentTileTint[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize],
+        new PersistentTileTint[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize]
+    };
+    private readonly BiomeBlend[] _biomeBlends =
+        new BiomeBlend[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
+    private readonly int[] _biomeColorRefreshOrder =
+        new int[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
+    private readonly int[] _biomeColorAppliedDayKeys =
+        new int[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
+    private int _biomeColorRefreshIndex = -1;
+    private int _biomeColorRefreshCount;
+
+    public int RemainingBiomeColorRefreshCells =>
+        _biomeColorRefreshIndex < 0
+            ? 0
+            : _biomeColorRefreshCount - _biomeColorRefreshIndex;
 
     public void Init(ChunkBuildResult data)
     {
@@ -72,13 +91,6 @@ public class Chunk : MonoBehaviour, IChunk
         List<TileChangeData> changes = new();
         List<TileChangeData> waterTiles = new();
 
-        var unique = data.props.Select(t => t.propName).Distinct().ToList();
-
-        foreach (var propName in unique)
-        {
-            Debug.Log($"Valid Prop Name: {propName}");
-        }
-
         for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
         {
             for (int x = 0; x < ChunkBuildResult.ChunkSize; x++)
@@ -91,6 +103,12 @@ public class Chunk : MonoBehaviour, IChunk
                 var isWater = height <= worldData.waterHeight;
 
                 Vector3Int tilePosition = new Vector3Int(x, y, 0);
+                SeasonalBiomeTint.Reapply(
+                    ref biome,
+                    worldData,
+                    timeController,
+                    offsetX + x,
+                    offsetY + y);
 
                 var tileData = GetTile(offsetX + x, offsetY + y, biome, height, moisture, temperature, isCliff,
                     out var color);
@@ -98,10 +116,28 @@ public class Chunk : MonoBehaviour, IChunk
                 changes.Add(new TileChangeData(
                     tilePosition, tileData.TileBase, color, Matrix4x4.identity));
                 int tileIndex = data.GetTileIndex(x, y);
+                _biomeBlends[tileIndex] = biome;
+                int scheduledHour = SeasonalBiomeTint.GetScheduledHour(
+                    offsetX + x,
+                    offsetY + y,
+                    timeController.DayInMonth,
+                    timeController.Season,
+                    timeController.Year);
+                _biomeColorAppliedDayKeys[tileIndex] =
+                    scheduledHour <= timeController.Hour
+                        ? SeasonalBiomeTint.GetDayKey(
+                            timeController.DayInMonth,
+                            timeController.Season,
+                            timeController.Year)
+                        : 0;
                 _baselineTiles[(int)PersistentTileLayer.Ground][tileIndex] = tileData;
                 _baselineColors[(int)PersistentTileLayer.Ground][tileIndex] = color;
+                _baselineTints[(int)PersistentTileLayer.Ground][tileIndex] =
+                    GetGroundTint(height, isCliff);
                 _baselineTiles[(int)PersistentTileLayer.Water][tileIndex] = null;
                 _baselineColors[(int)PersistentTileLayer.Water][tileIndex] = Color.white;
+                _baselineTints[(int)PersistentTileLayer.Water][tileIndex] =
+                    PersistentTileTint.BiomeWater;
 
                 if (isWater && !worldData.heightMapDebug)
                 {
@@ -525,6 +561,143 @@ public class Chunk : MonoBehaviour, IChunk
         }
     }
 
+    /// <summary>
+    /// Recomputes only the visual colors of this chunk from the current
+    /// seasonal biome blends. Tile identities and persistent state are left
+    /// unchanged.
+    /// </summary>
+    public void BeginBiomeColorRefresh(int hour)
+    {
+        if (worldData.heightMapDebug)
+        {
+            _biomeColorRefreshIndex = -1;
+            return;
+        }
+
+        _biomeColorRefreshCount = 0;
+        int offsetX = Position.x * ChunkBuildResult.ChunkSize;
+        int offsetY = Position.y * ChunkBuildResult.ChunkSize;
+        int dayKey = SeasonalBiomeTint.GetDayKey(
+            timeController.DayInMonth,
+            timeController.Season,
+            timeController.Year);
+        for (int index = 0; index < _biomeColorRefreshOrder.Length; index++)
+        {
+            int x = index % ChunkBuildResult.ChunkSize;
+            int y = index / ChunkBuildResult.ChunkSize;
+            int scheduledHour = SeasonalBiomeTint.GetScheduledHour(
+                    offsetX + x,
+                    offsetY + y,
+                    timeController.DayInMonth,
+                    timeController.Season,
+                    timeController.Year);
+            if (scheduledHour <= hour &&
+                _biomeColorAppliedDayKeys[index] != dayKey)
+            {
+                _biomeColorRefreshOrder[_biomeColorRefreshCount++] = index;
+            }
+        }
+
+        int seed = unchecked(
+            Position.x * 73856093 ^
+            Position.y * 19349663 ^
+            timeController.DayInMonth * 83492791 ^
+            (int)timeController.Season * 486187739 ^
+            timeController.Year);
+        System.Random random = new(seed);
+        for (int i = _biomeColorRefreshCount - 1; i > 0; i--)
+        {
+            int swapIndex = random.Next(i + 1);
+            (_biomeColorRefreshOrder[i], _biomeColorRefreshOrder[swapIndex]) =
+                (_biomeColorRefreshOrder[swapIndex], _biomeColorRefreshOrder[i]);
+        }
+
+        _biomeColorRefreshIndex = 0;
+    }
+
+    /// <summary>
+    /// Applies up to <paramref name="cellBudget"/> cells of a pending biome
+    /// color refresh. Returns true once this chunk has finished refreshing.
+    /// Unity Tilemap writes remain on the main thread, but are spread over
+    /// multiple frames by Chunkloader.
+    /// </summary>
+    public bool RefreshBiomeColorCells(int cellBudget)
+    {
+        if (_biomeColorRefreshIndex < 0)
+            return true;
+
+        int endIndex = Mathf.Min(
+            _biomeColorRefreshIndex + Mathf.Max(1, cellBudget),
+            _biomeColorRefreshCount);
+
+        while (_biomeColorRefreshIndex < endIndex)
+        {
+            int index = _biomeColorRefreshOrder[_biomeColorRefreshIndex++];
+            int x = index % ChunkBuildResult.ChunkSize;
+            int y = index / ChunkBuildResult.ChunkSize;
+            Vector3Int localCell = new(x, y);
+            BiomeBlend biome = _biomeBlends[index];
+            int worldX = Position.x * ChunkBuildResult.ChunkSize + x;
+            int worldY = Position.y * ChunkBuildResult.ChunkSize + y;
+            SeasonalBiomeTint.Reapply(
+                ref biome,
+                worldData,
+                timeController,
+                worldX,
+                worldY);
+            _biomeBlends[index] = biome;
+            _biomeColorAppliedDayKeys[index] = SeasonalBiomeTint.GetDayKey(
+                timeController.DayInMonth,
+                timeController.Season,
+                timeController.Year);
+
+            RefreshBaselineColor(
+                localCell,
+                index,
+                PersistentTileLayer.Ground,
+                biome);
+            RefreshBaselineColor(
+                localCell,
+                index,
+                PersistentTileLayer.Water,
+                biome);
+        }
+
+        if (_biomeColorRefreshIndex < _biomeColorRefreshCount)
+            return false;
+
+        _biomeColorRefreshIndex = -1;
+        if (_persistenceRoot.RestoreCompleted)
+            ApplyPersistentTileOverrides();
+        return true;
+    }
+
+    private void RefreshBaselineColor(
+        Vector3Int localCell,
+        int index,
+        PersistentTileLayer layer,
+        BiomeBlend biome)
+    {
+        TileData tile = _baselineTiles[(int)layer][index];
+        if (tile == null)
+            return;
+
+        Color color = GetTileColor(
+            tile,
+            biome,
+            _baselineTints[(int)layer][index]);
+        color *= tile.Color;
+        _baselineColors[(int)layer][index] = color;
+
+        if (!_persistenceRoot.HasTileOverride(
+                (byte)localCell.x,
+                (byte)localCell.y,
+                layer))
+        {
+            SetTileColor(GetTilemap(layer), localCell, color);
+        }
+    }
+
     private static void SetTileColor(
         Tilemap tilemap,
         Vector3Int cell,
@@ -550,6 +723,20 @@ public class Chunk : MonoBehaviour, IChunk
             PersistentTileTint.BiomeBeach => biome.beachColor,
             _ => tile.Color
         };
+    }
+
+    private PersistentTileTint GetGroundTint(float height, bool isCliff)
+    {
+        if (height < worldData.waterHeight)
+            return PersistentTileTint.BiomeBeach;
+
+        if (isCliff)
+            return PersistentTileTint.BiomeCliff;
+
+        if (height < worldData.beachHeight)
+            return PersistentTileTint.BiomeBeach;
+
+        return PersistentTileTint.BiomeGround;
     }
 
     private bool TryGetLocalCell(

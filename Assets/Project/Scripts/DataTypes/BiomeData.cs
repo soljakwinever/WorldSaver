@@ -48,6 +48,15 @@ namespace Project.Scripts
         public Color waterColor = Color.blue;
         public Color cliffColor = Color.red;
         public Color beachColor = Color.sandyBrown;
+
+        [Header("Seasonal Tint")]
+        public Color springTint = Color.white;
+        public Color summerTint = Color.white;
+        public Color fallTint = Color.white;
+        public Color winterTint = Color.white;
+
+        [Min(0f)]
+        public float SeasonColorEffectMod = 1f;
         
         public TileData overrideGroundTile;
         public TileData overridePathTile;

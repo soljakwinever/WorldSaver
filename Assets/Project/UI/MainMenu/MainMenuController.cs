@@ -314,7 +314,7 @@ namespace Project.UI.MainMenu
             PlayerPrefs.SetString(ActiveWorldKey, name);
             PlayerPrefs.SetInt(ActiveSeedKey, seed);
             PlayerPrefs.Save();
-            SceneManager.LoadScene(GameScene);
+            ScreenFadeController.LoadScene(GameScene);
         }
 
         private static List<WorldManifest> ReadWorlds()

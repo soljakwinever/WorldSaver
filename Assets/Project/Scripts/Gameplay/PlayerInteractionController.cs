@@ -15,6 +15,7 @@ namespace Project.Scripts.Gameplay
         [SerializeField] private float interactRadius = 1.5f;
         [SerializeField] private LayerMask interactableMask;
         [SerializeField] private Transform facingPoint;
+        [SerializeField, Min(0)] private int attackForce = 1;
 
         [Header("Inventory Crafting")]
         [SerializeField] private string craftingWindowTitle =
@@ -34,6 +35,7 @@ namespace Project.Scripts.Gameplay
         private IComponentWindowService _windowService;
         private ICraftingService _craftingService;
         private IItemStackPickupPool _pickupPool;
+        private IAttackService _attackService;
         private bool _inventoryCraftingOpen;
 
         private void Awake()
@@ -47,13 +49,15 @@ namespace Project.Scripts.Gameplay
             IInputManager inputManager,
             IComponentWindowService windowService,
             ICraftingService craftingService,
-            IItemStackPickupPool pickupPool)
+            IItemStackPickupPool pickupPool,
+            IAttackService attackService)
         {
             UnsubscribeFromInput();
             this.inputManager = inputManager;
             _windowService = windowService;
             _craftingService = craftingService;
             _pickupPool = pickupPool;
+            _attackService = attackService;
 
             if (isActiveAndEnabled)
                 SubscribeToInput();
@@ -201,6 +205,68 @@ namespace Project.Scripts.Gameplay
             return true;
         }
 
+        private bool TryAttackDamageable()
+        {
+            if (_attackService == null)
+                return false;
+
+            Vector2 attackCenter = facingPoint != null
+                ? facingPoint.position
+                : transform.position;
+            Collider2D[] colliders = Physics2D.OverlapCircleAll(
+                attackCenter,
+                interactRadius,
+                interactableMask);
+
+            IDamageable closestTarget = null;
+            float closestDistanceSquared = float.PositiveInfinity;
+            foreach (Collider2D candidateCollider in colliders)
+            {
+                IDamageable candidate =
+                    candidateCollider.GetComponentInParent<IDamageable>() ??
+                    candidateCollider.GetComponentInChildren<IDamageable>();
+                if (candidate == null ||
+                    candidate is Component component &&
+                    component.gameObject == gameObject)
+                    continue;
+
+                Vector2 closestPoint =
+                    candidateCollider.ClosestPoint(attackCenter);
+                float distanceSquared =
+                    (closestPoint - attackCenter).sqrMagnitude;
+                if (distanceSquared >= closestDistanceSquared)
+                    continue;
+
+                closestDistanceSquared = distanceSquared;
+                closestTarget = candidate;
+            }
+
+            if (closestTarget == null)
+                return false;
+
+            _attackService.Attack(
+                closestTarget,
+                new AttackContext(
+                    gameObject,
+                    GetSelectedTool(),
+                    attackForce));
+            return true;
+        }
+
+        private ToolData GetSelectedTool()
+        {
+            if (_toolbarController.SelectedItemAction is
+                    ItemActionBinding binding &&
+                binding.ItemData != null &&
+                binding.ItemData.TryGetActionData(
+                    out ToolHotbarActionData data))
+            {
+                return data.tool;
+            }
+
+            return null;
+        }
+
         private ActionContext CreateItemActionContext()
         {
             Vector3 targetPosition;
@@ -253,7 +319,8 @@ namespace Project.Scripts.Gameplay
 
             if (context.AttackPressed)
             {
-                TryPerformSelectedAction();
+                if (!TryAttackDamageable())
+                    TryPerformSelectedAction();
             }
 
             if (context.CraftingPressed)
@@ -317,6 +384,7 @@ namespace Project.Scripts.Gameplay
         {
             if (string.IsNullOrWhiteSpace(craftingWindowTitle))
                 craftingWindowTitle = "Inventory Crafting";
+            attackForce = Mathf.Max(0, attackForce);
         }
 #endif
     }

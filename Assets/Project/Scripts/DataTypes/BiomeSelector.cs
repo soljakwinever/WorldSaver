@@ -75,6 +75,10 @@ public static class BiomeSelector
         blend.waterColor = Color.black;
         blend.cliffColor = Color.black;
         blend.beachColor = Color.black;
+        blend.springTint = Color.black;
+        blend.summerTint = Color.black;
+        blend.fallTint = Color.black;
+        blend.winterTint = Color.black;
 
         for (int i = 0; i < closestBiomes.Length; i++)
         {
@@ -113,6 +117,11 @@ public static class BiomeSelector
             blend.waterColor += biome.waterColor * weight;
             blend.cliffColor += biome.cliffColor * weight;
             blend.beachColor += biome.beachColor * weight;
+            blend.springTint += biome.springTint * weight;
+            blend.summerTint += biome.summerTint * weight;
+            blend.fallTint += biome.fallTint * weight;
+            blend.winterTint += biome.winterTint * weight;
+            blend.SeasonColorEffectMod += biome.SeasonColorEffectMod * weight;
             
             blend.lakeStrength += biome.lakeStrength * weight;
         }
@@ -154,6 +163,14 @@ public static class BiomeSelector
         blend.waterColor = Color.Lerp(biomeA.waterColor, biomeB.waterColor, weight);
         blend.cliffColor = Color.Lerp(biomeA.cliffColor, biomeB.cliffColor, weight);
         blend.beachColor = Color.Lerp(biomeA.beachColor, biomeB.beachColor, weight);
+        blend.springTint = Color.Lerp(biomeA.springTint, biomeB.springTint, weight);
+        blend.summerTint = Color.Lerp(biomeA.summerTint, biomeB.summerTint, weight);
+        blend.fallTint = Color.Lerp(biomeA.fallTint, biomeB.fallTint, weight);
+        blend.winterTint = Color.Lerp(biomeA.winterTint, biomeB.winterTint, weight);
+        blend.SeasonColorEffectMod = Mathf.Lerp(
+            biomeA.SeasonColorEffectMod,
+            biomeB.SeasonColorEffectMod,
+            weight);
         
         blend.lakeStrength += Mathf.Lerp(biomeA.lakeStrength, biomeB.lakeStrength, weight);
         
@@ -183,7 +200,13 @@ public static class BiomeSelector
             pathColor = biome.pathColor,
             waterColor = biome.waterColor,
             cliffColor = biome.cliffColor,
-            beachColor = biome.beachColor
+            beachColor = biome.beachColor,
+
+            springTint = biome.springTint,
+            summerTint = biome.summerTint,
+            fallTint = biome.fallTint,
+            winterTint = biome.winterTint,
+            SeasonColorEffectMod = biome.SeasonColorEffectMod
         };
     }
 
