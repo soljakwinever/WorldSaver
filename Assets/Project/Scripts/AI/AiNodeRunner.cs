@@ -32,12 +32,18 @@ namespace Project.Scripts
         [Inject]
         public void Construct(
             IPathFindingService pathFindingService,
-            IPathFindingMap pathFindingMap)
+            IPathFindingMap pathFindingMap,
+            IAttackService attackService,
+            IProjectileService projectileService)
         {
             if (pathFindingService != null)
                 Blackboard.Set(AiKeys.PathFindingService, pathFindingService);
             if (pathFindingMap != null)
                 Blackboard.Set(AiKeys.PathFindingMap, pathFindingMap);
+            if (attackService != null)
+                Blackboard.Set(AiKeys.AttackService, attackService);
+            if (projectileService != null)
+                Blackboard.Set(AiKeys.ProjectileService, projectileService);
         }
 
         private void Awake()

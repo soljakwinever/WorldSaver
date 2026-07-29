@@ -34,6 +34,12 @@ namespace Project.Scripts.AI
         public static readonly BlackboardKey<IPathFindingMap> PathFindingMap =
             new BlackboardKey<IPathFindingMap>("Path Finding Map");
 
+        public static readonly BlackboardKey<IAttackService> AttackService =
+            new BlackboardKey<IAttackService>("Attack Service");
+
+        public static readonly BlackboardKey<IProjectileService> ProjectileService =
+            new BlackboardKey<IProjectileService>("Projectile Service");
+
         public static object Resolve(Key key)
         {
             return key switch

@@ -137,6 +137,27 @@ namespace Project.Editor.AI.Generated
     }
 
     [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Attack Target")]
+    internal sealed class Project_Scripts_AI_Leaves_Actions_AttackTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.AttackTarget);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Fire Projectile At Target")]
+    internal sealed class Project_Scripts_AI_Leaves_Actions_FireProjectileAtTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.FireProjectileAtTarget);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Flee From Target")]
+    internal sealed class Project_Scripts_AI_Leaves_Actions_FleeFromTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.FleeFromTarget);
+    }
+
+    [Serializable]
     [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Logger")]
     internal sealed class Project_Scripts_AI_Leaves_Actions_Logger_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {

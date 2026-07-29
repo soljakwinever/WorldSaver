@@ -148,6 +148,8 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<PlayerBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<EntityBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<IAttackService>().To<AttackService>().AsSingle();
+        Container.BindInterfacesAndSelfTo<ProjectileService>()
+            .AsSingle();
 
         Container.Bind<Grid>().FromComponentInHierarchy().AsSingle();
 

@@ -20,9 +20,13 @@ namespace Project.Scripts.AI.Leaves.Sensors
             
         protected override NodeState OnTick()
         {
-            if(!Blackboard.TryGet(AiKeys.Self, out var self)) throw new InvalidOperationException();
+            if (!Blackboard.TryGet(AiKeys.Self, out GameObject self) ||
+                self == null)
+                throw new InvalidOperationException();
 
             int resultCount = Physics2D.OverlapCircleNonAlloc(self.transform.position, distance, _results, layerMask);
+            GameObject nearest = null;
+            float nearestDistanceSquared = float.PositiveInfinity;
 
             for(int i = 0; i < resultCount; i++)
             {
@@ -42,14 +46,29 @@ namespace Project.Scripts.AI.Leaves.Sensors
                         ? candidate.attachedRigidbody.gameObject
                         : candidate.gameObject;
 
-                if (candidateObject.CompareTag(tag))
-                {
-                    state = NodeState.Success;
-                    Blackboard.Set<Transform>(AiKeys.Target, candidateObject.transform);
-                    return state;
-                }
+                if (!string.IsNullOrWhiteSpace(tag) &&
+                    !candidateObject.CompareTag(tag))
+                    continue;
+
+                float candidateDistanceSquared =
+                    (candidateObject.transform.position -
+                     self.transform.position).sqrMagnitude;
+                if (candidateDistanceSquared >= nearestDistanceSquared)
+                    continue;
+
+                nearest = candidateObject;
+                nearestDistanceSquared = candidateDistanceSquared;
             }
 
+            if (nearest != null)
+            {
+                Blackboard.Set<Transform>(
+                    AiKeys.Target,
+                    nearest.transform);
+                return state = NodeState.Success;
+            }
+
+            Blackboard.Set<Transform>(AiKeys.Target, null);
             state = NodeState.Failure;
             return state;
         }
