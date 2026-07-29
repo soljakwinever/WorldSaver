@@ -82,6 +82,14 @@ public class GameDataInstaller : MonoInstaller
             .AsSingle()
             .NonLazy();
         Container.Bind<Chunkloader>().FromComponentInHierarchy().AsSingle();
+        Container.BindInterfacesAndSelfTo<RoomDetectionSystem>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
+        Container.BindInterfacesAndSelfTo<RoomVisibilityController>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
         Container.BindInterfacesAndSelfTo<TileSpreadSystem>()
             .FromNewComponentOnNewGameObject()
             .AsSingle()

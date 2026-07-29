@@ -10,16 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3f6c13df328945b08ed952db1a43e0d6, type: 3}
-  m_Name: WoodenWall
+  m_Name: WoodenDoor
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.CraftingRecipeData
   ingredients:
   - matchType: 0
-    itemData: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
+    itemData: {fileID: 11400000, guid: 3464b64e733a78e42b653987f7756f1a, type: 2}
     tag: {fileID: 0}
-    count: 4
+    count: 1
+  - matchType: 0
+    itemData: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
+    tag: {fileID: 0}
+    count: 2
   output:
-  - itemData: {fileID: 11400000, guid: 3464b64e733a78e42b653987f7756f1a, type: 2}
-    amount: 10
+  - itemData: {fileID: 11400000, guid: 39ad7a1097eb2b344943385207113244, type: 2}
+    amount: 1
     chance: 1
     rolls: 1
   workRequired: 1

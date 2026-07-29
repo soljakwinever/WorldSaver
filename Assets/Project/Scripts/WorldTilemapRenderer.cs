@@ -20,7 +20,9 @@ using TileData = Project.Scripts.DataTypes.TileData;
 /// </summary>
 public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
 {
-    private const int LayerCount = 4;
+    private const int PersistentLayerCount = 4;
+    private const int RoofLayerIndex = PersistentLayerCount;
+    private const int LayerCount = PersistentLayerCount + 1;
     private const int SnapshotBorder = 1;
     private static readonly int CellCount =
         ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize;
@@ -333,6 +335,20 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             renderer.sharedMaterial = _coverageMaterial;
     }
 
+    public void ConfigureRoofTilemap(TilemapRenderer renderer)
+    {
+        if (renderer == null)
+            return;
+
+        renderer.chunkSize = new Vector3Int(
+            ChunkBuildResult.ChunkSize,
+            ChunkBuildResult.ChunkSize,
+            ChunkBuildResult.ChunkSize);
+        renderer.maxChunkCount = 1;
+        if (_groundMaterial != null)
+            renderer.sharedMaterial = _groundMaterial;
+    }
+
     public void ApplyChunk(
         Chunk owner,
         Vector2Int chunkPosition,
@@ -356,10 +372,10 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             ? previous
             : AcquireChunkRenderData();
         chunk.Reset(owner, chunkPosition, NextBakeVersion());
-        CopyCells(chunkPosition, PersistentTileLayer.Ground, groundTiles, chunk);
-        CopyCells(chunkPosition, PersistentTileLayer.Water, waterTiles, chunk);
-        CopyCells(chunkPosition, PersistentTileLayer.Wall, wallTiles, chunk);
-        CopyCells(chunkPosition, PersistentTileLayer.Ceiling, ceilingTiles, chunk);
+        CopyCells(chunkPosition, (int)PersistentTileLayer.Ground, groundTiles, chunk);
+        CopyCells(chunkPosition, (int)PersistentTileLayer.Water, waterTiles, chunk);
+        CopyCells(chunkPosition, (int)PersistentTileLayer.Wall, wallTiles, chunk);
+        CopyCells(chunkPosition, (int)PersistentTileLayer.Ceiling, ceilingTiles, chunk);
         for (int i = 0; i < CellCount; i++)
         {
             TileData candidate = chunk.Layers[(int)PersistentTileLayer.Water][i].Tile;
@@ -374,6 +390,50 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         // arrays from any loaded neighbor, regardless of load order.
         ResolveLiquidPoolsTouchingChunk(chunkPosition, includeChunkCells: true);
         MarkChunkAndLoadedNeighborsDirty(chunkPosition);
+    }
+
+    public void SetRoofTiles(
+        Vector2Int chunkPosition,
+        IReadOnlyList<CellData> roofTiles)
+    {
+        if (!_chunks.TryGetValue(chunkPosition, out ChunkRenderData chunk))
+            return;
+
+        Array.Clear(
+            chunk.Layers[RoofLayerIndex],
+            0,
+            chunk.Layers[RoofLayerIndex].Length);
+        CopyCells(chunkPosition, RoofLayerIndex, roofTiles, chunk);
+        ApplyRoofLayerImmediately(chunkPosition, chunk);
+        MarkChunkAndLoadedNeighborsDirty(chunkPosition);
+    }
+
+    public void SetRoofColor(Vector3Int worldCell, Color color)
+    {
+        if (!TryGetChunkAndIndex(
+                worldCell,
+                out Vector2Int chunkPosition,
+                out int index) ||
+            !_chunks.TryGetValue(chunkPosition, out ChunkRenderData chunk))
+        {
+            return;
+        }
+
+        LogicalCell cell = chunk.Layers[RoofLayerIndex][index];
+        if (cell.Tile == null)
+            return;
+
+        chunk.Layers[RoofLayerIndex][index] =
+            new LogicalCell(cell.Tile, color);
+        if (color.a <= 0.001f)
+        {
+            // Clear the currently baked visual immediately. The room system
+            // will omit this cell from the next authoritative roof rebuild,
+            // while retaining its own coverage reference for restoration.
+            chunk.Owner.ClearBakedRoofTile(IndexToLocalCell(index));
+            return;
+        }
+        chunk.Owner.SetBakedRoofColor(IndexToLocalCell(index), color);
     }
 
     public void RemoveChunk(Vector2Int chunkPosition)
@@ -603,7 +663,8 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         TileData tile,
         Color color)
     {
-        if (!TryGetChunkAndIndex(
+        if ((uint)layer >= PersistentLayerCount ||
+            !TryGetChunkAndIndex(
                 worldCell,
                 out Vector2Int chunkPosition,
                 out int index) ||
@@ -621,7 +682,8 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         Vector3Int worldCell,
         Color color)
     {
-        if (!TryGetChunkAndIndex(
+        if ((uint)layer >= PersistentLayerCount ||
+            !TryGetChunkAndIndex(
                 worldCell,
                 out Vector2Int chunkPosition,
                 out int index) ||
@@ -793,7 +855,6 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         int startY = chunkPosition.y * ChunkBuildResult.ChunkSize;
         for (int layerIndex = 0; layerIndex < LayerCount; layerIndex++)
         {
-            PersistentTileLayer layer = (PersistentTileLayer)layerIndex;
             int maskOffset = layerIndex * CellCount;
 
             for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
@@ -804,7 +865,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                     Vector3Int worldCell = new(startX + x, startY + y, 0);
                     Vector3Int localCell = new(x, y, 0);
                     _bakedChanges[index] = BakeCell(
-                        layer,
+                        layerIndex,
                         worldCell,
                         localCell,
                         chunk.Layers[layerIndex][index],
@@ -812,8 +873,37 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                 }
             }
 
-            chunk.Owner.ApplyBakedTiles(layer, _bakedChanges);
+            if (layerIndex == RoofLayerIndex)
+                chunk.Owner.ApplyBakedRoofTiles(_bakedChanges);
+            else
+                chunk.Owner.ApplyBakedTiles(
+                    (PersistentTileLayer)layerIndex,
+                    _bakedChanges);
         }
+    }
+
+    private void ApplyRoofLayerImmediately(
+        Vector2Int chunkPosition,
+        ChunkRenderData chunk)
+    {
+        int startX = chunkPosition.x * ChunkBuildResult.ChunkSize;
+        int startY = chunkPosition.y * ChunkBuildResult.ChunkSize;
+        for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
+        {
+            for (int x = 0; x < ChunkBuildResult.ChunkSize; x++)
+            {
+                int index = x + y * ChunkBuildResult.ChunkSize;
+                _bakedChanges[index] = BakeCell(
+                    RoofLayerIndex,
+                    new Vector3Int(startX + x, startY + y, 0),
+                    new Vector3Int(x, y, 0),
+                    chunk.Layers[RoofLayerIndex][index]);
+            }
+        }
+
+        // Roof visibility is gameplay state, so apply it synchronously. The
+        // queued full bake still follows to resolve final cross-chunk masks.
+        chunk.Owner.ApplyBakedRoofTiles(_bakedChanges);
     }
 
     private void RebakeCellAndNeighbors(
@@ -839,7 +929,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
 
                 LogicalCell logical = chunk.Layers[(int)layer][index];
                 TileChangeData change = BakeCell(
-                    layer,
+                    (int)layer,
                     worldCell,
                     IndexToLocalCell(index),
                     logical);
@@ -857,7 +947,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
     }
 
     private TileChangeData BakeCell(
-        PersistentTileLayer layer,
+        int layerIndex,
         Vector3Int worldCell,
         Vector3Int localCell,
         LogicalCell cell,
@@ -869,7 +959,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         if (cell.Tile != null && cell.Tile.AutoTile != null)
         {
             byte mask = prebakedNeighborMask ??
-                        GetNeighborMask(layer, worldCell, cell.Tile);
+                        GetNeighborMask(layerIndex, worldCell, cell.Tile);
             float grassHeight = cell.Tile.IsGrass &&
                                 cell.Tile.AutoTile.AllowGrassHeight
                 ? _worldGeneration.GrassHeightNoise(
@@ -890,7 +980,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
     }
 
     private byte GetNeighborMask(
-        PersistentTileLayer layer,
+        int layerIndex,
         Vector3Int center,
         TileData centerTile)
     {
@@ -901,7 +991,10 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             Vector2Int offset = AutoTileDirections.Get(i);
             Vector3Int neighborPosition =
                 center + new Vector3Int(offset.x, offset.y, 0);
-            if (TryGetCell(layer, neighborPosition, out LogicalCell neighbor) &&
+            if (TryGetLogicalCell(
+                    layerIndex,
+                    neighborPosition,
+                    out LogicalCell neighbor) &&
                 definition.Connects(centerTile, neighbor.Tile))
             {
                 mask |= (byte)(1 << i);
@@ -930,8 +1023,6 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                  layerIndex < LayerCount;
                  layerIndex++)
             {
-                PersistentTileLayer layer =
-                    (PersistentTileLayer)layerIndex;
                 int layerOffset = layerIndex * SnapshotCellCount;
                 _snapshotGroupKeys.Clear();
                 _snapshotTileKeys.Clear();
@@ -943,8 +1034,8 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                     {
                         Vector3Int worldCell =
                             new(startX + x, startY + y, 0);
-                        if (!TryGetCell(
-                                layer,
+                        if (!TryGetLogicalCell(
+                                layerIndex,
                                 worldCell,
                                 out LogicalCell cell) ||
                             cell.Tile == null)
@@ -1095,8 +1186,22 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         Vector3Int worldCell,
         out LogicalCell cell)
     {
+        if ((uint)layer >= PersistentLayerCount)
+        {
+            cell = default;
+            return false;
+        }
+
+        return TryGetLogicalCell((int)layer, worldCell, out cell);
+    }
+
+    private bool TryGetLogicalCell(
+        int layerIndex,
+        Vector3Int worldCell,
+        out LogicalCell cell)
+    {
         cell = default;
-        if ((uint)layer >= LayerCount ||
+        if ((uint)layerIndex >= LayerCount ||
             !TryGetChunkAndIndex(
                 worldCell,
                 out Vector2Int chunkPosition,
@@ -1106,7 +1211,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             return false;
         }
 
-        cell = chunk.Layers[(int)layer][index];
+        cell = chunk.Layers[layerIndex][index];
         return true;
     }
 
@@ -1166,7 +1271,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
 
     private static void CopyCells(
         Vector2Int chunkPosition,
-        PersistentTileLayer layer,
+        int layerIndex,
         IReadOnlyList<CellData> source,
         ChunkRenderData destination)
     {
@@ -1190,7 +1295,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             }
 
             int index = localX + localY * ChunkBuildResult.ChunkSize;
-            destination.Layers[(int)layer][index] =
+            destination.Layers[layerIndex][index] =
                 new LogicalCell(cell.Tile, cell.Color);
         }
     }

@@ -9,6 +9,7 @@ using Project.Scripts.Interface;
 using Project.Scripts.TimeAndWeather;
 using UnityEngine;
 using UnityEngine.Pool;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.Tilemaps;
 using Zenject;
 using TileData = Project.Scripts.DataTypes.TileData;
@@ -21,6 +22,7 @@ public class Chunk : MonoBehaviour, IChunk
     [SerializeField] private Tilemap _groundTilemap;
     [SerializeField] private Tilemap _wallTilemap;
     [SerializeField] private Tilemap _ceilingTilemap;
+    [SerializeField] private Tilemap _roofTilemap;
     [SerializeField] private Tilemap _waterTilemap;
     [SerializeField] private Tilemap _coverageTilemap;
 
@@ -49,8 +51,10 @@ public class Chunk : MonoBehaviour, IChunk
     [Inject] private DataController dataController;
     [Inject] private WorldTilemapRenderer worldTilemapRenderer;
     [Inject] private Chunkloader chunkloader;
+    [Inject] private RoomDetectionSystem roomDetectionSystem;
 
     readonly List<Node> props = new();
+    private readonly List<RoomChunkSegment> _rooms = new();
     private ChunkPersistenceRoot _persistenceRoot;
     private TileCoverageComponent _coverage;
     private readonly Dictionary<CoverageData, Tile> _coverageTiles = new();
@@ -71,6 +75,7 @@ public class Chunk : MonoBehaviour, IChunk
     private readonly int[] _biomeColorAppliedDayKeys =
         new int[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
     private bool _tilemapsConfigured;
+    private bool _roomTopologyReady;
     private int _biomeColorRefreshIndex = -1;
     private int _biomeColorRefreshCount;
 
@@ -78,6 +83,11 @@ public class Chunk : MonoBehaviour, IChunk
         _biomeColorRefreshIndex < 0
             ? 0
             : _biomeColorRefreshCount - _biomeColorRefreshIndex;
+
+    public IReadOnlyList<RoomChunkSegment> Rooms => _rooms;
+    public bool IsRoomTopologyReady => _roomTopologyReady;
+    internal bool IsPersistenceRestoreCompleted =>
+        _persistenceRoot != null && _persistenceRoot.RestoreCompleted;
 
     private static T[][] CreateLayerBuffers<T>()
     {
@@ -93,6 +103,8 @@ public class Chunk : MonoBehaviour, IChunk
     {
         EnsureTilemaps();
         ClearBakedTiles();
+        _rooms.Clear();
+        _roomTopologyReady = false;
         Position = data.chunkPosition;
         _persistenceRoot.BeginRestore(Position);
         _coverage.Configure(
@@ -421,6 +433,8 @@ public class Chunk : MonoBehaviour, IChunk
             WeatherSample weather = weatherService.GetRegionSample(
                 WorldPartition.ChunkToRegion(Position));
             _coverage.CompleteRestore(weather);
+            _roomTopologyReady = true;
+            roomDetectionSystem?.NotifyChunkRestored(this);
         }
         catch (Exception)
         {
@@ -463,6 +477,93 @@ public class Chunk : MonoBehaviour, IChunk
             layer,
             worldCell,
             out tileData);
+    }
+
+    /// <summary>
+    /// Sets an entity-owned wall visual without creating a tile override.
+    /// The owning entity is responsible for persisting and restoring its cell.
+    /// </summary>
+    internal bool TrySetTransientWallTile(
+        Vector3Int worldCell,
+        TileData tile,
+        Color color)
+    {
+        if (!_persistenceRoot.RestoreCompleted ||
+            !TryGetLocalCell(
+                worldCell,
+                PersistentTileLayer.Wall,
+                out _) ||
+            tile == null ||
+            !tile.IsWall ||
+            !tile.HasVisual)
+        {
+            return false;
+        }
+
+        bool enclosedBefore = IsRoomBoundary(worldCell);
+        worldTilemapRenderer.SetTile(
+            PersistentTileLayer.Wall,
+            worldCell,
+            tile,
+            color);
+        ApplyLinkedCeiling(worldCell, tile);
+        NotifyRoomTopologyIfChanged(
+            worldCell,
+            PersistentTileLayer.Wall,
+            enclosedBefore);
+        return true;
+    }
+
+    /// <summary>
+    /// Migrates a door saved by the old entity-plus-tile-override format.
+    /// Matching overrides are removed so the entity becomes the sole owner.
+    /// </summary>
+    internal bool TryClaimLegacyEntityTileOverride(
+        int preferredTileId,
+        int alternateTileId,
+        out Vector3Int worldCell)
+    {
+        worldCell = default;
+        if (!_persistenceRoot.RestoreCompleted)
+            return false;
+
+        TileOverrideData match = FindLegacyOverride(preferredTileId);
+        if (match == null && alternateTileId != preferredTileId)
+            match = FindLegacyOverride(alternateTileId);
+        if (match == null)
+            return false;
+
+        _persistenceRoot.RemoveTileOverride(
+            match.localX,
+            match.localY,
+            PersistentTileLayer.Wall);
+        _persistenceRoot.RemoveTileOverride(
+            match.localX,
+            match.localY,
+            PersistentTileLayer.Ground);
+        worldCell = LocalToWorldCell(
+            new Vector3Int(match.localX, match.localY, 0));
+        return true;
+
+        TileOverrideData FindLegacyOverride(int tileId)
+        {
+            if (tileId <= 0)
+                return null;
+
+            foreach (TileOverrideData candidate in
+                     _persistenceRoot.TileOverrides)
+            {
+                if (candidate != null &&
+                    candidate.layer == PersistentTileLayer.Wall &&
+                    candidate.kind == TileOverrideKind.Place &&
+                    candidate.tileId == tileId)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
     }
 
     /// <summary>
@@ -530,6 +631,9 @@ public class Chunk : MonoBehaviour, IChunk
 
         PersistentTileLayer targetLayer =
             tile.IsWall ? PersistentTileLayer.Wall : layer;
+        bool enclosedBefore =
+            targetLayer == PersistentTileLayer.Wall &&
+            IsRoomBoundary(worldCell);
         worldTilemapRenderer.SetTile(
             targetLayer,
             worldCell,
@@ -561,6 +665,10 @@ public class Chunk : MonoBehaviour, IChunk
 
         if (targetLayer != PersistentTileLayer.Ground)
             RefreshCoverageForGroundCell(localCell, targetLayer);
+        NotifyRoomTopologyIfChanged(
+            worldCell,
+            targetLayer,
+            enclosedBefore);
         return true;
     }
 
@@ -570,6 +678,9 @@ public class Chunk : MonoBehaviour, IChunk
         if (!TryGetLocalCell(worldCell, layer, out Vector3Int localCell))
             return false;
 
+        bool enclosedBefore =
+            layer == PersistentTileLayer.Wall &&
+            IsRoomBoundary(worldCell);
         TileData removedWall = null;
         if (layer == PersistentTileLayer.Wall)
         {
@@ -590,6 +701,7 @@ public class Chunk : MonoBehaviour, IChunk
                 Color.white);
         }
         RefreshCoverageForGroundCell(localCell, layer);
+        NotifyRoomTopologyIfChanged(worldCell, layer, enclosedBefore);
         return true;
     }
 
@@ -634,6 +746,9 @@ public class Chunk : MonoBehaviour, IChunk
         if (!TryGetLocalCell(worldCell, layer, out Vector3Int localCell))
             return false;
 
+        bool enclosedBefore =
+            layer == PersistentTileLayer.Wall &&
+            IsRoomBoundary(worldCell);
         _persistenceRoot.RemoveTileOverride(
             (byte)localCell.x, (byte)localCell.y, layer);
         ApplyBaseline(localCell, layer);
@@ -651,7 +766,46 @@ public class Chunk : MonoBehaviour, IChunk
                 _baselineTiles[(int)PersistentTileLayer.Wall][index]);
         }
         RefreshCoverageForGroundCell(localCell, layer);
+        NotifyRoomTopologyIfChanged(worldCell, layer, enclosedBefore);
         return true;
+    }
+
+    private bool IsRoomBoundary(Vector3Int worldCell)
+    {
+        return worldTilemapRenderer.TryGetTileData(
+                   PersistentTileLayer.Wall,
+                   worldCell,
+                   out TileData tile) &&
+               tile.EnclosesRoom;
+    }
+
+    private void NotifyRoomTopologyIfChanged(
+        Vector3Int worldCell,
+        PersistentTileLayer layer,
+        bool enclosedBefore)
+    {
+        if (layer == PersistentTileLayer.Wall &&
+            enclosedBefore != IsRoomBoundary(worldCell))
+        {
+            roomDetectionSystem?.NotifyStructuralTileChanged(worldCell);
+        }
+    }
+
+    internal void AddRoomSegment(RoomChunkSegment segment)
+    {
+        if (segment != null && !_rooms.Contains(segment))
+            _rooms.Add(segment);
+    }
+
+    internal void RemoveRoomSegment(RoomChunkSegment segment)
+    {
+        _rooms.Remove(segment);
+    }
+
+    internal void ClearRoomSegments()
+    {
+        _rooms.Clear();
+        _roomTopologyReady = false;
     }
 
     private void ApplyPersistentTileOverrides()
@@ -1118,6 +1272,33 @@ public class Chunk : MonoBehaviour, IChunk
         tilemap.SetTiles(changes, ignoreLockFlags: true);
     }
 
+    public void ApplyBakedRoofTiles(TileChangeData[] changes)
+    {
+        EnsureTilemaps();
+        _roofTilemap.SetTiles(changes, ignoreLockFlags: true);
+    }
+
+    public void SetBakedRoofColor(Vector3Int localCell, Color color)
+    {
+        EnsureTilemaps();
+        TileBase tile = _roofTilemap.GetTile(localCell);
+        if (tile == null)
+            return;
+
+        TileChangeData change = new(
+            localCell,
+            tile,
+            color,
+            _roofTilemap.GetTransformMatrix(localCell));
+        _roofTilemap.SetTile(change, ignoreLockFlags: true);
+    }
+
+    public void ClearBakedRoofTile(Vector3Int localCell)
+    {
+        EnsureTilemaps();
+        _roofTilemap.SetTile(localCell, null);
+    }
+
     /// <summary>Applies one prebaked visual cell in chunk-local coordinates.</summary>
     public void ApplyBakedTile(
         PersistentTileLayer layer,
@@ -1155,6 +1336,8 @@ public class Chunk : MonoBehaviour, IChunk
             _wallTilemap.ClearAllTiles();
         if (_ceilingTilemap != null)
             _ceilingTilemap.ClearAllTiles();
+        if (_roofTilemap != null)
+            _roofTilemap.ClearAllTiles();
         if (_waterTilemap != null)
             _waterTilemap.ClearAllTiles();
         if (_coverageTilemap != null)
@@ -1191,7 +1374,8 @@ public class Chunk : MonoBehaviour, IChunk
                 "Wall",
                 0,
                 -2,
-                addCollider: true);
+                addCollider: true,
+                blocksLight:true);
         }
 
         if (_ceilingTilemap == null)
@@ -1199,7 +1383,17 @@ public class Chunk : MonoBehaviour, IChunk
             _ceilingTilemap = CreateTilemap(
                 "Ceiling",
                 0,
-                1,
+                2,
+                offset: new Vector2Int(0,1));
+        }
+
+        if (_roofTilemap == null)
+        {
+            _roofTilemap = CreateTilemap(
+                "Roof",
+                0,
+                5,
+                addCollider: false,
                 offset: new Vector2Int(0,1));
         }
 
@@ -1237,6 +1431,8 @@ public class Chunk : MonoBehaviour, IChunk
             PersistentTileLayer.Ceiling,
             _ceilingTilemap.GetComponent<TilemapRenderer>(),
             _ceilingTilemap.GetComponent<TilemapCollider2D>());
+        worldTilemapRenderer.ConfigureRoofTilemap(
+            _roofTilemap.GetComponent<TilemapRenderer>());
         worldTilemapRenderer.ConfigureChunkTilemap(
             PersistentTileLayer.Water,
             _waterTilemap.GetComponent<TilemapRenderer>(),
@@ -1252,7 +1448,8 @@ public class Chunk : MonoBehaviour, IChunk
         int sortingOrder,
         bool addCollider = false,
         Vector2Int offset = default,
-        bool drawIndiviual = false)
+        bool drawIndiviual = false,
+        bool blocksLight = false)
     {
         GameObject layerObject = new(layerName);
         layerObject.layer = layer >= 0 ? layer : 0;
@@ -1266,6 +1463,14 @@ public class Chunk : MonoBehaviour, IChunk
 
         if (addCollider)
             layerObject.AddComponent<TilemapCollider2D>();
+
+        if (blocksLight)
+        {
+            var caster = layerObject.AddComponent<ShadowCaster2D>();
+            caster.selfShadows = true;
+            caster.castsShadows = true;
+            caster.castingOption = ShadowCaster2D.ShadowCastingOptions.CastAndSelfShadow;
+        }
         return tilemap;
     }
 

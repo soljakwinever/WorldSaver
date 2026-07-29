@@ -54,6 +54,8 @@ namespace Project.Scripts.Core
 
             RegisterEntity(entity);
             _tombstones.Remove(entity.Id);
+            if (_restoreCompleted)
+                entity.SetPersistenceReady(true);
         }
 
         public void Restore(ChunkState state)

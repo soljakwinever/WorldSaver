@@ -40,6 +40,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     [Inject] private WorldData worldData;
     [Inject] private IRegionalWeatherService weatherService;
     [Inject] private WorldTilemapRenderer worldTilemapRenderer;
+    [Inject] private RoomDetectionSystem roomDetectionSystem;
     
     private Vector2Int _lastPosition;
     private bool _hasTouchedPosition;
@@ -379,6 +380,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
             // return the same pooled Chunk a second time.
             _loadedChunks.Remove(chunkPosition);
             chunkGenerator.ChunkUnloaded(chunkPosition);
+            if (instance.chunk is Chunk roomChunk)
+                roomDetectionSystem?.NotifyChunkUnloading(roomChunk);
             worldTilemapRenderer.RemoveChunk(chunkPosition);
             mapSignalBus.RaiseChunkUnloaded(chunkPosition);
 

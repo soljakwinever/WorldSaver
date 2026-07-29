@@ -25,7 +25,12 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a0aaaaaaaaaa4aaa8aaaaaaaaaaaaaaa, type: 2}
   - {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
   - {fileID: 11400000, guid: d4975b15b91d4ef47b318cc3d3a28091, type: 2}
+  - {fileID: 11400000, guid: 0a99515bf4a32e0418f75da9c89e0a89, type: 2}
   minedTileReplacement: {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
+  roomRoofTile: {fileID: 11400000, guid: 30333333333343338333333333333333, type: 2}
+  maximumRoomArea: 4096
+  roomFloodFillsPerFrame: 4
+  roomOutsideFadeSeconds: 0.2
   tileSpreadRules:
   - {fileID: 11400000, guid: c5077881638646b5be27072cfec50c92, type: 2}
   coverageLayers:
@@ -643,6 +648,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5a0c59a17f84480eb1b9dc64730a3c28, type: 2}
   runtimeEntityArchetypes:
   - {fileID: 11400000, guid: f54a64c4914aedb45a88fb4adc14ed5d, type: 2}
+  - {fileID: 11400000, guid: dec7ab53b1d372a42a9a7eb770fc195b, type: 2}
   daysInMonth: 30
   minutesPerDay: 5
   startHour: 8

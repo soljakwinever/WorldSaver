@@ -79,6 +79,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   _groundTilemap: {fileID: 0}
+  _wallTilemap: {fileID: 0}
+  _ceilingTilemap: {fileID: 0}
+  _roofTilemap: {fileID: 0}
   _waterTilemap: {fileID: 0}
   _coverageTilemap: {fileID: 0}
   _nodeTransform: {fileID: 8056897704571369314}

@@ -11,7 +11,8 @@ namespace Project.Scripts.DataTypes
         public enum TileFlags : byte
         {
             None = 0,
-            Grass = 1 << 0
+            Grass = 1 << 0,
+            EnclosesRoom = 1 << 1
         }
 
         [Min(0)] public int TileId;
@@ -29,6 +30,7 @@ namespace Project.Scripts.DataTypes
 
         public bool HasVisual => AutoTile != null || TileBase != null;
         public bool IsGrass => (Flags & TileFlags.Grass) != 0;
+        public bool EnclosesRoom => (Flags & TileFlags.EnclosesRoom) != 0;
 
         [Header("Mining Drop")]
         [Tooltip("Item dropped when this tile is successfully mined.")]

@@ -6,11 +6,16 @@ namespace Project.Scripts.DataTypes
     public struct NodeComponentSpawnContext
     {
         public readonly Object Node;
+        public readonly Object Chunk;
         public readonly EntityPersistenceKind PersistenceKind;
 
-        public NodeComponentSpawnContext(Object node, EntityPersistenceKind persistenceKind)
+        public NodeComponentSpawnContext(
+            Object node,
+            Object chunk,
+            EntityPersistenceKind persistenceKind)
         {
             Node = node;
+            Chunk = chunk;
             PersistenceKind = persistenceKind;
         }
     }

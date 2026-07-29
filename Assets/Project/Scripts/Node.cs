@@ -63,7 +63,7 @@ public class Node : MonoBehaviour, INode
         
         _collider2D.isTrigger = nodeData.isTrigger;
 
-        InstallPersistentComponents(nodeData, spawnData.persistenceKind);
+        InstallPersistentComponents(nodeData, chunk, spawnData.persistenceKind);
         
         // var persistentTransform = GetComponent<Project.Scripts.Gameplay.PersistentTransform>();
         // if (persistentTransform == null)
@@ -120,6 +120,7 @@ public class Node : MonoBehaviour, INode
 
     private void InstallPersistentComponents(
         NodeData nodeData,
+        Chunk chunk,
         EntityPersistenceKind  persistenceKind)
     {
         var hostObject = new GameObject("Persistent Components");
@@ -129,7 +130,10 @@ public class Node : MonoBehaviour, INode
             transform,
             worldPositionStays: false);
 
-        var context = new NodeComponentSpawnContext(this, persistenceKind);
+        var context = new NodeComponentSpawnContext(
+            this,
+            chunk,
+            persistenceKind);
 
         if (nodeData.persistentComponents != null)
         {

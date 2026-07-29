@@ -412,6 +412,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ba1814196f0fc264ab5417d72c8fd3ff, type: 2}
   - {fileID: 11400000, guid: 6a8222c88e101ac4bad5be160c204b22, type: 2}
   - {fileID: 11400000, guid: 3fba5b75b008c824383f8792639f9856, type: 2}
+  - {fileID: 11400000, guid: 3464b64e733a78e42b653987f7756f1a, type: 2}
+  - {fileID: 11400000, guid: 39ad7a1097eb2b344943385207113244, type: 2}
 --- !u!4 &743799763
 Transform:
   m_ObjectHideFlags: 0
@@ -1152,6 +1154,9 @@ MonoBehaviour:
   _colliderFullRebuildThreshold: 4096
   _maxConcurrentBakeTasks: 2
   _maxBakedChunksAppliedPerFrame: 2
+  _biomeSearchRadius: 4096
+  _biomeSearchSpacing: 16
+  _biomeSearchSamplesPerFrame: 512
 --- !u!1 &1905862926
 GameObject:
   m_ObjectHideFlags: 0

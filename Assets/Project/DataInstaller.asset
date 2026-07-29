@@ -13,3 +13,4 @@ MonoBehaviour:
   m_Name: DataInstaller
   m_EditorClassIdentifier: Assembly-CSharp::DataInstaller
   WorldData: {fileID: 11400000, guid: adf877d0cf5012c4daa8bdd0ad53b7c1, type: 2}
+  GenerationPresetCatalog: {fileID: 11400000, guid: ce00000000000000000000000000000e, type: 2}

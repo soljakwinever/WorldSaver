@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
-  m_Name: WoodenWall
+  m_Name: WoodenDoor
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
-  persistentId: Walls.WoodenDoor
+  persistentId: Walls.WoodenWall
   description: A wooden wall
   maxStack: 100
   sprite: {fileID: 2387489849992799125, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
-  action: {fileID: 11400000, guid: 0bc3db94bcaae05419fead9fa817326e, type: 2}
+  action: {fileID: 11400000, guid: c2ec6fc7e92d9ca429e1382be94dedca, type: 2}
   actionData:
-  - rid: 7218491099281098753
+  - rid: 1367514954854563840
   goldValue: 1
   fuelValue: 1
   tags:
@@ -27,8 +27,7 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 7218491099281098753
-      type: {class: PlaceTileItemActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+    - rid: 1367514954854563840
+      type: {class: PlacePersistentNodeItemActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
       data:
-        tile: {fileID: 11400000, guid: 0a99515bf4a32e0418f75da9c89e0a89, type: 2}
-        layer: 2
+        node: {fileID: 11400000, guid: f74c213de6711904991fbdf8cf3ac675, type: 2}

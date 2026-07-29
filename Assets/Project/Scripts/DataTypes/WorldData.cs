@@ -16,6 +16,22 @@ namespace Project.Scripts
         [Tooltip("Tile placed after mining. Individual biomes may override this value.")]
         public TileData minedTileReplacement;
 
+        [Header("Rooms")]
+        [Tooltip("Derived roof tile used to fill detected room interiors.")]
+        public TileData roomRoofTile;
+
+        [Min(1)]
+        [Tooltip("Maximum interior area accepted as a room.")]
+        public int maximumRoomArea = 4096;
+
+        [Min(1)]
+        [Tooltip("Maximum number of room flood fills completed per frame.")]
+        public int roomFloodFillsPerFrame = 4;
+
+        [Min(0.01f)]
+        [Tooltip("Seconds used to fade the outside-world visibility mask.")]
+        public float roomOutsideFadeSeconds = 0.2f;
+
         [Header("Tile Spreading")]
         [Tooltip("Rules such as grass spreading onto dirt. Only loaded chunks are simulated.")]
         public TileSpreadRule[] tileSpreadRules = Array.Empty<TileSpreadRule>();
