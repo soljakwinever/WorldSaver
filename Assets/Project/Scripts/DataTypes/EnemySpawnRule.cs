@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Project.Scripts.Enums;
 using UnityEngine;
 
@@ -60,9 +61,9 @@ namespace Project.Scripts.DataTypes
         [Tooltip("Leave empty to ignore events. Requires an INPCSpawnEnvironmentProvider implementation.")]
         public string requiredEvent;
 
-        [Header("Weather (stub)")]
-        [Tooltip("Leave empty to ignore weather. Requires an INPCSpawnEnvironmentProvider implementation.")]
-        public string requiredWeather;
+        [Header("Weather")]
+        [Tooltip("Any listed active weather allows this rule. Empty allows every weather condition. Requires an INPCSpawnEnvironmentProvider implementation.")]
+        public List<WeatherData> requiredWeather = new();
 
         public bool AllowsSeason(Season season)
         {

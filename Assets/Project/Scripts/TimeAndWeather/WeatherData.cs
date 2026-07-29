@@ -7,9 +7,8 @@ namespace Project.Scripts.TimeAndWeather
     [CreateAssetMenu(
         fileName = "Weather",
         menuName = "World Saver/Weather/Weather")]
-    public sealed class WeatherData : ScriptableObject
+    public sealed class WeatherData : Project.Scripts.DataTypes.WeatherData
     {
-        [SerializeField] private string weatherId = "weather";
         [SerializeField] private string displayName = "Weather";
         [SerializeField, Min(0f)] private float selectionWeight = 1f;
         [SerializeField] private WeatherSeasonMask seasons = WeatherSeasonMask.All;
@@ -19,9 +18,6 @@ namespace Project.Scripts.TimeAndWeather
         [SerializeField, Min(0)] private int cooldownTicks = 30;
         [SerializeField] private List<WeatherPhaseData> phases = new();
 
-        public string WeatherId => string.IsNullOrWhiteSpace(weatherId)
-            ? name
-            : weatherId.Trim();
         public string DisplayName => string.IsNullOrWhiteSpace(displayName)
             ? WeatherId
             : displayName;

@@ -27,4 +27,4 @@ MonoBehaviour:
   allowedBiomes: []
   restrictedBiomes: []
   requiredEvent: 
-  requiredWeather: 
+  requiredWeather: []

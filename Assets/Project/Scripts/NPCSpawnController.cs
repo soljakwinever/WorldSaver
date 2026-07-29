@@ -198,8 +198,20 @@ namespace Project.Scripts
                    rule.AllowsHour(_time.Hour) &&
                    (string.IsNullOrWhiteSpace(rule.requiredEvent) ||
                     _environment.IsEventActive(rule.requiredEvent)) &&
-                   (string.IsNullOrWhiteSpace(rule.requiredWeather) ||
-                    _environment.IsWeatherActive(rule.requiredWeather));
+                   AllowsWeather(rule);
+        }
+
+        private bool AllowsWeather(EnemySpawnRule rule)
+        {
+            if (rule.requiredWeather == null || rule.requiredWeather.Count == 0)
+                return true;
+
+            foreach (DataTypes.WeatherData weather in rule.requiredWeather)
+                if (weather != null &&
+                    _environment.IsWeatherActive(weather.WeatherId))
+                    return true;
+
+            return false;
         }
 
         private static bool AllowsBiome(EnemySpawnRule rule, BiomeData biome)
