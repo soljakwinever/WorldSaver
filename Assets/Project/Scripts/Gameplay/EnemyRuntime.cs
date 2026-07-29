@@ -64,7 +64,8 @@ namespace Project.Scripts.Gameplay
             _entityBus?.RaiseEnemyDefeated(
                 Data,
                 transform.position,
-                Data.experienceValue);
+                Data.experienceValue,
+                _health.LastDamageContext?.Attacker);
         }
 
         private void SpawnDrops()
@@ -72,6 +73,9 @@ namespace Project.Scripts.Gameplay
             if (_pickupPool == null || Data?.drops == null)
                 return;
 
+            int luck = ResolveKillerLuck();
+            float dropChanceMultiplier =
+                1f + Mathf.Max(0, luck - 5) * 0.02f;
             int spawnedStackCount = 0;
             float startingAngle =
                 UnityEngine.Random.value * Mathf.PI * 2f;
@@ -82,7 +86,9 @@ namespace Project.Scripts.Gameplay
 
                 for (int roll = 0; roll < drop.rolls; roll++)
                 {
-                    if (!drop.PassesDropChance(UnityEngine.Random.value))
+                    float effectiveDropChance =
+                        Mathf.Clamp01(drop.dropChance * dropChanceMultiplier);
+                    if (UnityEngine.Random.value >= effectiveDropChance)
                         continue;
 
                     int remaining = drop.RollAmount();
@@ -102,7 +108,7 @@ namespace Project.Scripts.Gameplay
                         _pickupPool.Spawn(
                             drop.item,
                             count,
-                            ItemRarityUtility.Generate(),
+                            ItemRarityUtility.Generate(luck),
                             transform.position,
                             impulse);
                         spawnedStackCount++;
@@ -110,6 +116,16 @@ namespace Project.Scripts.Gameplay
                     }
                 }
             }
+        }
+
+        private int ResolveKillerLuck()
+        {
+            if (_health?.LastDamageContext is not AttackContext context)
+                return 5;
+
+            PlayerDataController player =
+                context.Attacker.GetComponentInParent<PlayerDataController>();
+            return player?.Luck ?? 5;
         }
 
         private void OnDestroy()

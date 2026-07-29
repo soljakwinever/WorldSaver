@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
   hp: 5
   defense: 0
-  experienceValue: 10
+  experienceValue: 1
   visual: {fileID: 2119611675089420321, guid: 5b82825f26e20cb4f9ea1797a724b824, type: 3}
   behaviourTree: {fileID: -7413323278554932356, guid: 81c430f02d381614bbd4a9a8ca5a1f19, type: 3}
   drops:

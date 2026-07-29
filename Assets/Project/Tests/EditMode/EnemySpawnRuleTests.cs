@@ -91,6 +91,25 @@ namespace Project.Tests.EditMode
                 Is.EqualTo(expected));
         }
 
+        [TestCase(12, true, true)]
+        [TestCase(23, true, false)]
+        [TestCase(12, false, false)]
+        public void InvalidHourEnemiesArePrioritizedOnceOffscreen(
+            int hour,
+            bool isOffscreen,
+            bool expected)
+        {
+            _rule.firstHour = 22;
+            _rule.lastHour = 5;
+
+            Assert.That(
+                NPCSpawnController.ShouldPrioritizeTimeDespawn(
+                    _rule,
+                    hour,
+                    isOffscreen),
+                Is.EqualTo(expected));
+        }
+
         [Test]
         public void TransientVisualComesFromSelectedEnemyData()
         {

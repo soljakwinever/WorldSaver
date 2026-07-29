@@ -21,6 +21,7 @@ Current records:
 | `PlaceTileItemActionData` | `PlaceTileItemAction` | Tile and layer |
 | `ToolHotbarActionData` | `ToolHotbarAction` | Tool |
 | `MineTileToolActionData` | `MineTileToolAction` | Layer and mineable tags |
+| `MineCoverageToolActionData` | `MineCoverageToolAction` | Normalized removal amount |
 | `PlacePersistentNodeItemActionData` | `PlacePersistentNodeItemAction` | Node |
 
 A tool item can contain multiple records. A pickaxe, for example, needs both
@@ -42,6 +43,11 @@ Tools without action assets use focused-object interaction.
 `DestroyNodeToolAction` can filter targets by explicit `NodeData` assets,
 `EntityTag` assets, or both. The two lists use OR matching. When both are
 empty, every removable node is eligible.
+
+`MineCoverageToolAction` removes the configured amount from the visible,
+highest-priority coverage on the targeted tile. Add
+`MineCoverageToolActionData` to the tool's item and set `amount` in normalized
+coverage units.
 
 ## Persistent node placement
 

@@ -2,6 +2,7 @@ using System;
 using Project.Scripts.Bus;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
+using UnityEngine;
 
 namespace Project.Scripts.Gameplay
 {
@@ -20,7 +21,13 @@ namespace Project.Scripts.Gameplay
 
         public int CalculateDamage(AttackContext context)
         {
-            return checked(context.Force + (context.Weapon?.Power ?? 0));
+            int baseDamage =
+                checked(context.Force + (context.Weapon?.Power ?? 0));
+            PlayerDataController player =
+                context.Attacker.GetComponentInParent<PlayerDataController>();
+            int statBonus =
+                player?.GetAttackDamageBonus(context.AttackType) ?? 0;
+            return checked(baseDamage + statBonus);
         }
 
         public int Attack(IDamageable target, AttackContext context)

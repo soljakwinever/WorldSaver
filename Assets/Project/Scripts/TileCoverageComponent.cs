@@ -39,6 +39,8 @@ namespace Project.Scripts
             new CoverageData[MaximumSavedCells];
         private readonly byte[] _displayedAlpha =
             new byte[MaximumSavedCells];
+        private readonly bool[] _indoorCells =
+            new bool[MaximumSavedCells];
         private readonly bool[] _dirtyCellFlags =
             new bool[MaximumSavedCells];
         private readonly ushort[] _dirtyCells =
@@ -72,6 +74,7 @@ namespace Project.Scripts
             _layers.Clear();
             Array.Clear(_displayedData, 0, _displayedData.Length);
             Array.Clear(_displayedAlpha, 0, _displayedAlpha.Length);
+            Array.Clear(_indoorCells, 0, _indoorCells.Length);
 
             for (ushort index = 0; index < MaximumSavedCells; index++)
             {
@@ -141,7 +144,9 @@ namespace Project.Scripts
                             layer.Data,
                             out float neighborAmount)
                             ? neighborAmount
-                            : WeatherAllowsAccumulation(layer.Data, sample)
+                            : AllowsWeatherAccumulation(
+                                _indoorCells[cell.LocalIndex],
+                                WeatherAllowsAccumulation(layer.Data, sample))
                                 ? layer.Data.InitialCoverage
                                 : 0f;
                     }
@@ -188,7 +193,9 @@ namespace Project.Scripts
                                 layer.Data.DecayRate * ticks)
                             : 0f;
                     }
-                    else if (accumulationAllowed)
+                    else if (AllowsWeatherAccumulation(
+                                 _indoorCells[cell.LocalIndex],
+                                 accumulationAllowed))
                     {
                         cell.Amount = Mathf.Clamp01(
                             cell.Amount +
@@ -304,6 +311,34 @@ namespace Project.Scripts
             return true;
         }
 
+        public bool HasCoverage(ushort localIndex)
+        {
+            return TryGetDisplayedCoverage(
+                localIndex,
+                out _,
+                out _);
+        }
+
+        public bool TryReduceCoverage(
+            ushort localIndex,
+            float amount)
+        {
+            if (amount <= 0f ||
+                !TryGetDisplayedCoverage(
+                    localIndex,
+                    out LayerState layer,
+                    out CellState cell))
+            {
+                return false;
+            }
+
+            cell.Amount = Mathf.Max(0f, cell.Amount - amount);
+            cell.Initialized = true;
+            RefreshVisual(localIndex, force: true);
+            RefreshMaterialProperties();
+            return true;
+        }
+
         public void RefreshCell(ushort localIndex)
         {
             RefreshVisual(localIndex, force: true);
@@ -331,6 +366,68 @@ namespace Project.Scripts
                 RefreshCell(localIndex);
         }
 
+        public void SetRoomInteriorCells(
+            IReadOnlyList<ushort> localIndices,
+            bool isInterior)
+        {
+            if (localIndices == null || localIndices.Count == 0)
+                return;
+
+            int visualCount = 0;
+            bool amountChanged = false;
+            for (int i = 0; i < localIndices.Count; i++)
+            {
+                ushort localIndex = localIndices[i];
+                if (localIndex >= MaximumSavedCells ||
+                    _indoorCells[localIndex] == isInterior)
+                {
+                    continue;
+                }
+
+                _indoorCells[localIndex] = isInterior;
+                if (!isInterior)
+                    continue;
+
+                foreach (LayerState layer in _layers.Values)
+                {
+                    if (!layer.Cells.TryGetValue(
+                            localIndex,
+                            out CellState cell) ||
+                        cell.Amount <= 0f)
+                    {
+                        continue;
+                    }
+
+                    cell.Amount = 0f;
+                    cell.Initialized = true;
+                    amountChanged = true;
+                }
+
+                if (_ready &&
+                    UpdateDisplayedVisual(localIndex, force: false))
+                {
+                    _visualChanges[visualCount++] = localIndex;
+                }
+            }
+
+            if (visualCount > 0)
+            {
+                _chunk?.ApplyCoverageVisuals(
+                    _visualChanges,
+                    visualCount,
+                    _displayedData,
+                    _displayedAlpha);
+            }
+
+            if (amountChanged)
+                RefreshMaterialProperties();
+        }
+
+        internal static bool AllowsWeatherAccumulation(
+            bool isRoomInterior,
+            bool weatherAllowsAccumulation) =>
+            !isRoomInterior && weatherAllowsAccumulation;
+
         public void RefreshCellColor(ushort localIndex) =>
             RefreshVisual(localIndex, force: true);
 
@@ -354,6 +451,7 @@ namespace Project.Scripts
             _ready = false;
             _displayedMaterialData = null;
             _layers.Clear();
+            Array.Clear(_indoorCells, 0, _indoorCells.Length);
             _chunk?.ClearCoverageVisuals();
             _chunk = null;
         }
@@ -605,30 +703,12 @@ namespace Project.Scripts
 
         private bool UpdateDisplayedVisual(ushort localIndex, bool force)
         {
-            CoverageData winner = null;
-            float winnerAmount = 0f;
-            foreach (LayerState layer in _layers.Values)
-            {
-                if (!layer.Cells.TryGetValue(
-                        localIndex,
-                        out CellState cell) ||
-                    cell.Amount <= 0f ||
-                    !TileAllowsCoverage(layer.Data, localIndex))
-                {
-                    continue;
-                }
-
-                if (winner == null ||
-                    layer.Data.RenderPriority > winner.RenderPriority ||
-                    (layer.Data.RenderPriority == winner.RenderPriority &&
-                     string.CompareOrdinal(
-                         layer.Data.CoverageId,
-                         winner.CoverageId) < 0))
-                {
-                    winner = layer.Data;
-                    winnerAmount = cell.Amount;
-                }
-            }
+            bool hasWinner = TryGetDisplayedCoverage(
+                localIndex,
+                out LayerState winningLayer,
+                out CellState winningCell);
+            CoverageData winner = hasWinner ? winningLayer.Data : null;
+            float winnerAmount = hasWinner ? winningCell.Amount : 0f;
 
             byte alpha = (byte)Mathf.RoundToInt(
                 Mathf.Clamp01(winnerAmount) * 255f);
@@ -642,6 +722,44 @@ namespace Project.Scripts
             _displayedData[localIndex] = winner;
             _displayedAlpha[localIndex] = alpha;
             return true;
+        }
+
+        private bool TryGetDisplayedCoverage(
+            ushort localIndex,
+            out LayerState winningLayer,
+            out CellState winningCell)
+        {
+            winningLayer = null;
+            winningCell = null;
+            if (!_ready || localIndex >= MaximumSavedCells)
+                return false;
+
+            foreach (LayerState layer in _layers.Values)
+            {
+                if (!layer.Cells.TryGetValue(
+                        localIndex,
+                        out CellState cell) ||
+                    cell.Amount <= 0f ||
+                    !TileAllowsCoverage(layer.Data, localIndex))
+                {
+                    continue;
+                }
+
+                if (winningLayer == null ||
+                    layer.Data.RenderPriority >
+                    winningLayer.Data.RenderPriority ||
+                    (layer.Data.RenderPriority ==
+                     winningLayer.Data.RenderPriority &&
+                     string.CompareOrdinal(
+                         layer.Data.CoverageId,
+                         winningLayer.Data.CoverageId) < 0))
+                {
+                    winningLayer = layer;
+                    winningCell = cell;
+                }
+            }
+
+            return winningLayer != null;
         }
 
         private void RefreshMaterialProperties(bool force = false)

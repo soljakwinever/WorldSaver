@@ -142,6 +142,9 @@ public class GameDataInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<TileCoverageSystem>()
             .AsSingle()
             .NonLazy();
+        Container.Bind<IIndoorWeatherMask>()
+            .To<RoomIndoorWeatherMask>()
+            .AsSingle();
         Container.BindInterfacesAndSelfTo<WeatherEffectPresenter>()
             .AsSingle()
             .NonLazy();

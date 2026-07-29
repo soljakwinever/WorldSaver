@@ -15,7 +15,7 @@ MonoBehaviour:
   persistentId: WoodenPickaxe
   description: 
   maxStack: 1
-  sprite: {fileID: 4864731208805304475, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  sprite: {fileID: -4019052279006995309, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
   action: {fileID: 11400000, guid: ea839d2b8ce21f4408b5d6265f754658, type: 2}
   actionData:
   - rid: 7218491099281098754

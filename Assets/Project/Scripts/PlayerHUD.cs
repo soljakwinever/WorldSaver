@@ -25,6 +25,17 @@ namespace Project.Scripts
         
         private PlayerToolbarController toolbarController;
         private PlayerBus playerBus;
+        private Label levelLabel;
+        private Label experienceLabel;
+        private ProgressBar experienceBar;
+        private ProgressBar healthBar;
+        private ProgressBar manaBar;
+        private VisualElement levelUpPanel;
+        private Label statPointsLabel;
+        private readonly System.Collections.Generic.Dictionary<PlayerStat, Label>
+            statValueLabels = new();
+        private readonly System.Collections.Generic.List<Button>
+            statButtons = new();
         
         private HotbarSlot[] hotbarSlots =
             new HotbarSlot[PlayerToolbarController.SlotCount];
@@ -48,8 +59,41 @@ namespace Project.Scripts
         [Inject]
         public void Construct([Inject] PlayerBus playerBus)
         {
+            this.playerBus = playerBus;
             playerBus.hotbarIndexChanged += PlayerBusOnhotbarIndexChanged;
             playerBus.hotbarActionSet += PlayerBusOnhotbarActionSet;
+            playerBus.OnLevelUp += PlayerBusOnLevelUp;
+            playerBus.OnExperienceChanged += PlayerBusOnExperienceChanged;
+            playerBus.OnStatsChanged += PlayerBusOnStatsChanged;
+        }
+
+        private void OnDestroy()
+        {
+            if (playerBus == null)
+                return;
+            playerBus.hotbarIndexChanged -= PlayerBusOnhotbarIndexChanged;
+            playerBus.hotbarActionSet -= PlayerBusOnhotbarActionSet;
+            playerBus.OnLevelUp -= PlayerBusOnLevelUp;
+            playerBus.OnExperienceChanged -= PlayerBusOnExperienceChanged;
+            playerBus.OnStatsChanged -= PlayerBusOnStatsChanged;
+        }
+
+        private void PlayerBusOnLevelUp(int newLevel, int statPointsAwarded)
+        {
+            RefreshProgressionUI();
+        }
+
+        private void PlayerBusOnExperienceChanged(
+            int level,
+            int experience,
+            int experienceToNextLevel)
+        {
+            RefreshProgressionUI();
+        }
+
+        private void PlayerBusOnStatsChanged()
+        {
+            RefreshProgressionUI();
         }
 
         private void PlayerBusOnhotbarActionSet(int index, IHotbarAction action)
@@ -98,6 +142,7 @@ namespace Project.Scripts
 
         private void Update()
         {
+            RefreshResourceUI();
             poll--;
             if (poll <= 0)
             {
@@ -178,6 +223,146 @@ namespace Project.Scripts
             }
 
             HandleHotBar(toolbarController.SelectedIndex);
+            BindProgressionUI(root);
+            RefreshProgressionUI();
+        }
+
+        private void BindProgressionUI(VisualElement root)
+        {
+            healthBar = root.Q<ProgressBar>("HealthBar");
+            manaBar = root.Q<ProgressBar>("ManaBar");
+            levelLabel = root.Q<Label>("LevelLabel");
+            experienceLabel = root.Q<Label>("ExperienceLabel");
+            experienceBar = root.Q<ProgressBar>("ExperienceBar");
+            levelUpPanel = root.Q("LevelUpPanel");
+            statPointsLabel = root.Q<Label>("StatPointsLabel");
+
+            statValueLabels.Clear();
+            statButtons.Clear();
+            ConfigureHudPicking(root);
+            BindStat(root, PlayerStat.Strength, "Strength");
+            BindStat(root, PlayerStat.Constitution, "Constitution");
+            BindStat(root, PlayerStat.Dexterity, "Dexterity");
+            BindStat(root, PlayerStat.Wisdom, "Wisdom");
+            BindStat(root, PlayerStat.Intelligence, "Intelligence");
+            BindStat(root, PlayerStat.Luck, "Luck");
+        }
+
+        private void RefreshResourceUI()
+        {
+            if (playerDataController == null)
+                return;
+
+            if (healthBar != null)
+            {
+                healthBar.highValue = playerDataController.MaxHealth;
+                healthBar.value = playerDataController.Health;
+                healthBar.title =
+                    $"{playerDataController.Health} / " +
+                    $"{playerDataController.MaxHealth}";
+            }
+
+            if (manaBar != null)
+            {
+                manaBar.highValue = playerDataController.MaxMana;
+                manaBar.value = playerDataController.CurrentMana;
+                manaBar.title =
+                    $"{playerDataController.CurrentMana} / " +
+                    $"{playerDataController.MaxMana}";
+            }
+        }
+
+        private void ConfigureHudPicking(VisualElement root)
+        {
+            // The debug and status containers cover large portions of the panel.
+            // They are presentation-only and must not win pointer hit tests over
+            // the level-up controls.
+            SetPickingModeRecursive(root.Q("DebugPanel"), PickingMode.Ignore);
+            SetPickingModeRecursive(root.Q("NeedsDisplay"), PickingMode.Ignore);
+            SetPickingModeRecursive(
+                root.Q("ProgressionDisplay"),
+                PickingMode.Ignore);
+            SetPickingModeRecursive(root.Q("Toolbar"), PickingMode.Ignore);
+
+            if (levelUpPanel == null)
+                return;
+
+            levelUpPanel.pickingMode = PickingMode.Position;
+            levelUpPanel.BringToFront();
+        }
+
+        private static void SetPickingModeRecursive(
+            VisualElement element,
+            PickingMode pickingMode)
+        {
+            if (element == null)
+                return;
+
+            element.pickingMode = pickingMode;
+            foreach (VisualElement child in element.Children())
+                SetPickingModeRecursive(child, pickingMode);
+        }
+
+        private void BindStat(
+            VisualElement root,
+            PlayerStat stat,
+            string elementPrefix)
+        {
+            Label valueLabel = root.Q<Label>(elementPrefix + "Value");
+            Button addButton = root.Q<Button>(elementPrefix + "Add");
+            if (valueLabel != null)
+                statValueLabels[stat] = valueLabel;
+            if (addButton == null)
+                return;
+
+            addButton.pickingMode = PickingMode.Position;
+            addButton.focusable = true;
+            addButton.clicked += () =>
+            {
+                if (playerDataController.TrySpendStatPoint(stat))
+                    RefreshProgressionUI();
+            };
+            statButtons.Add(addButton);
+        }
+
+        private void RefreshProgressionUI()
+        {
+            if (playerDataController == null)
+                return;
+
+            if (levelLabel != null)
+                levelLabel.text = $"Level {playerDataController.Level}";
+            if (experienceLabel != null)
+            {
+                experienceLabel.text =
+                    $"{playerDataController.Experience} / " +
+                    $"{playerDataController.ExperienceToNextLevel} EXP";
+            }
+            if (experienceBar != null)
+            {
+                experienceBar.highValue =
+                    playerDataController.ExperienceToNextLevel;
+                experienceBar.value = playerDataController.Experience;
+            }
+
+            bool hasPoints = playerDataController.UnspentStatPoints > 0;
+            if (levelUpPanel != null)
+            {
+                levelUpPanel.style.display =
+                    hasPoints ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            if (statPointsLabel != null)
+            {
+                statPointsLabel.text =
+                    $"Points remaining: {playerDataController.UnspentStatPoints}";
+            }
+
+            foreach (var pair in statValueLabels)
+                pair.Value.text = playerDataController.GetStat(pair.Key).ToString();
+            foreach (Button button in statButtons)
+                button.SetEnabled(hasPoints);
+
+            RefreshResourceUI();
         }
     }
 }

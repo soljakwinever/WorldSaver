@@ -34,7 +34,8 @@ namespace Project.Scripts
             IPathFindingService pathFindingService,
             IPathFindingMap pathFindingMap,
             IAttackService attackService,
-            IProjectileService projectileService)
+            IProjectileService projectileService,
+            ITimeController timeController)
         {
             if (pathFindingService != null)
                 Blackboard.Set(AiKeys.PathFindingService, pathFindingService);
@@ -44,6 +45,8 @@ namespace Project.Scripts
                 Blackboard.Set(AiKeys.AttackService, attackService);
             if (projectileService != null)
                 Blackboard.Set(AiKeys.ProjectileService, projectileService);
+            if (timeController != null)
+                Blackboard.Set(AiKeys.TimeController, timeController);
         }
 
         private void Awake()

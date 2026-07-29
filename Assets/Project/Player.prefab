@@ -291,6 +291,16 @@ MonoBehaviour:
   energyDrainRate: 0.005
   hungerEnergyRegenerationRate: 0.0175
   hungerDrainRate: 0.0025
+  level: 1
+  experience: 0
+  unspentStatPoints: 0
+  strength: 5
+  constitution: 5
+  dexterity: 5
+  wisdom: 5
+  intelligence: 5
+  luck: 5
+  mana: 1
 --- !u!114 &2057483881632290249
 MonoBehaviour:
   m_ObjectHideFlags: 0

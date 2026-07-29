@@ -50,6 +50,9 @@ namespace Project.Scripts
         [SerializeField]
         private int _power;
         [SerializeField]
+        [Tooltip("Determines which player stat increases this tool's attack damage.")]
+        private PlayerAttackType _attackType = PlayerAttackType.Melee;
+        [SerializeField]
         private float _staminaCost;
         [SerializeField]
         [Tooltip("Ordered actions this tool can perform. The first applicable action is used.")]
@@ -60,6 +63,8 @@ namespace Project.Scripts
         public ToolType ToolType => _toolType;
 
         public int Power => _power;
+
+        public PlayerAttackType AttackType => _attackType;
 
         public float StaminaCost => _staminaCost;
 

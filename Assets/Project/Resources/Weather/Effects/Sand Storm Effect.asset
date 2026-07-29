@@ -57,13 +57,13 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   pulseIntervalTicks: 3
-  effectPrefab: {fileID: 0}
+  effectPrefab: {fileID: 5528998308155261246, guid: c9739a70a6a088546bb3a16c8d5caa84, type: 3}
   spawnOnPhaseStart: 0
   spawnOnPulse: 0
   spawnChancePerPulse: 1
   prefabLifetimeSeconds: 5
   fullScreenParticleEffect: 1
-  fullScreenReferenceHeight: 10
+  fullScreenReferenceHeight: 20
   fullScreenCameraDistance: 5
   fullScreenBlendInSeconds: 2
   fullScreenBlendOutSeconds: 1

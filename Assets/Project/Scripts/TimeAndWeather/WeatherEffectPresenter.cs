@@ -16,6 +16,7 @@ namespace Project.Scripts.TimeAndWeather
         IDisposable
     {
         private readonly WeatherBus _bus;
+        private readonly IIndoorWeatherMask _indoorMask;
         private readonly Dictionary<EffectKey, GameObject> _phaseInstances = new();
         private readonly Dictionary<EffectKey, FullScreenEffect> _fullScreen = new();
         private readonly List<RetiringParticleEffect> _retiring = new();
@@ -77,9 +78,12 @@ namespace Project.Scripts.TimeAndWeather
                     : Effect.GetHashCode());
         }
 
-        public WeatherEffectPresenter(WeatherBus bus)
+        public WeatherEffectPresenter(
+            WeatherBus bus,
+            IIndoorWeatherMask indoorMask)
         {
             _bus = bus;
+            _indoorMask = indoorMask;
         }
 
         public void Initialize()
@@ -108,10 +112,15 @@ namespace Project.Scripts.TimeAndWeather
             Vector2 cameraPosition = camera.transform.position;
             Vector2Int cameraRegion =
                 WeatherRegionUtility.WorldToRegion(cameraPosition);
+            bool viewerIndoors = _indoorMask?.IsViewerIndoors ?? false;
+            UpdateWorldEffectMasking();
 
             foreach (KeyValuePair<EffectKey, FullScreenEffect> pair in _fullScreen)
             {
-                bool shouldBeVisible = pair.Key.Region == cameraRegion;
+                bool inCameraRegion = pair.Key.Region == cameraRegion;
+                bool shouldBeVisible = ShouldPresentFullScreenEffect(
+                    inCameraRegion,
+                    viewerIndoors);
                 FullScreenEffect fullScreen = pair.Value;
 
                 if (shouldBeVisible && fullScreen.Instance == null)
@@ -123,6 +132,14 @@ namespace Project.Scripts.TimeAndWeather
                 if (fullScreen.Instance == null ||
                     !fullScreen.Instance.activeSelf)
                     continue;
+
+                if (viewerIndoors)
+                {
+                    // Indoor transitions clear existing precipitation
+                    // immediately instead of waiting for particles to expire.
+                    SuspendFullScreenInstance(fullScreen);
+                    continue;
+                }
 
                 UpdateFullScreenTransform(fullScreen, camera);
                 float desired = shouldBeVisible
@@ -247,6 +264,9 @@ namespace Project.Scripts.TimeAndWeather
         {
             Vector2 position = message.Position ??
                                message.WorldBounds.center;
+            if (_indoorMask?.IsWorldPositionIndoors(position) == true)
+                return null;
+
             GameObject instance = Object.Instantiate(
                 message.Effect.EffectPrefab,
                 new Vector3(position.x, position.y, 0f),
@@ -262,6 +282,29 @@ namespace Project.Scripts.TimeAndWeather
 
             return instance;
         }
+
+        private void UpdateWorldEffectMasking()
+        {
+            if (_indoorMask == null)
+                return;
+
+            foreach (GameObject instance in _phaseInstances.Values)
+            {
+                if (instance == null)
+                    continue;
+
+                bool shouldBeVisible =
+                    !_indoorMask.IsWorldPositionIndoors(
+                        instance.transform.position);
+                if (instance.activeSelf != shouldBeVisible)
+                    instance.SetActive(shouldBeVisible);
+            }
+        }
+
+        public static bool ShouldPresentFullScreenEffect(
+            bool isCameraRegion,
+            bool isViewerIndoors) =>
+            isCameraRegion && !isViewerIndoors;
 
         private static void CreateFullScreenInstance(
             FullScreenEffect fullScreen,

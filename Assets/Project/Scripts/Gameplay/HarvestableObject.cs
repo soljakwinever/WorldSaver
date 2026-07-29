@@ -70,8 +70,13 @@ namespace Project.Scripts.Gameplay
                 return;
 
             int count = Random.Range(minItemsCreated, maxItemsCreated + 1);
+            int luck =
+                context.user != null
+                    ? context.user
+                        .GetComponentInParent<PlayerDataController>()?.Luck ?? 5
+                    : 5;
             ItemData.Rarity spawnedRarity = generateRarity
-                ? ItemRarityUtility.Generate()
+                ? ItemRarityUtility.Generate(luck)
                 : rarity;
 
             _pickupPool.Spawn(

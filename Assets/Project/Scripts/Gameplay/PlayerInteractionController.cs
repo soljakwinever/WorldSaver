@@ -301,7 +301,8 @@ namespace Project.Scripts.Gameplay
             _pickupPool.Spawn(
                 item,
                 1,
-                ItemRarityUtility.Generate(),
+                ItemRarityUtility.Generate(
+                    GetComponent<PlayerDataController>()?.Luck ?? 5),
                 position);
         }
 

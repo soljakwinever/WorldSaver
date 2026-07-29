@@ -284,6 +284,22 @@ namespace Project.Tests.EditMode
             }
         }
 
+        [TestCase(false, true, true)]
+        [TestCase(false, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(true, false, false)]
+        public void CoverageDoesNotAccumulateInsideRooms(
+            bool isRoomInterior,
+            bool weatherAllowsAccumulation,
+            bool expected)
+        {
+            Assert.That(
+                TileCoverageComponent.AllowsWeatherAccumulation(
+                    isRoomInterior,
+                    weatherAllowsAccumulation),
+                Is.EqualTo(expected));
+        }
+
         [Test]
         public void ChunkPersistenceRootCapturesAndRestoresChunkComponents()
         {

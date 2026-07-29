@@ -1,5 +1,6 @@
 using UnityEngine;
 using Project.Scripts.Interface;
+using Project.Scripts.DataTypes;
 
 namespace Project.Scripts.AI
 {
@@ -35,6 +36,12 @@ namespace Project.Scripts.AI
         /// </summary>
         public static readonly BlackboardKey<bool> IsIdle =
             new BlackboardKey<bool>("Is Idle");
+
+        public static readonly BlackboardKey<EnemySpawnRule> SpawnRule =
+            new BlackboardKey<EnemySpawnRule>("Spawn Rule");
+
+        public static readonly BlackboardKey<ITimeController> TimeController =
+            new BlackboardKey<ITimeController>("Time Controller");
 
         public static readonly BlackboardKey<IPathFindingService> PathFindingService =
             new BlackboardKey<IPathFindingService>("Path Finding Service");
@@ -85,6 +92,9 @@ namespace Project.Scripts.AI
 
             if (!blackboard.ContainsLocal(IsIdle))
                 blackboard.Set(IsIdle, false);
+
+            if (!blackboard.ContainsLocal(SpawnRule))
+                blackboard.Set<EnemySpawnRule>(SpawnRule, null);
         }
     }
 }

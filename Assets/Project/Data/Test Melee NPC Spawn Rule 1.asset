@@ -17,11 +17,11 @@ MonoBehaviour:
   persistentNodeData: {fileID: 0}
   persistence: 0
   minimumPerChunk: 1
-  maximumPerChunk: 1
-  spawnChance: 0.321
+  maximumPerChunk: 3
+  spawnChance: 1
   minimumSpacing: 2
   maxAllowed: 20
-  spawnIntervalTicks: 30
+  spawnIntervalTicks: 1
   variations: []
   recycleOffscreenIdle: 1
   minimumLifetimeTicks: 15

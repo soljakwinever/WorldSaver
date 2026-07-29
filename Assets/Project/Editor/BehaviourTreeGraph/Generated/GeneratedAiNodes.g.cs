@@ -186,6 +186,13 @@ namespace Project.Editor.AI.Generated
     }
 
     [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Wander Off Screen")]
+    internal sealed class Project_Scripts_AI_Leaves_Actions_WanderOffScreen_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.WanderOffScreen);
+    }
+
+    [Serializable]
     [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Wander Toward Target")]
     internal sealed class Project_Scripts_AI_Leaves_Actions_WanderTowardTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
@@ -225,6 +232,20 @@ namespace Project.Editor.AI.Generated
     internal sealed class Project_Scripts_AI_Leaves_Sensors_IsOutsideDistance_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
         internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.IsOutsideDistance);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Is Outside Spawn Hours")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_IsOutsideSpawnHours_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.IsOutsideSpawnHours);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Is Outside Spawn Season")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_IsOutsideSpawnSeason_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.IsOutsideSpawnSeason);
     }
 
     [Serializable]

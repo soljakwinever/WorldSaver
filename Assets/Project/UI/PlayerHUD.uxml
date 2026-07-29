@@ -75,7 +75,15 @@
             </ui:Label>
         </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="NeedsDisplay" data-source-type="Project.Scripts.Gameplay.PlayerDataController, Playwinever.Gameplay" style="flex-grow: 0; bottom: 0; left: 0; width: 420px; height: 128px; background-color: rgb(99, 99, 99); position: absolute; border-top-left-radius: 24px; border-top-right-radius: 24px; border-bottom-right-radius: 24px; border-bottom-left-radius: 24px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px; padding-top: 12px; padding-right: 12px; padding-bottom: 12px; padding-left: 12px;">
+    <ui:VisualElement name="NeedsDisplay" data-source-type="Project.Scripts.Gameplay.PlayerDataController, Playwinever.Gameplay" style="flex-grow: 0; bottom: 0; left: 0; width: 420px; height: 200px; background-color: rgb(99, 99, 99); position: absolute; border-top-left-radius: 24px; border-top-right-radius: 24px; border-bottom-right-radius: 24px; border-bottom-left-radius: 24px; margin-top: 4px; margin-right: 4px; margin-bottom: 4px; margin-left: 4px; padding-top: 12px; padding-right: 12px; padding-bottom: 12px; padding-left: 12px;">
+        <ui:VisualElement style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Health" style="color: rgb(255, 255, 255); text-shadow: 8px 8px 0 rgb(0, 0, 0); flex-grow: 0.1; width: 32px;"/>
+            <ui:ProgressBar value="100" title="100 / 100" name="HealthBar" high-value="100" style="flex-grow: 1;"/>
+        </ui:VisualElement>
+        <ui:VisualElement style="flex-grow: 1; flex-direction: row;">
+            <ui:Label text="Mana" style="color: rgb(255, 255, 255); text-shadow: 8px 8px 0 rgb(0, 0, 0); flex-grow: 0.1; width: 32px;"/>
+            <ui:ProgressBar value="50" title="50 / 50" name="ManaBar" high-value="50" style="flex-grow: 1;"/>
+        </ui:VisualElement>
         <ui:VisualElement style="flex-grow: 1; flex-direction: row;">
             <ui:Label text="Hunger" style="color: rgb(255, 255, 255); text-shadow: 8px 8px 0 rgb(0, 0, 0); flex-grow: 0.1; width: 32px;"/>
             <ui:ProgressBar value="22" title="" name="HungerBar" high-value="1" style="flex-grow: 1;">
@@ -92,6 +100,54 @@
                 </Bindings>
             </ui:ProgressBar>
         </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="ProgressionDisplay" style="position: absolute; top: 12px; left: auto; width: 260px; background-color: rgba(20, 25, 35, 0.92); padding-top: 10px; padding-right: 12px; padding-bottom: 10px; padding-left: 12px; border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; right: 12px;">
+        <ui:VisualElement style="flex-direction: row; justify-content: space-between;">
+            <ui:Label name="LevelLabel" text="Level 1" style="color: rgb(255, 222, 112); font-size: 18px; -unity-font-style: bold;"/>
+            <ui:Label name="ExperienceLabel" text="0 / 100 EXP" style="color: rgb(225, 230, 240);"/>
+        </ui:VisualElement>
+        <ui:ProgressBar name="ExperienceBar" value="0" high-value="100" title="" style="height: 14px; margin-top: 5px;"/>
+    </ui:VisualElement>
+    <ui:VisualElement name="LevelUpPanel" style="display: none; position: absolute; top: 58px; width: 520px; align-self: center; background-color: rgba(17, 22, 32, 0.98); border-top-width: 2px; border-right-width: 2px; border-bottom-width: 2px; border-left-width: 2px; border-top-color: rgb(255, 205, 80); border-right-color: rgb(255, 205, 80); border-bottom-color: rgb(255, 205, 80); border-left-color: rgb(255, 205, 80); border-top-left-radius: 12px; border-top-right-radius: 12px; border-bottom-right-radius: 12px; border-bottom-left-radius: 12px; padding-top: 18px; padding-right: 22px; padding-bottom: 18px; padding-left: 22px;">
+        <ui:Label text="LEVEL UP!" style="color: rgb(255, 214, 92); font-size: 28px; -unity-text-align: middle-center; -unity-font-style: bold;"/>
+        <ui:Label name="StatPointsLabel" text="Points remaining: 5" style="color: white; font-size: 17px; -unity-text-align: middle-center; margin-bottom: 10px;"/>
+        <ui:VisualElement style="flex-direction: row; align-items: center; height: 42px;">
+            <ui:Label text="STR" tooltip="Increases melee attack damage." style="color: rgb(245, 120, 100); width: 54px; -unity-font-style: bold;"/>
+            <ui:Label text="Melee attack damage" style="color: rgb(210, 215, 225); flex-grow: 1;"/>
+            <ui:Label name="StrengthValue" text="5" style="color: white; width: 38px; -unity-text-align: middle-center;"/>
+            <ui:Button name="StrengthAdd" text="+" style="width: 38px; height: 32px; font-size: 20px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement style="flex-direction: row; align-items: center; height: 42px;">
+            <ui:Label text="CON" tooltip="Increases maximum health and energy." style="color: rgb(105, 220, 130); width: 54px; -unity-font-style: bold;"/>
+            <ui:Label text="Maximum health and energy" style="color: rgb(210, 215, 225); flex-grow: 1;"/>
+            <ui:Label name="ConstitutionValue" text="5" style="color: white; width: 38px; -unity-text-align: middle-center;"/>
+            <ui:Button name="ConstitutionAdd" text="+" style="width: 38px; height: 32px; font-size: 20px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement style="flex-direction: row; align-items: center; height: 42px;">
+            <ui:Label text="DEX" tooltip="Increases ranged attack damage." style="color: rgb(110, 190, 255); width: 54px; -unity-font-style: bold;"/>
+            <ui:Label text="Ranged attack damage" style="color: rgb(210, 215, 225); flex-grow: 1;"/>
+            <ui:Label name="DexterityValue" text="5" style="color: white; width: 38px; -unity-text-align: middle-center;"/>
+            <ui:Button name="DexterityAdd" text="+" style="width: 38px; height: 32px; font-size: 20px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement style="flex-direction: row; align-items: center; height: 42px;">
+            <ui:Label text="WIS" tooltip="Increases maximum mana." style="color: rgb(170, 135, 255); width: 54px; -unity-font-style: bold;"/>
+            <ui:Label text="Maximum mana" style="color: rgb(210, 215, 225); flex-grow: 1;"/>
+            <ui:Label name="WisdomValue" text="5" style="color: white; width: 38px; -unity-text-align: middle-center;"/>
+            <ui:Button name="WisdomAdd" text="+" style="width: 38px; height: 32px; font-size: 20px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement style="flex-direction: row; align-items: center; height: 42px;">
+            <ui:Label text="INT" tooltip="Increases magic attack damage." style="color: rgb(225, 130, 255); width: 54px; -unity-font-style: bold;"/>
+            <ui:Label text="Magic attack damage" style="color: rgb(210, 215, 225); flex-grow: 1;"/>
+            <ui:Label name="IntelligenceValue" text="5" style="color: white; width: 38px; -unity-text-align: middle-center;"/>
+            <ui:Button name="IntelligenceAdd" text="+" style="width: 38px; height: 32px; font-size: 20px;"/>
+        </ui:VisualElement>
+        <ui:VisualElement style="flex-direction: row; align-items: center; height: 42px;">
+            <ui:Label text="LUCK" tooltip="Increases item drop chance and item quality." style="color: rgb(255, 205, 90); width: 54px; -unity-font-style: bold;"/>
+            <ui:Label text="Drop chance and item quality" style="color: rgb(210, 215, 225); flex-grow: 1;"/>
+            <ui:Label name="LuckValue" text="5" style="color: white; width: 38px; -unity-text-align: middle-center;"/>
+            <ui:Button name="LuckAdd" text="+" style="width: 38px; height: 32px; font-size: 20px;"/>
+        </ui:VisualElement>
+        <ui:Label text="Allocate all available stat points." style="color: rgb(155, 165, 180); font-size: 12px; -unity-text-align: middle-center; margin-top: 8px;"/>
     </ui:VisualElement>
     <ui:VisualElement name="Toolbar" style="flex-grow: 1; position: absolute; bottom: 0; left: auto; right: auto; top: auto; height: 72px; background-color: rgb(99, 99, 99); border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; align-self: center; flex-direction: row; padding-top: 4px; padding-right: 4px; padding-bottom: 4px; padding-left: 4px;">
         <Project.Scripts.UI.HotbarSlot/>

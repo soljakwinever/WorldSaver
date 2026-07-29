@@ -794,16 +794,32 @@ public class Chunk : MonoBehaviour, IChunk
     internal void AddRoomSegment(RoomChunkSegment segment)
     {
         if (segment != null && !_rooms.Contains(segment))
+        {
             _rooms.Add(segment);
+            _coverage?.SetRoomInteriorCells(
+                segment.InteriorIndices,
+                isInterior: true);
+        }
     }
 
     internal void RemoveRoomSegment(RoomChunkSegment segment)
     {
-        _rooms.Remove(segment);
+        if (segment != null && _rooms.Remove(segment))
+        {
+            _coverage?.SetRoomInteriorCells(
+                segment.InteriorIndices,
+                isInterior: false);
+        }
     }
 
     internal void ClearRoomSegments()
     {
+        for (int i = 0; i < _rooms.Count; i++)
+        {
+            _coverage?.SetRoomInteriorCells(
+                _rooms[i].InteriorIndices,
+                isInterior: false);
+        }
         _rooms.Clear();
         _roomTopologyReady = false;
     }
@@ -1023,6 +1039,20 @@ public class Chunk : MonoBehaviour, IChunk
     {
         return TryGetCoverageIndex(worldCell, out ushort index) &&
                _coverage.TrySetCoverage(index, coverage, amount);
+    }
+
+    public bool HasCoverage(Vector3Int worldCell)
+    {
+        return TryGetCoverageIndex(worldCell, out ushort index) &&
+               _coverage.HasCoverage(index);
+    }
+
+    public bool TryReduceCoverage(
+        Vector3Int worldCell,
+        float amount)
+    {
+        return TryGetCoverageIndex(worldCell, out ushort index) &&
+               _coverage.TryReduceCoverage(index, amount);
     }
 
     internal void ApplyCoverageVisual(

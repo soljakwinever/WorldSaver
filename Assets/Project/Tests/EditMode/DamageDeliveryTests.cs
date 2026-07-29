@@ -186,6 +186,87 @@ namespace Project.Tests.EditMode
             UnityEngine.Object.DestroyImmediate(pickupObject);
         }
 
+        [Test]
+        public void PlayerKillAwardsLevelAndFiveSpendableStatPoints()
+        {
+            GameObject playerObject = new("Player");
+            try
+            {
+                PlayerDataController player =
+                    playerObject.AddComponent<PlayerDataController>();
+                PlayerBus playerBus = new();
+                EntityBus entityBus = new();
+                player.Construct(playerBus, entityBus);
+
+                int raisedLevel = 0;
+                int awardedPoints = 0;
+                playerBus.OnLevelUp += (newLevel, points) =>
+                {
+                    raisedLevel = newLevel;
+                    awardedPoints = points;
+                };
+
+                entityBus.RaiseEnemyDefeated(
+                    null,
+                    Vector3.zero,
+                    PlayerDataController.GetExperienceRequired(1),
+                    playerObject);
+
+                Assert.That(player.Level, Is.EqualTo(2));
+                Assert.That(player.Experience, Is.Zero);
+                Assert.That(player.UnspentStatPoints, Is.EqualTo(5));
+                Assert.That(raisedLevel, Is.EqualTo(2));
+                Assert.That(awardedPoints, Is.EqualTo(5));
+
+                for (int i = 0; i < 5; i++)
+                    Assert.That(
+                        player.TrySpendStatPoint(PlayerStat.Strength),
+                        Is.True);
+
+                Assert.That(player.Strength, Is.EqualTo(10));
+                Assert.That(player.UnspentStatPoints, Is.Zero);
+                Assert.That(
+                    player.GetAttackDamageBonus(PlayerAttackType.Melee),
+                    Is.EqualTo(5));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerObject);
+            }
+        }
+
+        [Test]
+        public void ExperienceCurveGrowsAndCarriesExcessExperience()
+        {
+            Assert.That(
+                PlayerDataController.GetExperienceRequired(1),
+                Is.EqualTo(100));
+            Assert.That(
+                PlayerDataController.GetExperienceRequired(2),
+                Is.EqualTo(175));
+            Assert.That(
+                PlayerDataController.GetExperienceRequired(3),
+                Is.EqualTo(300));
+
+            GameObject playerObject = new("Player");
+            try
+            {
+                PlayerDataController player =
+                    playerObject.AddComponent<PlayerDataController>();
+                player.Construct(new PlayerBus(), new EntityBus());
+
+                player.AddExperience(300);
+
+                Assert.That(player.Level, Is.EqualTo(3));
+                Assert.That(player.Experience, Is.EqualTo(25));
+                Assert.That(player.UnspentStatPoints, Is.EqualTo(10));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(playerObject);
+            }
+        }
+
         private sealed class StunnableSpy : MonoBehaviour, IStunnable
         {
             public int StunCount { get; private set; }

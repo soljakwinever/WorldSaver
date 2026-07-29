@@ -38,6 +38,17 @@ namespace Project.Scripts.DataTypes
         public EntityTag[] mineableTags = Array.Empty<EntityTag>();
     }
 
+    /// <summary>
+    /// Per-item coverage removal used by <c>MineCoverageToolAction</c>.
+    /// </summary>
+    [Serializable]
+    public sealed class MineCoverageToolActionData : ItemActionData
+    {
+        [Min(0f)]
+        [Tooltip("Normalized coverage removed from the targeted tile per use.")]
+        public float amount = 0.25f;
+    }
+
     /// <summary>Node placed by <c>PlacePersistentNodeItemAction</c>.</summary>
     [Serializable]
     public sealed class PlacePersistentNodeItemActionData : ItemActionData

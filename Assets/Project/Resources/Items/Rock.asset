@@ -15,8 +15,8 @@ MonoBehaviour:
   persistentId: SmallRock
   description: A small gray rock
   maxStack: 32
-  sprite: {fileID: 2387489849992799125, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
-  action: {fileID: 11400000, guid: 0bc3db94bcaae05419fead9fa817326e, type: 2}
+  sprite: {fileID: -2261373905510526358, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  action: {fileID: 0}
   actionData: []
   goldValue: 1
   fuelValue: 1

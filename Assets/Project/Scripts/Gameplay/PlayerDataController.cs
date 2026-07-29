@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Project.Scripts.Bus;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
@@ -9,6 +10,16 @@ using Zenject;
 
 namespace Project.Scripts.Gameplay
 {
+    public enum PlayerStat
+    {
+        Strength,
+        Constitution,
+        Dexterity,
+        Wisdom,
+        Intelligence,
+        Luck
+    }
+
     [RequireComponent(typeof(PersistentInventory))]
     [RequireComponent(typeof(PersistentHealth))]
     [RequireComponent(typeof(PersistentTransform))]
@@ -17,9 +28,14 @@ namespace Project.Scripts.Gameplay
         IPersistentComponent
     {
         public const ushort TypeId = 10;
-        private const ushort CurrentComponentVersion = 1;
+        private const ushort CurrentComponentVersion = 2;
         private const ushort CurrentFileVersion = 1;
         private const uint FileMagic = 0x43535750; // PWSC
+        private const int BaseStat = 5;
+        private const int StatPointsPerLevel = 5;
+        private const int BaseHealth = 100;
+        private const int BaseEnergy = 100;
+        private const int BaseMana = 50;
 
         [Header("Character Save")]
         [SerializeField] private string worldId = "default";
@@ -33,17 +49,49 @@ namespace Project.Scripts.Gameplay
         [SerializeField, Min(0f)] private float hungerEnergyRegenerationRate = 0.0175f;
         [SerializeField, Min(0f)] private float hungerDrainRate = 0.0025f;
 
+        [Header("Progression")]
+        [SerializeField, Min(1)] private int level = 1;
+        [SerializeField, Min(0)] private int experience;
+        [SerializeField, Min(0)] private int unspentStatPoints;
+
+        [Header("Attributes")]
+        [SerializeField, Min(1)] private int strength = BaseStat;
+        [SerializeField, Min(1)] private int constitution = BaseStat;
+        [SerializeField, Min(1)] private int dexterity = BaseStat;
+        [SerializeField, Min(1)] private int wisdom = BaseStat;
+        [SerializeField, Min(1)] private int intelligence = BaseStat;
+        [SerializeField, Min(1)] private int luck = BaseStat;
+        [SerializeField, Range(0f, 1f)] private float mana = 1f;
+
         [Inject] private WorldData _worldData;
 
         private PersistentHealth _health;
+        private PlayerBus _playerBus;
+        private EntityBus _entityBus;
         private float _energyDrainMultiplier = 1f;
         private float _nextAutoSaveTime;
         private bool _loaded;
+        private bool _subscribedToEnemyDefeats;
 
         public int Health => _health.Health;
         public int MaxHealth => _health.MaxHealth;
         public float Hunger { get => hunger; set => hunger = Mathf.Clamp01(value); }
         public float Energy { get => energy; set => energy = Mathf.Clamp01(value); }
+        public float Mana { get => mana; set => mana = Mathf.Clamp01(value); }
+        public int Level => level;
+        public int Experience => experience;
+        public int ExperienceToNextLevel => GetExperienceRequired(level);
+        public int UnspentStatPoints => unspentStatPoints;
+        public int Strength => strength;
+        public int Constitution => constitution;
+        public int Dexterity => dexterity;
+        public int Wisdom => wisdom;
+        public int Intelligence => intelligence;
+        public int Luck => luck;
+        public int MaxEnergy => BaseEnergy + (constitution - BaseStat) * 10;
+        public int CurrentEnergy => Mathf.RoundToInt(energy * MaxEnergy);
+        public int MaxMana => BaseMana + (wisdom - BaseStat) * 10;
+        public int CurrentMana => Mathf.RoundToInt(mana * MaxMana);
         public float EnergyDrainRate { get => energyDrainRate; set => energyDrainRate = Mathf.Max(0f, value); }
         public float HungerEnergyRegenerationRate
         {
@@ -55,6 +103,16 @@ namespace Project.Scripts.Gameplay
         public ushort PersistentVersion => CurrentComponentVersion;
         public string CharacterFilePath => GetCharacterFilePath();
 
+        [Inject]
+        public void Construct(PlayerBus playerBus, EntityBus entityBus)
+        {
+            UnsubscribeFromEnemyDefeats();
+            _playerBus = playerBus;
+            _entityBus = entityBus;
+            if (isActiveAndEnabled)
+                SubscribeToEnemyDefeats();
+        }
+
         private void Awake()
         {
             _health = GetComponent<PersistentHealth>();
@@ -62,6 +120,7 @@ namespace Project.Scripts.Gameplay
                 _health = gameObject.AddComponent<PersistentHealth>();
             if (GetComponent<PersistentTransform>() == null)
                 gameObject.AddComponent<PersistentTransform>();
+            ApplyConstitutionToHealth(healIncrease: false);
         }
 
         private void Start()
@@ -72,6 +131,7 @@ namespace Project.Scripts.Gameplay
             TryLoad();
             _loaded = true;
             _nextAutoSaveTime = Time.unscaledTime + autoSaveInterval;
+            RaiseProgressionChanged();
         }
 
         private void Update()
@@ -82,11 +142,14 @@ namespace Project.Scripts.Gameplay
             {
                 hunger = Mathf.Clamp01(hunger -
                     hungerDrainRate * _worldData.playerSettings.hungerRate * deltaTime);
-                energy = Mathf.Clamp01(energy + hungerEnergyRegenerationRate * deltaTime);
+                energy = Mathf.Clamp01(energy +
+                    hungerEnergyRegenerationRate *
+                    BaseEnergy / (float)MaxEnergy * deltaTime);
             }
 
             energy = Mathf.Clamp01(energy -
                 energyDrainRate * _energyDrainMultiplier *
+                BaseEnergy / (float)MaxEnergy *
                 _worldData.playerSettings.energyRate * deltaTime);
 
             if (_loaded && Time.unscaledTime >= _nextAutoSaveTime)
@@ -110,12 +173,111 @@ namespace Project.Scripts.Gameplay
 
         private void OnDisable()
         {
+            UnsubscribeFromEnemyDefeats();
             if (_loaded)
                 TrySave();
         }
 
+        private void OnEnable()
+        {
+            SubscribeToEnemyDefeats();
+        }
+
         public void TakeDamage(int damage) => _health.TakeDamage(damage);
         public void Heal(int amount) => _health.Heal(amount);
+
+        public void AddExperience(int amount)
+        {
+            if (amount < 0)
+                throw new ArgumentOutOfRangeException(nameof(amount));
+            if (amount == 0)
+                return;
+
+            long newExperience = (long)experience + amount;
+            while (newExperience >= GetExperienceRequired(level))
+            {
+                newExperience -= GetExperienceRequired(level);
+                level++;
+                unspentStatPoints =
+                    checked(unspentStatPoints + StatPointsPerLevel);
+                _playerBus?.RaiseLevelUp(level, StatPointsPerLevel);
+            }
+
+            experience = (int)Math.Min(newExperience, int.MaxValue);
+            RaiseProgressionChanged();
+        }
+
+        public bool TrySpendStatPoint(PlayerStat stat)
+        {
+            if (unspentStatPoints <= 0)
+                return false;
+
+            switch (stat)
+            {
+                case PlayerStat.Strength:
+                    strength++;
+                    break;
+                case PlayerStat.Constitution:
+                    constitution++;
+                    ApplyConstitutionToHealth(healIncrease: true);
+                    break;
+                case PlayerStat.Dexterity:
+                    dexterity++;
+                    break;
+                case PlayerStat.Wisdom:
+                    wisdom++;
+                    break;
+                case PlayerStat.Intelligence:
+                    intelligence++;
+                    break;
+                case PlayerStat.Luck:
+                    luck++;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(stat), stat, null);
+            }
+
+            unspentStatPoints--;
+            _playerBus?.RaiseStatsChanged();
+            return true;
+        }
+
+        public int GetStat(PlayerStat stat)
+        {
+            return stat switch
+            {
+                PlayerStat.Strength => strength,
+                PlayerStat.Constitution => constitution,
+                PlayerStat.Dexterity => dexterity,
+                PlayerStat.Wisdom => wisdom,
+                PlayerStat.Intelligence => intelligence,
+                PlayerStat.Luck => luck,
+                _ => throw new ArgumentOutOfRangeException(nameof(stat), stat, null)
+            };
+        }
+
+        public int GetAttackDamageBonus(PlayerAttackType attackType)
+        {
+            int governingStat = attackType switch
+            {
+                PlayerAttackType.Melee => strength,
+                PlayerAttackType.Ranged => dexterity,
+                PlayerAttackType.Magic => intelligence,
+                _ => BaseStat
+            };
+            return Mathf.Max(0, governingStat - BaseStat);
+        }
+
+        public static int GetExperienceRequired(int currentLevel)
+        {
+            if (currentLevel < 1)
+                throw new ArgumentOutOfRangeException(nameof(currentLevel));
+
+            long levelOffset = currentLevel - 1L;
+            long required =
+                100L + 50L * levelOffset + 25L * levelOffset * levelOffset;
+            return (int)Math.Min(required, int.MaxValue);
+        }
 
         public void SetWalking(bool moving)
         {
@@ -236,13 +398,23 @@ namespace Project.Scripts.Gameplay
             writer.Write(energyDrainRate);
             writer.Write(hungerEnergyRegenerationRate);
             writer.Write(hungerDrainRate);
+            writer.Write(level);
+            writer.Write(experience);
+            writer.Write(unspentStatPoints);
+            writer.Write(strength);
+            writer.Write(constitution);
+            writer.Write(dexterity);
+            writer.Write(wisdom);
+            writer.Write(intelligence);
+            writer.Write(luck);
+            writer.Write(mana);
         }
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
         {
             if (reader == null)
                 throw new ArgumentNullException(nameof(reader));
-            if (savedVersion != CurrentComponentVersion)
+            if (savedVersion == 0 || savedVersion > CurrentComponentVersion)
                 throw new InvalidDataException($"Unsupported player state version {savedVersion}.");
 
             float restoredHunger = reader.ReadSingle();
@@ -262,12 +434,108 @@ namespace Project.Scripts.Gameplay
             energyDrainRate = restoredEnergyDrain;
             hungerEnergyRegenerationRate = restoredRegeneration;
             hungerDrainRate = restoredHungerDrain;
+
+            if (savedVersion >= 2)
+            {
+                int restoredLevel = reader.ReadInt32();
+                int restoredExperience = reader.ReadInt32();
+                int restoredPoints = reader.ReadInt32();
+                int restoredStrength = reader.ReadInt32();
+                int restoredConstitution = reader.ReadInt32();
+                int restoredDexterity = reader.ReadInt32();
+                int restoredWisdom = reader.ReadInt32();
+                int restoredIntelligence = reader.ReadInt32();
+                int restoredLuck = reader.ReadInt32();
+                float restoredMana = reader.ReadSingle();
+
+                if (restoredLevel < 1 || restoredExperience < 0 ||
+                    restoredExperience >= GetExperienceRequired(restoredLevel) ||
+                    restoredPoints < 0 || restoredStrength < 1 ||
+                    restoredConstitution < 1 || restoredDexterity < 1 ||
+                    restoredWisdom < 1 || restoredIntelligence < 1 ||
+                    restoredLuck < 1 || !IsUnitValue(restoredMana))
+                {
+                    throw new InvalidDataException(
+                        "Saved player progression contains invalid values.");
+                }
+
+                level = restoredLevel;
+                experience = restoredExperience;
+                unspentStatPoints = restoredPoints;
+                strength = restoredStrength;
+                constitution = restoredConstitution;
+                dexterity = restoredDexterity;
+                wisdom = restoredWisdom;
+                intelligence = restoredIntelligence;
+                luck = restoredLuck;
+                mana = restoredMana;
+            }
+
+            ApplyConstitutionToHealth(healIncrease: false);
         }
 
         public bool IsAtBaseline()
         {
             return Mathf.Approximately(hunger, 1f) &&
-                   Mathf.Approximately(energy, 1f);
+                   Mathf.Approximately(energy, 1f) &&
+                   Mathf.Approximately(mana, 1f) &&
+                   level == 1 &&
+                   experience == 0 &&
+                   unspentStatPoints == 0 &&
+                   strength == BaseStat &&
+                   constitution == BaseStat &&
+                   dexterity == BaseStat &&
+                   wisdom == BaseStat &&
+                   intelligence == BaseStat &&
+                   luck == BaseStat;
+        }
+
+        private void OnEnemyDefeated(
+            EnemyData enemy,
+            Vector3 position,
+            int experienceValue,
+            GameObject defeatedBy)
+        {
+            if (defeatedBy == null ||
+                defeatedBy.GetComponentInParent<PlayerDataController>() != this)
+                return;
+            AddExperience(experienceValue);
+        }
+
+        private void SubscribeToEnemyDefeats()
+        {
+            if (_subscribedToEnemyDefeats || _entityBus == null)
+                return;
+            _entityBus.EnemyDefeated += OnEnemyDefeated;
+            _subscribedToEnemyDefeats = true;
+        }
+
+        private void UnsubscribeFromEnemyDefeats()
+        {
+            if (!_subscribedToEnemyDefeats || _entityBus == null)
+                return;
+            _entityBus.EnemyDefeated -= OnEnemyDefeated;
+            _subscribedToEnemyDefeats = false;
+        }
+
+        private void ApplyConstitutionToHealth(bool healIncrease)
+        {
+            if (_health == null)
+                return;
+            int maximumHealth =
+                BaseHealth + (constitution - BaseStat) * 10;
+            _health.SetMaxHealth(
+                Mathf.Max(1, maximumHealth),
+                healIncrease);
+        }
+
+        private void RaiseProgressionChanged()
+        {
+            _playerBus?.RaiseExperienceChanged(
+                level,
+                experience,
+                ExperienceToNextLevel);
+            _playerBus?.RaiseStatsChanged();
         }
 
         private Dictionary<ushort, IPersistentComponent> GetPersistentComponents()
@@ -356,6 +624,19 @@ namespace Project.Scripts.Gameplay
             energyDrainRate = Mathf.Max(0f, energyDrainRate);
             hungerEnergyRegenerationRate = Mathf.Max(0f, hungerEnergyRegenerationRate);
             hungerDrainRate = Mathf.Max(0f, hungerDrainRate);
+            level = Mathf.Max(1, level);
+            experience = Mathf.Clamp(
+                experience,
+                0,
+                GetExperienceRequired(level) - 1);
+            unspentStatPoints = Mathf.Max(0, unspentStatPoints);
+            strength = Mathf.Max(1, strength);
+            constitution = Mathf.Max(1, constitution);
+            dexterity = Mathf.Max(1, dexterity);
+            wisdom = Mathf.Max(1, wisdom);
+            intelligence = Mathf.Max(1, intelligence);
+            luck = Mathf.Max(1, luck);
+            mana = Mathf.Clamp01(mana);
             autoSaveInterval = Mathf.Max(1f, autoSaveInterval);
         }
     }

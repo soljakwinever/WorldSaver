@@ -28,6 +28,22 @@ namespace Project.Tests.EditMode
             Object.DestroyImmediate(_settings);
         }
 
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        public void FullScreenWeatherIsMaskedWhileViewerIsIndoors(
+            bool isCameraRegion,
+            bool isViewerIndoors,
+            bool expected)
+        {
+            Assert.That(
+                WeatherEffectPresenter.ShouldPresentFullScreenEffect(
+                    isCameraRegion,
+                    isViewerIndoors),
+                Is.EqualTo(expected));
+        }
+
         [Test]
         public void DefaultSamplingUsesFourQuarterCentersPerChunk()
         {

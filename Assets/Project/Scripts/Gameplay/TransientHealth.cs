@@ -18,6 +18,7 @@ namespace Project.Scripts.Gameplay
 
         public int Health => health;
         public int MaxHealth => maxHealth;
+        public AttackContext? LastDamageContext { get; private set; }
 
         private void Awake()
         {
@@ -56,6 +57,7 @@ namespace Project.Scripts.Gameplay
             if (damageDelivered == 0)
                 return 0;
 
+            LastDamageContext = context;
             ApplyKnockback(context.Attacker.transform.position);
 
             if (health == 0)

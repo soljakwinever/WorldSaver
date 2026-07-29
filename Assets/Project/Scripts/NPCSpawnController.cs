@@ -297,7 +297,16 @@ namespace Project.Scripts
                 return null;
             }
 
-            return _pool.Spawn(prefab, position, selectedEnemy);
+            NPCSpawnInstance instance =
+                _pool.Spawn(prefab, position, selectedEnemy);
+            AiNodeRunner runner =
+                instance.Visual.GetComponent<AiNodeRunner>();
+            if (runner != null)
+            {
+                runner.Blackboard.Set(AiKeys.SpawnRule, rule);
+                runner.Blackboard.Set(AiKeys.TimeController, _time);
+            }
+            return instance;
         }
 
         private static bool HasTransientSpawnDefinition(
@@ -375,6 +384,28 @@ namespace Project.Scripts
                         continue;
                     }
 
+                    EnemySpawnRule rule = entry.Rule;
+                    bool isOffscreen =
+                        camera != null &&
+                        IsOffscreen(
+                            camera,
+                            instance.Visual.transform.position,
+                            viewportMargin);
+
+                    // Invalid-hour enemies are population cleanup, not normal
+                    // recycling. Remove them as soon as they are safely out of
+                    // view, without waiting for age/idle thresholds and without
+                    // creating a replacement while the rule is inactive.
+                    if (ShouldPrioritizeTimeDespawn(
+                            rule,
+                            _time.Hour,
+                            isOffscreen))
+                    {
+                        _pool.Despawn(instance);
+                        entries.RemoveAt(i);
+                        continue;
+                    }
+
                     if (!IsMarkedIdle(instance))
                     {
                         entry.IdleSinceTick = null;
@@ -382,14 +413,10 @@ namespace Project.Scripts
                     }
 
                     entry.IdleSinceTick ??= currentTick;
-                    EnemySpawnRule rule = entry.Rule;
                     if (camera == null ||
                         rule == null ||
                         !rule.recycleOffscreenIdle ||
-                        !IsOffscreen(
-                            camera,
-                            instance.Visual.transform.position,
-                            viewportMargin) ||
+                        !isOffscreen ||
                         !ShouldRecycleTransient(
                             currentTick,
                             entry.SpawnTick,
@@ -423,6 +450,16 @@ namespace Project.Scripts
                     entry.Generation++;
                 }
             }
+        }
+
+        internal static bool ShouldPrioritizeTimeDespawn(
+            EnemySpawnRule rule,
+            int currentHour,
+            bool isOffscreen)
+        {
+            return rule != null &&
+                   isOffscreen &&
+                   !rule.AllowsHour(currentHour);
         }
 
         private bool TryGetOffscreenSpawnPosition(

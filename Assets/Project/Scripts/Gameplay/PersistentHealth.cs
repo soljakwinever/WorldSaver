@@ -87,5 +87,17 @@ namespace Project.Scripts.Gameplay
         {
             this.maxHealth = health = maximumHealth;
         }
+
+        public void SetMaxHealth(int maximumHealth, bool healIncrease = true)
+        {
+            if (maximumHealth < 1)
+                throw new ArgumentOutOfRangeException(nameof(maximumHealth));
+
+            int increase = maximumHealth - maxHealth;
+            maxHealth = maximumHealth;
+            health = healIncrease && increase > 0
+                ? Mathf.Min(maxHealth, health + increase)
+                : Mathf.Clamp(health, 0, maxHealth);
+        }
     }
 }

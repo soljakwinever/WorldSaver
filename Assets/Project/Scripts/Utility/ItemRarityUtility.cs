@@ -35,6 +35,18 @@ namespace Project.Scripts.Utility
                 ? ItemData.Rarity.Uncommon
                 : ItemData.Rarity.Common;
         }
+
+        public static ItemData.Rarity Generate(float roll, int luck)
+        {
+            float qualityMultiplier =
+                1f + Mathf.Max(0, luck - 5) * 0.05f;
+            return Generate(Mathf.Clamp01(roll / qualityMultiplier));
+        }
+
+        public static ItemData.Rarity Generate(int luck)
+        {
+            return Generate(Random.value, luck);
+        }
         
         public static Color GetRarityColor(Project.Scripts.DataTypes.ItemData.Rarity rarity)
         {

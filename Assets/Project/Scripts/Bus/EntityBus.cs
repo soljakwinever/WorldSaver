@@ -6,7 +6,8 @@ namespace Project.Scripts.Bus
     public delegate void EnemyDefeatedHandler(
         EnemyData enemy,
         UnityEngine.Vector3 position,
-        int experienceValue);
+        int experienceValue,
+        UnityEngine.GameObject defeatedBy);
 
     public delegate void DamageDeliveredHandler(
         IDamageable target,
@@ -29,9 +30,14 @@ namespace Project.Scripts.Bus
         public void RaiseEnemyDefeated(
             EnemyData enemy,
             UnityEngine.Vector3 position,
-            int experienceValue)
+            int experienceValue,
+            UnityEngine.GameObject defeatedBy)
         {
-            EnemyDefeated?.Invoke(enemy, position, experienceValue);
+            EnemyDefeated?.Invoke(
+                enemy,
+                position,
+                experienceValue,
+                defeatedBy);
         }
     }
 }
