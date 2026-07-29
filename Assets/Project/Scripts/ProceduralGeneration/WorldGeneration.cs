@@ -1,4 +1,5 @@
-using System.Linq;
+using System;
+using System.Collections.Generic;
 using Project.Scripts;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Enums;
@@ -32,51 +33,102 @@ public class WorldGeneration : IWorldGenerator
     FastNoiseLite volcanoNoise;
     FastNoiseLite volcanoRidgeNoise;
     
-    private WorldData worldData;
+    private readonly WorldData worldData;
+    private readonly WorldGenerationSelection selection;
+    private readonly WorldGenerationPresetData preset;
+    private readonly ClimateLayerData climateLayer;
+    private readonly ElevationLayerData elevationLayer;
+    private readonly LakeLayerData lakeLayer;
+    private readonly SmallPoolLayerData smallPoolLayer;
+    private readonly ValleyLayerData valleyLayer;
+    private readonly BiomeMicroTerrainLayerData microTerrainLayer;
+    private readonly OutcropLayerData outcropLayer;
+    private readonly FeatureCellLayerData featureLayer;
+    private readonly SurfaceDetailLayerData surfaceLayer;
     private readonly ITimeController timeController;
-    [Inject] private BiomeData[] biomeLibrary;
+    private readonly BiomeData[] biomeLibrary;
+    private readonly Dictionary<long, FeatureInstance> featureInstances = new();
+    private readonly object featureInstanceLock = new();
+    private readonly int featureNeighborRange;
 
     private uint seed;
 
     public uint Seed => seed;
-    
-    public float continentalNoiseScale = 46.5f;
-    public float moistureNoiseScale = 32f;
-    public float temperatureNoiseScale = 48.2f;
-    public float erosionNoiseScale = 0.5f;
-    public float valleyNoiseScale = 32;
-    public float peakValleyNoiseScale = 8.5f;
-
-    public float valleyDepth = 0.22f;
-    public float valleyWidth = 0.12f;
-    
-    public int featureCellSize = 256;
-    public float featureChancePerCell = 0.85f;
-
-    public float minFeatureRadius = 64f;
-    public float maxFeatureRadius = 256f;
+    public WorldGenerationPresetData Preset => preset;
+    public ElevationLayerData Elevation => elevationLayer;
+    public IReadOnlyList<PropSpawnRule> PropSpawnRules =>
+        surfaceLayer.propSpawnRules != null &&
+        surfaceLayer.propSpawnRules.Length > 0
+            ? surfaceLayer.propSpawnRules
+            : worldData.propSpawnRules ?? Array.Empty<PropSpawnRule>();
     
     public WorldGeneration(WorldData worldData)
-        : this(worldData, null)
+        : this(
+            worldData,
+            new WorldGenerationSelection(
+                worldData.seed,
+                WorldGenerationPresetDefaults.CreateFromLegacy(worldData)),
+            null)
     {
     }
 
     [Inject]
-    public WorldGeneration(WorldData worldData, ITimeController timeController)
+    public WorldGeneration(
+        WorldData worldData,
+        WorldGenerationSelection selection,
+        ITimeController timeController)
     {
         this.worldData = worldData;
+        this.selection = selection ??
+            throw new ArgumentNullException(nameof(selection));
+        preset = selection.Preset;
+        if (!preset.IsComplete)
+        {
+            throw new InvalidOperationException(
+                $"World generation preset '{preset.name}' is missing one or more required layers.");
+        }
+
+        climateLayer = preset.climate;
+        elevationLayer = preset.elevation;
+        lakeLayer = preset.lakes;
+        smallPoolLayer = preset.smallPools;
+        valleyLayer = preset.valleys;
+        microTerrainLayer = preset.microTerrain;
+        outcropLayer = preset.outcrops;
+        featureLayer = preset.features;
+        surfaceLayer = preset.surfaceDetails;
         this.timeController = timeController;
-        this.seed = (uint)worldData.seed;
+        seed = unchecked((uint)selection.Seed);
+        biomeLibrary =
+            climateLayer.biomes != null && climateLayer.biomes.Length > 0
+                ? climateLayer.biomes
+                : Resources.LoadAll<BiomeData>("Biomes");
+        if (biomeLibrary.Length == 0)
+            throw new InvalidOperationException($"Preset '{preset.name}' has no biomes.");
+        float largestFeatureRadius = 0f;
+        foreach (FeatureData feature in featureLayer.features ?? Array.Empty<FeatureData>())
+        {
+            if (feature != null)
+            {
+                largestFeatureRadius = Mathf.Max(
+                    largestFeatureRadius,
+                    feature.maximumRadius);
+            }
+        }
+        featureNeighborRange = Mathf.Max(
+            1,
+            Mathf.CeilToInt(
+                largestFeatureRadius / Mathf.Max(1, featureLayer.cellSize)) + 1);
         
         continentalNoise = new FastNoiseLite();
         continentalNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        continentalNoise.SetSeed(145679 + worldData.seed);
+        continentalNoise.SetSeed(145679 + selection.Seed);
         continentalNoise.SetFractalType(FastNoiseLite.FractalType.None);
         
         
         moistureNoise = new FastNoiseLite();
         moistureNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-        moistureNoise.SetSeed(645745 + worldData.seed);
+        moistureNoise.SetSeed(645745 + selection.Seed);
         moistureNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         moistureNoise.SetFractalOctaves(3);
         moistureNoise.SetFractalLacunarity(2.720f);
@@ -84,7 +136,7 @@ public class WorldGeneration : IWorldGenerator
         
         temperatureNoise = new FastNoiseLite();
         temperatureNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-        temperatureNoise.SetSeed(324234 + worldData.seed);
+        temperatureNoise.SetSeed(324234 + selection.Seed);
         temperatureNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         temperatureNoise.SetFractalOctaves(3);
         temperatureNoise.SetFractalLacunarity(2.720f);
@@ -92,7 +144,7 @@ public class WorldGeneration : IWorldGenerator
         
         erosionNoise = new FastNoiseLite();
         erosionNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-        erosionNoise.SetSeed(877555 + worldData.seed);
+        erosionNoise.SetSeed(877555 + selection.Seed);
         erosionNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         erosionNoise.SetFractalOctaves(3);
         erosionNoise.SetFractalLacunarity(2.720f);
@@ -100,7 +152,7 @@ public class WorldGeneration : IWorldGenerator
         
         roughnessNoise = new FastNoiseLite();
         roughnessNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        roughnessNoise.SetSeed(843221 + worldData.seed);
+        roughnessNoise.SetSeed(843221 + selection.Seed);
         roughnessNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         roughnessNoise.SetFractalOctaves(2);
         roughnessNoise.SetFractalGain(0.45f);
@@ -108,7 +160,7 @@ public class WorldGeneration : IWorldGenerator
         // High-frequency FBm produces irregular, rough-edged patches.
         grassHeightNoise = new FastNoiseLite();
         grassHeightNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-        grassHeightNoise.SetSeed(314159 + worldData.seed);
+        grassHeightNoise.SetSeed(314159 + selection.Seed);
         grassHeightNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         grassHeightNoise.SetFractalOctaves(5);
         grassHeightNoise.SetFractalLacunarity(2.65f);
@@ -116,7 +168,7 @@ public class WorldGeneration : IWorldGenerator
 
         smallPoolsNoise = new FastNoiseLite();
         smallPoolsNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        smallPoolsNoise.SetSeed(271828 + worldData.seed);
+        smallPoolsNoise.SetSeed(271828 + selection.Seed);
         smallPoolsNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         smallPoolsNoise.SetFractalOctaves(3);
         smallPoolsNoise.SetFractalLacunarity(2.2f);
@@ -124,7 +176,7 @@ public class WorldGeneration : IWorldGenerator
         
         peakValleyNoise = new FastNoiseLite();
         peakValleyNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-        peakValleyNoise.SetSeed(455534 + worldData.seed);
+        peakValleyNoise.SetSeed(455534 + selection.Seed);
         
         volcanoNoise = new FastNoiseLite();
         volcanoNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
@@ -132,11 +184,11 @@ public class WorldGeneration : IWorldGenerator
         volcanoNoise.SetFractalOctaves(3);
         volcanoNoise.SetFractalLacunarity(2.1f);
         volcanoNoise.SetFractalGain(0.45f);
-        volcanoNoise.SetSeed(676767 + worldData.seed);
+        volcanoNoise.SetSeed(676767 + selection.Seed);
         
         volcanoRidgeNoise = new FastNoiseLite();
         volcanoRidgeNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-        volcanoRidgeNoise.SetSeed(696969 + worldData.seed);
+        volcanoRidgeNoise.SetSeed(696969 + selection.Seed);
         volcanoRidgeNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         volcanoRidgeNoise.SetFractalOctaves(2);
         
@@ -144,11 +196,11 @@ public class WorldGeneration : IWorldGenerator
         valleyNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
         valleyNoise.SetFractalType(FastNoiseLite.FractalType.PingPong);
         valleyNoise.SetFractalOctaves(2);
-        valleyNoise.SetSeed(969696 + worldData.seed);
+        valleyNoise.SetSeed(969696 + selection.Seed);
         
         hillNoise = new FastNoiseLite();
         hillNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        hillNoise.SetSeed(81231 + worldData.seed);
+        hillNoise.SetSeed(81231 + selection.Seed);
         hillNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         hillNoise.SetFractalOctaves(3);
         hillNoise.SetFractalLacunarity(2.0f);
@@ -156,24 +208,24 @@ public class WorldGeneration : IWorldGenerator
 
         bumpNoise = new FastNoiseLite();
         bumpNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-        bumpNoise.SetSeed(55991 + worldData.seed);
+        bumpNoise.SetSeed(55991 + selection.Seed);
         bumpNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         bumpNoise.SetFractalOctaves(2);
 
         cliffNoise = new FastNoiseLite();
         cliffNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        cliffNoise.SetSeed(77128 + worldData.seed);
+        cliffNoise.SetSeed(77128 + selection.Seed);
         cliffNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         cliffNoise.SetFractalOctaves(2);
 
         cliffMaskNoise = new FastNoiseLite();
         cliffMaskNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        cliffMaskNoise.SetSeed(91277 + worldData.seed);
+        cliffMaskNoise.SetSeed(91277 + selection.Seed);
         cliffMaskNoise.SetFractalType(FastNoiseLite.FractalType.None);
         
         outcropNoise = new FastNoiseLite();
         outcropNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        outcropNoise.SetSeed(882311 + worldData.seed);
+        outcropNoise.SetSeed(882311 + selection.Seed);
         outcropNoise.SetFractalType(FastNoiseLite.FractalType.PingPong);
         outcropNoise.SetFractalOctaves(3);
         outcropNoise.SetFractalLacunarity(2.0f);
@@ -181,28 +233,28 @@ public class WorldGeneration : IWorldGenerator
 
         outcropEdgeNoise = new FastNoiseLite();
         outcropEdgeNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        outcropEdgeNoise.SetSeed(449812 + worldData.seed);
+        outcropEdgeNoise.SetSeed(449812 + selection.Seed);
         outcropEdgeNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         outcropEdgeNoise.SetFractalOctaves(2);
         outcropEdgeNoise.SetFractalLacunarity(2.0f);
         outcropEdgeNoise.SetFractalGain(0.45f);
 
-        propNoise = new FastNoiseLite(667766 + worldData.seed);
+        propNoise = new FastNoiseLite(667766 + selection.Seed);
     }
 
-    private float ContinentalNoise(float x, float y) => Mathf.InverseLerp(-0.5f, 0.5f,continentalNoise.GetNoise(x / worldData.continentalNoiseScale, y / worldData.continentalNoiseScale));
-    private float MoistureNoise(float x, float y) => Mathf.InverseLerp(-.5f,.5f,moistureNoise.GetNoise(x / worldData.moistureNoiseScale, y / worldData.moistureNoiseScale));
-    private float TemperatureNoise(float x, float y) => Mathf.InverseLerp(-.5f, .5f,temperatureNoise.GetNoise(x / worldData.temperatureNoiseScale, y / worldData.temperatureNoiseScale));
+    private float ContinentalNoise(float x, float y) => Mathf.InverseLerp(-0.5f, 0.5f,continentalNoise.GetNoise(x / climateLayer.continentalNoiseScale, y / climateLayer.continentalNoiseScale));
+    private float MoistureNoise(float x, float y) => Mathf.InverseLerp(-.5f,.5f,moistureNoise.GetNoise(x / climateLayer.moistureNoiseScale, y / climateLayer.moistureNoiseScale));
+    private float TemperatureNoise(float x, float y) => Mathf.InverseLerp(-.5f, .5f,temperatureNoise.GetNoise(x / climateLayer.temperatureNoiseScale, y / climateLayer.temperatureNoiseScale));
     
-    private float ErosionNoise(float x, float y) => Mathf.InverseLerp(-1f,1f,erosionNoise.GetNoise(x / worldData.erosionNoiseScale, y / worldData.erosionNoiseScale));
+    private float ErosionNoise(float x, float y) => Mathf.InverseLerp(-1f,1f,erosionNoise.GetNoise(x / elevationLayer.erosionNoiseScale, y / elevationLayer.erosionNoiseScale));
 
-    private float PeakValleyNoise(float x, float y) => Mathf.InverseLerp(-0.5f, .5f,peakValleyNoise.GetNoise(x / worldData.peakValleyNoiseScale, y / worldData.peakValleyNoiseScale));
-    private float LakeNoise(float x, float y) => Mathf.InverseLerp(-0.5f, .5f,peakValleyNoise.GetNoise(x / worldData.peakValleyNoiseScale*2, y / worldData.peakValleyNoiseScale*2));
+    private float PeakValleyNoise(float x, float y) => Mathf.InverseLerp(-0.5f, .5f,peakValleyNoise.GetNoise(x / elevationLayer.peakValleyNoiseScale, y / elevationLayer.peakValleyNoiseScale));
+    private float LakeNoise(float x, float y) => Mathf.InverseLerp(-0.5f, .5f,peakValleyNoise.GetNoise(x / elevationLayer.peakValleyNoiseScale*2, y / elevationLayer.peakValleyNoiseScale*2));
     
         
     private float ValleyRaw(float x, float y)
     {
-        return valleyNoise.GetNoise(x / valleyNoiseScale, y / valleyNoiseScale);
+        return valleyNoise.GetNoise(x / valleyLayer.noiseScale, y / valleyLayer.noiseScale);
     }
     
     private float GetRoughness(float x, float y)
@@ -217,7 +269,7 @@ public class WorldGeneration : IWorldGenerator
 
     public float GrassHeightNoise(int worldX, int worldY)
     {
-        float scale = Mathf.Max(0.01f, worldData.grassHeightNoiseScale);
+        float scale = Mathf.Max(0.01f, surfaceLayer.grassHeightNoiseScale);
         return Mathf.InverseLerp(
             -0.25f,
             0.5f,
@@ -234,7 +286,7 @@ public class WorldGeneration : IWorldGenerator
         
         height = GetHeight(x, y, out biomeData, out float baseHeight, out moisture, out temperature);
 
-        if (worldData.heightMapDebug)
+        if (preset.heightMapDebug)
         {
             height = SelectNoiseLayer(x,y,moisture,temperature, biomeData);
             return 0;
@@ -255,7 +307,7 @@ public class WorldGeneration : IWorldGenerator
             temperature = temperature,
                     
             isCliff = IsSmallCliff(x,y),
-            isWater = height <= worldData.waterHeight,
+            isWater = height <= elevationLayer.waterHeight,
             isRoad = false,
             isTrail = false
         };
@@ -263,30 +315,28 @@ public class WorldGeneration : IWorldGenerator
 
     private float SelectNoiseLayer(int x, int y, float moisture, float temperature, BiomeBlend biomeData = default)
     {
-        float height = Mathf.Lerp(worldData.waterHeight, worldData.mountainHeight, 0.5f);
-        switch (worldData.previewNoiseLayer)
+        float height = Mathf.Lerp(
+            elevationLayer.waterHeight,
+            elevationLayer.mountainHeight,
+            0.5f);
+        switch (preset.previewLayer)
         {
-            case WorldData.NoiseLayer.Hill:
-                height = ApplyBiomeMicroTerrain(x, y, height, biomeData);
-                break;
-            case WorldData.NoiseLayer.PeakValley:
+            case WorldGenerationPreviewLayer.PeakValley:
                 height = PeakValleyNoise(x, y);
                 break;
-            case WorldData.NoiseLayer.Height:
+            case WorldGenerationPreviewLayer.Height:
                 return GetHeight(x, y, out BiomeBlend _, out float _, out float _, out float _);
-            case WorldData.NoiseLayer.MountainIsland:
-                height = ApplyMountainIslands(x, y, height, biomeData.dominantBiome);
-                break;
-            case WorldData.NoiseLayer.LocalLandforms:
-                ApplyLocalLandforms(x,y, ref height, moisture, temperature, ref biomeData);
-                break;
-            case WorldData.NoiseLayer.Lakes:
+            case WorldGenerationPreviewLayer.Lakes:
                 height=ApplyLakes(x, y, height, biomeData.lakeStrength);
                 break;
-            case WorldData.NoiseLayer.GrassHeight:
+            case WorldGenerationPreviewLayer.GrassHeight:
                 return GrassHeightNoise(x, y);
-            case WorldData.NoiseLayer.SmallPools:
+            case WorldGenerationPreviewLayer.SmallPools:
                 return SmallPoolsNoise(x, y);
+            case WorldGenerationPreviewLayer.Moisture:
+                return moisture;
+            case WorldGenerationPreviewLayer.Temperature:
+                return temperature;
         }
         return height;
     }
@@ -303,15 +353,14 @@ public class WorldGeneration : IWorldGenerator
     /// <param name="temperature">Outputs the normalized temperature value at the specified position.</param>
     /// <param name="sampleRadius">The radius used for terrain sampling when blending biome data. Defaults to 2.</param>
     /// <returns>Returns the final computed height of the terrain, normalized between 0 and 1.</returns>
-    private float GetHeight(int x, int y, out BiomeBlend biomeData, out float baseHeight, out float moisture, out float temperature, int sampleRadius = 2)
+    private float GetHeight(int x, int y, out BiomeBlend biomeData, out float baseHeight, out float moisture, out float temperature, int sampleRadius = -1)
     {
-        float continentalNoise = ContinentalNoise(x, y);
+        if (sampleRadius < 0)
+            sampleRadius = climateLayer.blendSampleRadius;
+
         float peakValleyNoise = PeakValleyNoise(x, y);
         float erosionNoise = ErosionNoise(x, y);
-        float lakeNoise = Mathf.Lerp(worldData.lakeDepth, 0,LakeNoise(x, y));
-        
-        //float height = baseHeight = continentalNoise;
-        
+
         var blendedValues = SampleBlendedTerrainValues(x, y, sampleRadius);
 
         float height = baseHeight = blendedValues.x;
@@ -319,13 +368,6 @@ public class WorldGeneration : IWorldGenerator
         temperature = blendedValues.z;
         
         biomeData = BiomeSelector.GetBiomeBlend(biomeLibrary, blendedValues.x, blendedValues.y, blendedValues.z);
-        SeasonalBiomeTint.Apply(
-            ref biomeData,
-            worldData,
-            timeController,
-            x,
-            y);
-        
         //Local Height Adjustment
         //Less Eroded = More Height
         float mountainStrength = (1f - erosionNoise) * biomeData.mountainStrength;
@@ -356,13 +398,30 @@ public class WorldGeneration : IWorldGenerator
         
         height = ApplyBiomeMicroTerrain(x, y, height, biomeData);
         height = ApplyMountainIslands(x, y, height, biomeData.dominantBiome);
-        
-        //ApplyLocalLandforms(x,y, ref height, moisture, temperature, ref biomeData);
-        
-        height = Mathf.InverseLerp(-.1f,1.25f,height);
 
-        //height = PeakValleyNoise(x, y);
-        
+        TerrainGenerationState terrain = new()
+        {
+            height = height,
+            baseHeight = baseHeight,
+            moisture = moisture,
+            temperature = temperature,
+            biomeData = biomeData
+        };
+        ApplyFeatures(x, y, ref terrain);
+        height = Mathf.InverseLerp(
+            elevationLayer.normalizationMinimum,
+            elevationLayer.normalizationMaximum,
+            terrain.height);
+        moisture = Mathf.Clamp01(terrain.moisture);
+        temperature = Mathf.Clamp01(terrain.temperature);
+        biomeData = terrain.biomeData;
+        SeasonalBiomeTint.Apply(
+            ref biomeData,
+            worldData,
+            timeController,
+            x,
+            y);
+
         return height;
     }
     
@@ -382,8 +441,11 @@ public class WorldGeneration : IWorldGenerator
         // Draw the cliff on the lower tile next to a higher tile.
         float upwardJump = highestNeighbor - h;
 
-        return new ChunkBuildResult.IsCliff(upwardJump > worldData.cliffHeight &&
-                                            h > worldData.waterHeight + 0.04f, Mathf.Approximately(highestNeighbor, hD) || Mathf.Approximately(highestNeighbor, hU));
+        return new ChunkBuildResult.IsCliff(
+            upwardJump > elevationLayer.cliffHeight &&
+            h > elevationLayer.waterHeight + 0.04f,
+            Mathf.Approximately(highestNeighbor, hD) ||
+            Mathf.Approximately(highestNeighbor, hU));
     }
 
     public Vector2Int FindSafeSpawnPosition(
@@ -399,8 +461,8 @@ public class WorldGeneration : IWorldGenerator
         
         for (int i = 0; i < maxAttempts; i++)
         {
-            int x = Random.Range(-searchRadius, searchRadius);
-            int y = Random.Range(-searchRadius, searchRadius);
+            int x = UnityEngine.Random.Range(-searchRadius, searchRadius);
+            int y = UnityEngine.Random.Range(-searchRadius, searchRadius);
             
             if(!IsSpawnSafe(x, y, safetyRadius, minHeight, maxHeight))
                 continue;
@@ -568,11 +630,22 @@ public class WorldGeneration : IWorldGenerator
     
     private float ApplyLakes(int x, int y, float height, float lakeStrength)
     {
-        float landMask = SmoothStep(worldData.beachHeight+0.1f, worldData.mountainHeight-0.1f, height);
+        float landMask = SmoothStep(
+            elevationLayer.beachHeight + 0.1f,
+            elevationLayer.mountainHeight - 0.1f,
+            height);
 
-        var lakeNoise = Mathf.InverseLerp(-1f,1f,peakValleyNoise.GetNoise(x / worldData.lakeNoiseScale, y / worldData.lakeNoiseScale));
+        var lakeNoise = Mathf.InverseLerp(
+            -1f,
+            1f,
+            peakValleyNoise.GetNoise(
+                x / lakeLayer.noiseScale,
+                y / lakeLayer.noiseScale));
         
-        float lake = Mathf.Lerp(-(worldData.lakeDepth * lakeStrength), 0, lakeNoise);
+        float lake = Mathf.Lerp(
+            -(lakeLayer.depth * lakeStrength),
+            0,
+            lakeNoise);
         
         height += lake * landMask;
         
@@ -581,7 +654,7 @@ public class WorldGeneration : IWorldGenerator
 
     private float SmallPoolsNoise(int x, int y)
     {
-        float scale = Mathf.Max(0.01f, worldData.SmallPoolsScale);
+        float scale = Mathf.Max(0.01f, smallPoolLayer.noiseScale);
         float normalized = Mathf.InverseLerp(
             -1f,
             1f,
@@ -598,7 +671,7 @@ public class WorldGeneration : IWorldGenerator
         float biomeStrength)
     {
         float depth = SmallPoolsNoise(x, y) *
-                      Mathf.Max(0f, worldData.SmallPoolsStrength) *
+                      Mathf.Max(0f, smallPoolLayer.strength) *
                       Mathf.Max(0f, biomeStrength);
 
         // This layer is deliberately subtractive and can never raise terrain.
@@ -612,14 +685,19 @@ public class WorldGeneration : IWorldGenerator
         BiomeData biome)
     {
         // Only allow these on land, not water.
-        float landMask = SmoothStep(worldData.waterHeight, worldData.mountainHeight-0.1f, height);
+        float landMask = SmoothStep(
+            elevationLayer.waterHeight,
+            elevationLayer.mountainHeight - 0.1f,
+            height);
         
-        var noise = outcropNoise.GetNoise(x/ worldData.outCropNoiseScale, y/ worldData.outCropNoiseScale);
+        var noise = outcropNoise.GetNoise(
+            x / outcropLayer.noiseScale,
+            y / outcropLayer.noiseScale);
         var inter = Mathf.InverseLerp(-1f, 1f, noise);
 
-        if (inter > worldData.outCropThreshold)
+        if (inter > outcropLayer.threshold)
         {
-            height += worldData.outCropStrength * biome.cliffStrength * landMask;
+            height += outcropLayer.strength * biome.cliffStrength * landMask;
         }
         
         return height;
@@ -627,10 +705,14 @@ public class WorldGeneration : IWorldGenerator
     
     private float ApplyBiomeMicroTerrain(int x, int y, float height, BiomeBlend biomeData)
     {
-        var offset = Mathf.Lerp(worldData.waterHeight, worldData.mountainHeight, 0.65f);
-        float landMask = SmoothStep(worldData.waterHeight, offset, height);
+        var offset = Mathf.Lerp(
+            elevationLayer.waterHeight,
+            elevationLayer.mountainHeight,
+            0.65f);
+        float landMask = SmoothStep(elevationLayer.waterHeight, offset, height);
         
-        float mountainFade = 1f- SmoothStep(worldData.mountainHeight, 1, height);
+        float mountainFade =
+            1f - SmoothStep(elevationLayer.mountainHeight, 1, height);
         
         float localTerrainMask = landMask * mountainFade;
         
@@ -642,7 +724,11 @@ public class WorldGeneration : IWorldGenerator
         hills = Mathf.InverseLerp(-1f, 1f, hills);
         hills = hills * 2f - 1f;
 
-        height += hills * worldData.hillStrength * biomeData.hillStrength *localTerrainMask;
+        height +=
+            hills *
+            microTerrainLayer.hillStrength *
+            biomeData.hillStrength *
+            localTerrainMask;
 
         float bumps = bumpNoise.GetNoise(
             x / biomeData.bumpScale,
@@ -652,7 +738,11 @@ public class WorldGeneration : IWorldGenerator
         bumps = Mathf.InverseLerp(-1f, 1f, bumps);
         bumps = bumps * 2f - 1f;
         
-        height += bumps * worldData.bumpStrength * biomeData.bumpStrength * localTerrainMask;
+        height +=
+            bumps *
+            microTerrainLayer.bumpStrength *
+            biomeData.bumpStrength *
+            localTerrainMask;
         
         height = ApplySmallCliffs(x,y,height,biomeData, localTerrainMask);
         
@@ -691,238 +781,259 @@ public class WorldGeneration : IWorldGenerator
     {
         float n = Mathf.Abs(ValleyRaw(x, y));
 
-        float valleyMask = 1f - SmoothStep(0.02f, valleyWidth, n);
+        float valleyMask = 1f - SmoothStep(0.02f, valleyLayer.width, n);
 
-        float highlandMask = SmoothStep(worldData.beachHeight, worldData.mountainHeight, height);
+        float highlandMask = SmoothStep(
+            elevationLayer.beachHeight,
+            elevationLayer.mountainHeight,
+            height);
 
-        height -= valleyMask * highlandMask * valleyDepth * biomeValleyStrength;
+        height -=
+            valleyMask *
+            highlandMask *
+            valleyLayer.depth *
+            biomeValleyStrength;
 
         return height;
     }
     
-    private void ApplyLocalLandforms(int x, int y, ref float height, float moisture, float temperature, ref BiomeBlend biomeData)
+    private void ApplyFeatures(
+        int x,
+        int y,
+        ref TerrainGenerationState terrain)
     {
-        int cellX = Mathf.FloorToInt((float)x / featureCellSize);
-        int cellY = Mathf.FloorToInt((float)y / featureCellSize);
-
-
-        for (int ox = -1; ox <= 1; ox++)
+        if (featureLayer.chancePerCell <= 0f ||
+            featureLayer.features == null ||
+            featureLayer.features.Length == 0)
         {
-            for (int oy = -1; oy <= 1; oy++)
+            return;
+        }
+
+        int cellSize = Mathf.Max(1, featureLayer.cellSize);
+        int cellX = Mathf.FloorToInt((float)x / cellSize);
+        int cellY = Mathf.FloorToInt((float)y / cellSize);
+
+        for (int offsetX = -featureNeighborRange;
+             offsetX <= featureNeighborRange;
+             offsetX++)
+        {
+            for (int offsetY = -featureNeighborRange;
+                 offsetY <= featureNeighborRange;
+                 offsetY++)
             {
-                int cX = cellX + ox;
-                int cY = cellY + oy;
-
-                float existsRoll = Util.Hash01(cX, cY, 1);
-
-                if (existsRoll > featureChancePerCell)
-                {
+                FeatureInstance instance = GetFeatureInstance(
+                    cellX + offsetX,
+                    cellY + offsetY);
+                if (!instance.exists)
                     continue;
-                }
 
-                float centerOffsetX = Mathf.Lerp(0.2f, 0.8f, Util.Hash01(cX, cY, 2));
-                float centerOffsetY = Mathf.Lerp(0.2f, 0.8f, Util.Hash01(cX, cY, 3));
-
-                float centerX = (cX +centerOffsetX) * featureCellSize;
-                float centerY = (cY + centerOffsetY) * featureCellSize;
-                
-                float radius = Mathf.Lerp(
-                    minFeatureRadius,
-                    maxFeatureRadius,
-                    Util.Hash01(cX, cY, 4));
-
-                float dX = x - centerX;
-                float dY = y - centerY;
-                float distance = Mathf.Sqrt(dX * dX + dY * dY);
-                
-                if(distance > radius)
-                    continue;
-                
-                float  d = distance / radius;
-                float typeRoll = Util.Hash01(cX, cY, 5);
-                
-                float landMask = SmoothStep(0.28f, 0.55f, height);
-
-                if (typeRoll < 0.33f)
-                {
-                    //Volcanos can appear anywhere but hotter areas make them stronger
-                    float hotMask = Mathf.Lerp(0.65f,1f, SmoothStep(0.45f, 0.85f, temperature));
-                    //
-                    // var lava = biomeLibrary.FirstOrDefault(t => t.biomeName.StartsWith("Volcano"));
-                    //
-                    // if (lava != null)
-                    // {
-                    //     biomeData = BiomeSelector.BlendBiomes(biomeData.dominantBiome, lava, landMask * hotMask);
-                    // }
-                    
-                    ApplyVolcano(
-                        ref height,
-                        x,
-                        y,
-                        centerX,
-                        centerY,
-                        radius,
-                        landMask * hotMask
-                    );
-                }
+                ApplyFeatureInstance(x, y, instance, ref terrain);
             }
         }
     }
 
-    private void ApplyVolcano(
-            ref float height,
-            float x,
-            float y,
-            float centerX,
-            float centerY,
-            float radius,
-            float weight
-        )
+    private FeatureInstance GetFeatureInstance(int cellX, int cellY)
     {
-        if (weight <= 0f)
+        long key = ((long)cellX << 32) ^ (uint)cellY;
+        lock (featureInstanceLock)
+        {
+            if (featureInstances.TryGetValue(key, out FeatureInstance cached))
+                return cached;
+
+            FeatureInstance created = CreateFeatureInstance(cellX, cellY);
+            featureInstances.Add(key, created);
+            return created;
+        }
+    }
+
+    private FeatureInstance CreateFeatureInstance(int cellX, int cellY)
+    {
+        int seedSalt = unchecked((int)seed);
+        if (Util.Hash01(cellX, cellY, seedSalt ^ 0x37a91) >
+            featureLayer.chancePerCell)
+        {
+            return default;
+        }
+
+        FeatureData feature = SelectFeature(
+            Util.Hash01(cellX, cellY, seedSalt ^ 0x51bc3));
+        if (feature == null)
+            return default;
+
+        int cellSize = Mathf.Max(1, featureLayer.cellSize);
+        float centerX =
+            (cellX + Mathf.Lerp(
+                0.18f,
+                0.82f,
+                Util.Hash01(cellX, cellY, seedSalt ^ 0x229f1))) *
+            cellSize;
+        float centerY =
+            (cellY + Mathf.Lerp(
+                0.18f,
+                0.82f,
+                Util.Hash01(cellX, cellY, seedSalt ^ 0x6f18d))) *
+            cellSize;
+
+        TerrainGenerationState placement = SampleFeaturePlacementTerrain(
+            Mathf.RoundToInt(centerX),
+            Mathf.RoundToInt(centerY));
+        if (!feature.Allows(placement, elevationLayer.waterHeight))
+            return default;
+
+        return new FeatureInstance
+        {
+            exists = true,
+            feature = feature,
+            center = new Vector2(centerX, centerY),
+            radius = Mathf.Lerp(
+                feature.minimumRadius,
+                feature.maximumRadius,
+                Util.Hash01(cellX, cellY, seedSalt ^ 0x108d7)),
+            aspect = Mathf.Lerp(
+                feature.minimumAspect,
+                feature.maximumAspect,
+                Util.Hash01(cellX, cellY, seedSalt ^ 0x713a5)),
+            rotation = Util.Hash01(
+                    cellX,
+                    cellY,
+                    seedSalt ^ StableHash(feature.persistentId)) *
+                Mathf.PI * 2f
+        };
+    }
+
+    private TerrainGenerationState SampleFeaturePlacementTerrain(int x, int y)
+    {
+        Vector3 values = SampleBlendedTerrainValues(
+            x,
+            y,
+            climateLayer.blendSampleRadius);
+        return new TerrainGenerationState
+        {
+            height = values.x,
+            baseHeight = values.x,
+            moisture = values.y,
+            temperature = values.z,
+            biomeData = BiomeSelector.GetBiomeBlend(
+                biomeLibrary,
+                values.x,
+                values.y,
+                values.z)
+        };
+    }
+
+    private FeatureData SelectFeature(float roll)
+    {
+        float totalWeight = 0f;
+        foreach (FeatureData feature in featureLayer.features)
+        {
+            if (feature != null)
+                totalWeight += Mathf.Max(0f, feature.selectionWeight);
+        }
+
+        if (totalWeight <= 0f)
+            return null;
+
+        float target = roll * totalWeight;
+        FeatureData lastWeighted = null;
+        foreach (FeatureData feature in featureLayer.features)
+        {
+            if (feature == null)
+                continue;
+
+            float weight = Mathf.Max(0f, feature.selectionWeight);
+            if (weight <= 0f)
+                continue;
+            lastWeighted = feature;
+            target -= weight;
+            if (target <= 0f)
+                return feature;
+        }
+
+        return lastWeighted;
+    }
+
+    private void ApplyFeatureInstance(
+        int x,
+        int y,
+        FeatureInstance instance,
+        ref TerrainGenerationState terrain)
+    {
+        float cosine = Mathf.Cos(instance.rotation);
+        float sine = Mathf.Sin(instance.rotation);
+        float deltaX = x - instance.center.x;
+        float deltaY = y - instance.center.y;
+        float localX = deltaX * cosine + deltaY * sine;
+        float localY = -deltaX * sine + deltaY * cosine;
+        float radius = Mathf.Max(1f, instance.radius);
+        float aspect = Mathf.Max(0.1f, instance.aspect);
+        float normalizedDistance = Mathf.Sqrt(
+            localX * localX / (radius * radius) +
+            localY * localY / (radius * radius * aspect * aspect));
+
+        if (normalizedDistance > 1.45f)
             return;
 
-        float dx = x - centerX;
-        float dy = y - centerY;
-
-        float distance = Mathf.Sqrt(dx * dx + dy * dy);
-        float baseD = distance / radius;
-
-        if (baseD > 1.25f)
-            return;
-
-        float angle = Mathf.Atan2(dy, dx);
-
-        // ------------------------------------------------------------
-        // 1. Break the circular outline
-        // ------------------------------------------------------------
-
+        float warpScale = Mathf.Max(8f, radius * 0.65f);
         float edgeNoise = volcanoNoise.GetNoise(
-            x * 0.035f,
-            y * 0.035f
-        );
-
-        // Stronger near the edge, weaker near the crater.
-        float edgeMask = SmoothStep(0.35f, 1f, baseD);
-
-        // Distort the volcano radius.
-        float distortedD = baseD + edgeNoise * 0.18f * edgeMask;
-
-        // ------------------------------------------------------------
-        // 2. Add volcanic ridges running down the slope
-        // ------------------------------------------------------------
-
-        int ridgeCount = 13;
-
-        // Angular ridges.
-        float angularRidges = Mathf.Sin(angle * ridgeCount);
-
-        // Convert sine wave into sharp raised ridges.
-        angularRidges = Mathf.Pow(Mathf.Abs(angularRidges), 5f);
-
-        // Invert so ridges become narrow crests instead of broad bands.
-        angularRidges = 1f - angularRidges;
-
-        // Add unevenness so ridges are not perfect spokes.
-        float ridgeNoise = volcanoRidgeNoise.GetNoise(
-            x * 0.075f,
-            y * 0.075f
-        );
-
-        angularRidges += ridgeNoise * 0.45f;
-        angularRidges = Mathf.Clamp01(angularRidges);
-
-        // Ridges mostly appear on the cone slope, not inside the crater.
-        float ridgeSlopeMask =
-            SmoothStep(0.18f, 0.45f, distortedD) *
-            (1f - SmoothStep(0.88f, 1.05f, distortedD));
-
-        float ridges = angularRidges * ridgeSlopeMask * 0.12f;
-
-        // ------------------------------------------------------------
-        // 3. Main volcano shape
-        // ------------------------------------------------------------
-
-        float cone = Mathf.Pow(1f - Mathf.Clamp01(distortedD), 1.35f) * 0.55f;
-
-        float rim = Ring(distortedD, 0.23f, 0.075f) * 0.27f;
-
-        float craterBowl =
-            (1f - SmoothStep(0f, 0.43f, distortedD)) * 0.50f;
-
-        // ------------------------------------------------------------
-        // 4. Eroded gullies between ridges
-        // ------------------------------------------------------------
-
-        float gullyMask = 1f - angularRidges;
-
-        float gullies =
-            gullyMask *
-            ridgeSlopeMask *
-            SmoothStep(0.28f, 0.95f, distortedD) *
-            0.10f;
-
-        height += ((cone + rim + ridges - craterBowl - gullies)*8f) * weight;
-    }
-    
-    private void ApplyImpactCrater(ref float height, float d, float weight)
-    {
-        if (weight <= 0f)
+            x / warpScale,
+            y / warpScale);
+        float distortedDistance =
+            normalizedDistance +
+            edgeNoise *
+            instance.feature.edgeWarp *
+            SmoothStep(0.25f, 1f, normalizedDistance);
+        float mask = 1f - SmoothStep(0.72f, 1f, distortedDistance);
+        if (mask <= 0f)
             return;
 
-        // Depression in the middle.
-        float bowl = (1f - SmoothStep(0f, 0.58f, d)) * 0.38f;
+        FeatureGenerationContext context = new(
+            x,
+            y,
+            instance.center,
+            localX,
+            localY,
+            distortedDistance,
+            mask,
+            volcanoRidgeNoise.GetNoise(x * 0.075f, y * 0.075f));
 
-        // Raised outer rim.
-        float rim = Ring(d, 0.62f, 0.12f) * 0.25f;
-
-        // Light outer ejecta mound.
-        float ejecta = (1f - SmoothStep(0.62f, 1f, d)) * 0.05f;
-
-        height += (rim + ejecta - bowl) * weight;
+        foreach (GeneratorInfo info in
+                 instance.feature.generators ?? Array.Empty<GeneratorInfo>())
+        {
+            if (info?.enabled == true &&
+                info.generator != null &&
+                info.strength > 0f)
+            {
+                info.generator.Generate(
+                    ref terrain,
+                    in context,
+                    info.strength);
+            }
+        }
     }
-    
-    private void ApplyMesa(ref float height, float d, float weight, float mesaLevel)
+
+    private static int StableHash(string value)
     {
-        if (weight <= 0f)
-            return;
+        unchecked
+        {
+            uint hash = 2166136261u;
+            foreach (char character in value ?? string.Empty)
+                hash = (hash ^ character) * 16777619u;
+            return (int)hash;
+        }
+    }
 
-        // Flat top, sharp-ish sides.
-        float plateau = Plateau(d, 0.42f, 0.82f);
-
-        // Blend the inner area toward a fixed height level.
-        // This creates the tabletop instead of just adding more noisy terrain.
-        height = Mathf.Lerp(height, mesaLevel, plateau * weight * 0.95f);
-
-        // Small raised lip near the mesa edge.
-        float edgeLip = Ring(d, 0.45f, 0.08f) * 0.06f;
-        height += edgeLip * weight;
+    private struct FeatureInstance
+    {
+        public bool exists;
+        public FeatureData feature;
+        public Vector2 center;
+        public float radius;
+        public float aspect;
+        public float rotation;
     }
     
     #endregion
 
-    #region Shaping
-
-    private static float Ring(float d, float center, float width)
-    {
-        float t = Mathf.Abs(d - center) / width;
-        return 1f - Smooth01(t);
-    }
-    
-    private static float Plateau(float d, float innerRadius, float outerRadius)
-    {
-        if (d <= innerRadius)
-            return 1f;
-
-        if (d >= outerRadius)
-            return 0f;
-
-        float t = Mathf.InverseLerp(innerRadius, outerRadius, d);
-        return 1f - Smooth01(t);
-    }
-
-    #endregion
-    
     #region Utility
 
     private static float SmoothStep(float edge0, float edge1, float x)

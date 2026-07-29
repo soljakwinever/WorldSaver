@@ -151,7 +151,11 @@ namespace Project.Scripts
             if (!AllowsCurrentWorldState(rule))
                 yield break;
 
-            int seed = HashCode.Combine(_worldData.seed, chunkPosition.x, chunkPosition.y, rule.GetEntityId());
+            int seed = HashCode.Combine(
+                unchecked((int)_worldGeneration.Seed),
+                chunkPosition.x,
+                chunkPosition.y,
+                rule.GetEntityId());
             System.Random random = new(seed);
             int desired = random.Next(rule.minimumPerChunk, rule.maximumPerChunk + 1);
             int accepted = 0;

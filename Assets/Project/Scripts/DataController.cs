@@ -46,7 +46,10 @@ namespace Project.Scripts
 
         private void OnApplicationQuit()
         {
-            RequestSave();
+            // Begin a full checkpoint while Unity is still dispatching shutdown
+            // callbacks. Ordinary chunk-unload requests use the debounced,
+            // dirty-region-only path below.
+            _ = SaveAsync();
         }
 
         private void Update()
@@ -65,6 +68,14 @@ namespace Project.Scripts
 
                 SimulateQueuedRegionsAsync();
             }
+        }
+
+        private void LateUpdate()
+        {
+            // Chunkloader unloads every affected chunk during Update. Waiting
+            // until LateUpdate coalesces that entire batch into one flush.
+            if (_saveRequested && !_saveInProgress)
+                FlushRequestedSavesAsync();
         }
 
         public async Awaitable RestoreChunkAsync(Chunk chunk)
@@ -183,22 +194,22 @@ namespace Project.Scripts
         public void RequestSave()
         {
             _saveRequested = true;
-
-            if (!_saveInProgress)
-                FlushRequestedSavesAsync();
         }
 
         private async void FlushRequestedSavesAsync()
         {
+            if (_saveInProgress || !_saveRequested)
+                return;
+
             _saveInProgress = true;
+            _saveRequested = false;
 
             try
             {
-                while (_saveRequested)
-                {
-                    _saveRequested = false;
-                    await SaveAsync();
-                }
+                // CaptureBeforeUnload has already put the despawned chunks into
+                // their regions. Do not recapture every still-loaded chunk or
+                // synchronously flush the world-clock file for an unload.
+                await _regions.FlushDirtyAsync();
             }
             catch (Exception exception)
             {
@@ -207,9 +218,6 @@ namespace Project.Scripts
             finally
             {
                 _saveInProgress = false;
-
-                if (_saveRequested)
-                    FlushRequestedSavesAsync();
             }
         }
 
@@ -220,14 +228,156 @@ namespace Project.Scripts
             ushort localIndex = WorldPartition.GetLocalChunkIndex(position);
             ChunkState snapshot = active.root.Capture(_worldClock.CurrentTick);
             snapshot.localChunkIndex = localIndex;
-            snapshot.Compact();
+            // ChunkPersistenceRoot.Capture already returns canonical, compacted
+            // lists. Recompacting here allocated another HashSet and resorted
+            // every collection for every unloading chunk.
 
             if (snapshot.HasChanges)
-                active.region.SetChunkState(localIndex, snapshot);
-            else
-                active.region.RemoveChunkState(localIndex);
+            {
+                if (active.region.TryGetChunkState(
+                        localIndex,
+                        out ChunkState previous) &&
+                    ChunkStatesEqual(previous, snapshot))
+                {
+                    return;
+                }
 
-            _regions.MarkDirty(active.region);
+                active.region.SetChunkState(localIndex, snapshot);
+                _regions.MarkDirty(active.region);
+            }
+            else
+            {
+                if (active.region.RemoveChunkState(localIndex))
+                    _regions.MarkDirty(active.region);
+            }
+        }
+
+        private static bool ChunkStatesEqual(ChunkState left, ChunkState right)
+        {
+            if (ReferenceEquals(left, right))
+                return true;
+            if (left == null || right == null ||
+                left.localChunkIndex != right.localChunkIndex ||
+                left.lastSimulatedTick != right.lastSimulatedTick)
+            {
+                return false;
+            }
+
+            return EntitiesEqual(left.entities, right.entities) &&
+                   ComponentsEqual(left.components, right.components) &&
+                   TileOverridesEqual(left.tileOverrides, right.tileOverrides);
+        }
+
+        private static bool EntitiesEqual(
+            List<PersistentEntityRecord> left,
+            List<PersistentEntityRecord> right)
+        {
+            int leftCount = left?.Count ?? 0;
+            if (leftCount != (right?.Count ?? 0))
+                return false;
+
+            for (int i = 0; i < leftCount; i++)
+            {
+                PersistentEntityRecord a = left[i];
+                PersistentEntityRecord b = right[i];
+                if (a == null || b == null)
+                {
+                    if (!ReferenceEquals(a, b))
+                        return false;
+                    continue;
+                }
+
+                if (a.id.value != b.id.value ||
+                    a.archetypeId != b.archetypeId ||
+                    a.persistenceKind != b.persistenceKind ||
+                    a.existenceState != b.existenceState ||
+                    a.lastSimulatedTick != b.lastSimulatedTick ||
+                    !ComponentsEqual(a.components, b.components))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool ComponentsEqual(
+            List<PersistenceComponentRecord> left,
+            List<PersistenceComponentRecord> right)
+        {
+            int leftCount = left?.Count ?? 0;
+            if (leftCount != (right?.Count ?? 0))
+                return false;
+
+            for (int i = 0; i < leftCount; i++)
+            {
+                PersistenceComponentRecord a = left[i];
+                PersistenceComponentRecord b = right[i];
+                if (a == null || b == null)
+                {
+                    if (!ReferenceEquals(a, b))
+                        return false;
+                    continue;
+                }
+
+                if (a.typeId != b.typeId ||
+                    a.version != b.version ||
+                    a.isAtBaseline != b.isAtBaseline ||
+                    !BytesEqual(a.data, b.data))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool TileOverridesEqual(
+            List<TileOverrideData> left,
+            List<TileOverrideData> right)
+        {
+            int leftCount = left?.Count ?? 0;
+            if (leftCount != (right?.Count ?? 0))
+                return false;
+
+            for (int i = 0; i < leftCount; i++)
+            {
+                TileOverrideData a = left[i];
+                TileOverrideData b = right[i];
+                if (a == null || b == null)
+                {
+                    if (!ReferenceEquals(a, b))
+                        return false;
+                    continue;
+                }
+
+                if (a.localX != b.localX ||
+                    a.localY != b.localY ||
+                    a.layer != b.layer ||
+                    a.kind != b.kind ||
+                    a.tileId != b.tileId ||
+                    a.tint != b.tint)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool BytesEqual(byte[] left, byte[] right)
+        {
+            int length = left?.Length ?? 0;
+            if (length != (right?.Length ?? 0))
+                return false;
+
+            for (int i = 0; i < length; i++)
+            {
+                if (left[i] != right[i])
+                    return false;
+            }
+
+            return true;
         }
 
         private async Awaitable<long> SimulateRegionAsync(

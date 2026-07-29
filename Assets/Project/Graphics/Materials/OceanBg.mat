@@ -84,7 +84,7 @@ Material:
     m_Floats:
     - _CausticDistortion: 0.05
     - _CausticSpeed: 0.2
-    - _DepthPower: 32
+    - _DepthPower: 6
     - _EnableExternalAlpha: 0
     - _Pixelize: 16
     - _SpecularThreshold: -0.85

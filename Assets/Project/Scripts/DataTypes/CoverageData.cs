@@ -3,6 +3,16 @@ using UnityEngine;
 
 namespace Project.Scripts.DataTypes
 {
+    public enum CoverageColorSource : byte
+    {
+        CoverageColor,
+        BiomeGround,
+        BiomeSand,
+        BiomeWater,
+        BiomeCliff,
+        BiomePath
+    }
+
     [CreateAssetMenu(
         fileName = "Coverage",
         menuName = "World Saver/Weather/Coverage")]
@@ -11,9 +21,18 @@ namespace Project.Scripts.DataTypes
         [SerializeField] private string coverageId = "coverage";
         [SerializeField] private Sprite coverageSprite;
         [SerializeField] private Color coverageColor = Color.white;
+        [SerializeField]
+        [Tooltip("Selects the color used by coverage. Biome colors use the current local and seasonal biome blend.")]
+        private CoverageColorSource colorSource;
         [SerializeField] private int renderPriority;
 
         [Header("Simulation")]
+        [Tooltip("Tiles this coverage can apply to. Empty allows every ground tile.")]
+        [SerializeField] private TileData[] allowedTiles =
+            Array.Empty<TileData>();
+        [Tooltip("Tiles this coverage cannot apply to. Restrictions take precedence over Allowed Tiles.")]
+        [SerializeField] private TileData[] restrictedTiles =
+            Array.Empty<TileData>();
         [Tooltip("Coverage persists inside this ambient temperature range. Outside it, coverage decays.")]
         [SerializeField] private Vector2 ambientTemperatureRange =
             new(-1f, 1f);
@@ -50,7 +69,12 @@ namespace Project.Scripts.DataTypes
             : coverageId.Trim();
         public Sprite CoverageSprite => coverageSprite;
         public Color CoverageColor => coverageColor;
+        public CoverageColorSource ColorSource => colorSource;
         public int RenderPriority => renderPriority;
+        public TileData[] AllowedTiles =>
+            allowedTiles ?? Array.Empty<TileData>();
+        public TileData[] RestrictedTiles =>
+            restrictedTiles ?? Array.Empty<TileData>();
         public float AccumulationRate => accumulationRate;
         public float AccumulationRateVariation =>
             accumulationRateVariation;
@@ -67,6 +91,31 @@ namespace Project.Scripts.DataTypes
             allowedPhaseIds ?? Array.Empty<string>();
         public string[] RequiredActiveEffectIds =>
             requiredActiveEffectIds ?? Array.Empty<string>();
+
+        public bool AllowsTile(TileData tile)
+        {
+            if (tile == null)
+                return false;
+
+            TileData[] exclusions = RestrictedTiles;
+            for (int i = 0; i < exclusions.Length; i++)
+            {
+                if (exclusions[i] == tile)
+                    return false;
+            }
+
+            TileData[] restrictions = AllowedTiles;
+            if (restrictions.Length == 0)
+                return true;
+
+            for (int i = 0; i < restrictions.Length; i++)
+            {
+                if (restrictions[i] == tile)
+                    return true;
+            }
+
+            return false;
+        }
 
         private void OnValidate()
         {

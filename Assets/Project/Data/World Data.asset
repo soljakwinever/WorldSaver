@@ -24,11 +24,13 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
   - {fileID: 11400000, guid: a0aaaaaaaaaa4aaa8aaaaaaaaaaaaaaa, type: 2}
   - {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+  - {fileID: 11400000, guid: d4975b15b91d4ef47b318cc3d3a28091, type: 2}
   minedTileReplacement: {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
   tileSpreadRules:
   - {fileID: 11400000, guid: c5077881638646b5be27072cfec50c92, type: 2}
   coverageLayers:
   - {fileID: 11400000, guid: e0d6ae861dc3aa54db97f4422316c1c0, type: 2}
+  - {fileID: 11400000, guid: d6e80ccdcc1c2ac44be63094f4fc563d, type: 2}
   seed: 322657246
   heightMapDebug: 0
   previewNoiseLayer: 1

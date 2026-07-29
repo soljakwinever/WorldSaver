@@ -15,7 +15,13 @@ namespace Project.Scripts.Actions
     {
         public override bool CanPerform(ToolActionContext context)
         {
-            return TryGetTarget(context, out _, out _, out _, out _);
+            return TryGetTarget(
+                context,
+                out _,
+                out _,
+                out _,
+                out _,
+                out _);
         }
 
         public override bool Perform(ToolActionContext context)
@@ -25,8 +31,9 @@ namespace Project.Scripts.Actions
                     out Chunk chunk,
                     out Vector3Int cell,
                     out MineTileToolActionData data,
-                    out TileData tile) ||
-                !chunk.TryReplaceMinedTile(cell, data.layer))
+                    out TileData tile,
+                    out PersistentTileLayer layer) ||
+                !chunk.TryReplaceMinedTile(cell, layer))
             {
                 return false;
             }
@@ -40,12 +47,14 @@ namespace Project.Scripts.Actions
             out Chunk chunk,
             out Vector3Int cell,
             out MineTileToolActionData data,
-            out TileData targetTile)
+            out TileData targetTile,
+            out PersistentTileLayer targetLayer)
         {
             cell = Vector3Int.FloorToInt(context.TargetPosition);
             chunk = null;
             data = null;
             targetTile = null;
+            targetLayer = PersistentTileLayer.Ground;
 
             Chunkloader chunkloader = FindFirstObjectByType<Chunkloader>();
             if (context.User == null ||
@@ -57,10 +66,22 @@ namespace Project.Scripts.Actions
                 return false;
             }
 
-            if (!chunk.TryGetTileData(cell, data.layer, out targetTile))
+            if (chunk.TryGetTileData(
+                    cell,
+                    PersistentTileLayer.Wall,
+                    out targetTile))
+            {
+                targetLayer = PersistentTileLayer.Wall;
+            }
+            else if (!chunk.TryGetTileData(
+                         cell,
+                         PersistentTileLayer.Ground,
+                         out targetTile))
+            {
                 return false;
+            }
 
-            // No tags means every tile on the configured layer is mineable.
+            // No tags means every selected tile is mineable.
             if (data.mineableTags == null || data.mineableTags.Length == 0)
                 return true;
 

@@ -1,10 +1,13 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using IngameDebugConsole;
 using Project.Scripts;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.Gameplay;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using Zenject;
@@ -18,8 +21,13 @@ using TileData = Project.Scripts.DataTypes.TileData;
 public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
 {
     private const int LayerCount = 4;
+    private const int SnapshotBorder = 1;
     private static readonly int CellCount =
         ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize;
+    private static readonly int SnapshotSize =
+        ChunkBuildResult.ChunkSize + SnapshotBorder * 2;
+    private static readonly int SnapshotCellCount =
+        SnapshotSize * SnapshotSize;
     private static readonly Vector2Int[] CardinalDirections =
     {
         Vector2Int.left,
@@ -34,12 +42,29 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
     [SerializeField, Min(1)] private int _colliderFullRebuildThreshold = 1000;
     [SerializeField, Min(1)] private int _maxConcurrentBakeTasks = 2;
     [SerializeField, Min(1)] private int _maxBakedChunksAppliedPerFrame = 2;
+    [SerializeField, Min(1)] private int _biomeSearchRadius = 4096;
+    [SerializeField, Min(1)] private int _biomeSearchSpacing = 16;
+    [SerializeField, Min(1)] private int _biomeSearchSamplesPerFrame = 128;
     [Inject] private WorldGeneration _worldGeneration;
+    [Inject] private PlayerDataController _player;
+    [Inject] private Grid _grid;
 
     private readonly Dictionary<Vector2Int, ChunkRenderData> _chunks = new();
     private readonly HashSet<Vector2Int> _dirtyBakeChunks = new();
     private readonly HashSet<Vector2Int> _runningBakeChunks = new();
     private readonly ConcurrentQueue<ChunkBakeOutput> _completedBakes = new();
+    private readonly Stack<ChunkRenderData> _chunkDataPool = new();
+    private readonly HashSet<Vector3Int> _liquidVisited = new();
+    private readonly Queue<Vector3Int> _liquidFrontier = new();
+    private readonly List<(ChunkRenderData Chunk, int Index)> _liquidPool = new();
+    private readonly Dictionary<TileData, int> _liquidCounts = new();
+    private readonly Dictionary<string, int> _snapshotGroupKeys =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<TileData, int> _snapshotTileKeys = new();
+    private readonly TileChangeData[] _bakedChanges =
+        new TileChangeData[CellCount];
+    private int _nextBakeVersion;
+    private Coroutine _biomeSearch;
 
     public readonly struct CellData
     {
@@ -57,13 +82,216 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
 
     public void Initialize()
     {
-        // Kept as an initializable scene service. Chunks own all render objects.
+        DebugLogConsole.AddCommand<string>(
+            "biome.find",
+            "Finds a biome and teleports the player to it. Quote names containing spaces.",
+            DebugFindBiome,
+            "biome");
+        DebugLogConsole.AddCommand<string, int>(
+            "biome.find",
+            "Finds a biome within the given radius and teleports the player to it.",
+            DebugFindBiomeWithinRadius,
+            "biome",
+            "radius");
+    }
+
+    private void OnDestroy()
+    {
+        DebugLogConsole.RemoveCommand<string>(DebugFindBiome);
+        DebugLogConsole.RemoveCommand<string, int>(DebugFindBiomeWithinRadius);
     }
 
     private void Update()
     {
         ApplyCompletedBakes(_maxBakedChunksAppliedPerFrame);
         StartPendingBakes();
+    }
+
+    private void DebugFindBiome(string biomeName)
+    {
+        StartBiomeSearch(biomeName, _biomeSearchRadius);
+    }
+
+    private void DebugFindBiomeWithinRadius(string biomeName, int radius)
+    {
+        StartBiomeSearch(biomeName, radius);
+    }
+
+    private void StartBiomeSearch(string biomeName, int radius)
+    {
+        if (string.IsNullOrWhiteSpace(biomeName))
+        {
+            Debug.LogWarning("A biome name is required.");
+            return;
+        }
+
+        if (radius < 0)
+        {
+            Debug.LogWarning("Biome search radius cannot be negative.");
+            return;
+        }
+
+        if (_player == null || _grid == null)
+        {
+            Debug.LogWarning(
+                "Biome search cannot teleport because the player or world grid is unavailable.");
+            return;
+        }
+
+        if (_biomeSearch != null)
+            StopCoroutine(_biomeSearch);
+
+        Vector3Int playerCell = _grid.WorldToCell(_player.transform.position);
+        Vector2Int origin = new(playerCell.x, playerCell.y);
+        _biomeSearch = StartCoroutine(
+            FindBiomeAndTeleport(biomeName.Trim(), origin, radius));
+    }
+
+    private IEnumerator FindBiomeAndTeleport(
+        string biomeName,
+        Vector2Int origin,
+        int radius)
+    {
+        Debug.Log(
+            $"Searching for biome '{biomeName}' within {radius} cells of {origin}...");
+
+        int samplesThisFrame = 0;
+        foreach (Vector2Int candidate in EnumerateBiomeSearchPositions(
+                     origin,
+                     radius,
+                     _biomeSearchSpacing))
+        {
+            BiomeData biome = GetBiome(candidate);
+            if (BiomeNameMatches(biome, biomeName))
+            {
+                TeleportPlayer(candidate);
+                Debug.Log(
+                    $"Found biome '{biome.biomeName}' at {candidate} and teleported the player.");
+                _biomeSearch = null;
+                yield break;
+            }
+
+            samplesThisFrame++;
+            if (samplesThisFrame < _biomeSearchSamplesPerFrame)
+                continue;
+
+            samplesThisFrame = 0;
+            yield return null;
+        }
+
+        Debug.LogWarning(
+            $"Could not find biome '{biomeName}' within {radius} cells of {origin}.");
+        _biomeSearch = null;
+    }
+
+    /// <summary>
+    /// Searches progressively larger square rings around an origin. Spacing can
+    /// be increased for fast searches because generated biome regions span many
+    /// cells; every returned candidate is still verified against terrain data.
+    /// </summary>
+    public bool TryFindBiome(
+        string biomeName,
+        Vector2Int origin,
+        int radius,
+        int spacing,
+        out Vector2Int position)
+    {
+        position = default;
+        if (string.IsNullOrWhiteSpace(biomeName) || radius < 0)
+            return false;
+
+        string normalizedName = biomeName.Trim();
+        foreach (Vector2Int candidate in EnumerateBiomeSearchPositions(
+                     origin,
+                     radius,
+                     spacing))
+        {
+            if (!BiomeNameMatches(GetBiome(candidate), normalizedName))
+                continue;
+
+            position = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    private BiomeData GetBiome(Vector2Int worldCell)
+    {
+        // GetTile uses the same biome blend settings as chunk generation and
+        // avoids the extra cliff samples performed by GetTerrainSample.
+        _worldGeneration.GetTile(
+            worldCell.x,
+            worldCell.y,
+            out BiomeBlend biome,
+            out _,
+            out _,
+            out _);
+        return biome.dominantBiome;
+    }
+
+    private void TeleportPlayer(Vector2Int worldCell)
+    {
+        Vector3 destination =
+            _grid.CellToWorld(new Vector3Int(worldCell.x, worldCell.y, 0));
+        Rigidbody2D body = _player.GetComponent<Rigidbody2D>();
+        if (body != null)
+        {
+            body.linearVelocity = Vector2.zero;
+            body.angularVelocity = 0f;
+            body.position = destination;
+        }
+        else
+        {
+            _player.transform.position = destination;
+        }
+    }
+
+    private static bool BiomeNameMatches(BiomeData biome, string requestedName)
+    {
+        return biome != null &&
+               (string.Equals(
+                    biome.biomeName,
+                    requestedName,
+                    StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(
+                    biome.name,
+                    requestedName,
+                    StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static IEnumerable<Vector2Int> EnumerateBiomeSearchPositions(
+        Vector2Int origin,
+        int radius,
+        int spacing)
+    {
+        spacing = Mathf.Max(1, spacing);
+        yield return origin;
+
+        if (radius == 0)
+            yield break;
+
+        spacing = Mathf.Min(spacing, radius);
+        int ring = spacing;
+        while (ring <= radius)
+        {
+            for (int x = -ring; x <= ring; x += spacing)
+            {
+                yield return origin + new Vector2Int(x, ring);
+                yield return origin + new Vector2Int(x, -ring);
+            }
+
+            for (int y = -ring + spacing; y < ring; y += spacing)
+            {
+                yield return origin + new Vector2Int(ring, y);
+                yield return origin + new Vector2Int(-ring, y);
+            }
+
+            if (ring == radius)
+                yield break;
+
+            ring = Mathf.Min(ring + spacing, radius);
+        }
     }
 
     public void ConfigureChunkTilemap(
@@ -124,7 +352,10 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             previous.Owner?.ClearBakedTiles();
         }
 
-        ChunkRenderData chunk = new(owner, chunkPosition);
+        ChunkRenderData chunk = replacedExisting
+            ? previous
+            : AcquireChunkRenderData();
+        chunk.Reset(owner, chunkPosition, NextBakeVersion());
         CopyCells(chunkPosition, PersistentTileLayer.Ground, groundTiles, chunk);
         CopyCells(chunkPosition, PersistentTileLayer.Water, waterTiles, chunk);
         CopyCells(chunkPosition, PersistentTileLayer.Wall, wallTiles, chunk);
@@ -151,6 +382,8 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             return;
 
         removed.Owner?.ClearBakedTiles();
+        removed.Reset(null, default, NextBakeVersion());
+        _chunkDataPool.Push(removed);
         // Removing a chunk can split a liquid body. Every resulting component
         // that could have changed touches one of the removed chunk's borders.
         ResolveLiquidPoolsTouchingChunk(chunkPosition, includeChunkCells: false);
@@ -167,10 +400,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         Vector2Int chunkPosition,
         bool includeChunkCells)
     {
-        HashSet<Vector3Int> visited = new();
-        Queue<Vector3Int> frontier = new();
-        List<(ChunkRenderData Chunk, int Index)> pool = new();
-        Dictionary<TileData, int> counts = new();
+        _liquidVisited.Clear();
 
         int startX = chunkPosition.x * ChunkBuildResult.ChunkSize;
         int startY = chunkPosition.y * ChunkBuildResult.ChunkSize;
@@ -186,7 +416,12 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                     startX + index % ChunkBuildResult.ChunkSize,
                     startY + index / ChunkBuildResult.ChunkSize,
                     0);
-                ResolveLiquidPool(start, visited, frontier, pool, counts);
+                ResolveLiquidPool(
+                    start,
+                    _liquidVisited,
+                    _liquidFrontier,
+                    _liquidPool,
+                    _liquidCounts);
             }
         }
 
@@ -194,10 +429,10 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         // are required when replacing or removing a chunk, and are cheap on add.
         for (int offset = 0; offset < ChunkBuildResult.ChunkSize; offset++)
         {
-            ResolveLiquidPool(new Vector3Int(startX - 1, startY + offset), visited, frontier, pool, counts);
-            ResolveLiquidPool(new Vector3Int(startX + ChunkBuildResult.ChunkSize, startY + offset), visited, frontier, pool, counts);
-            ResolveLiquidPool(new Vector3Int(startX + offset, startY - 1), visited, frontier, pool, counts);
-            ResolveLiquidPool(new Vector3Int(startX + offset, startY + ChunkBuildResult.ChunkSize), visited, frontier, pool, counts);
+            ResolveLiquidPool(new Vector3Int(startX - 1, startY + offset), _liquidVisited, _liquidFrontier, _liquidPool, _liquidCounts);
+            ResolveLiquidPool(new Vector3Int(startX + ChunkBuildResult.ChunkSize, startY + offset), _liquidVisited, _liquidFrontier, _liquidPool, _liquidCounts);
+            ResolveLiquidPool(new Vector3Int(startX + offset, startY - 1), _liquidVisited, _liquidFrontier, _liquidPool, _liquidCounts);
+            ResolveLiquidPool(new Vector3Int(startX + offset, startY + ChunkBuildResult.ChunkSize), _liquidVisited, _liquidFrontier, _liquidPool, _liquidCounts);
         }
     }
 
@@ -378,16 +613,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         }
 
         chunk.Layers[(int)layer][index] = new LogicalCell(tile, color);
-        chunk.BakeVersion++;
         RebakeCellAndNeighbors(layer, worldCell);
-
-        // A full bake already in flight contains the old logical snapshot.
-        // Queue a replacement so an initial/stale result cannot overwrite this edit.
-        if (_runningBakeChunks.Contains(chunkPosition) ||
-            !chunk.HasAppliedBake)
-        {
-            MarkDirty(chunkPosition);
-        }
     }
 
     public void SetColor(
@@ -442,8 +668,18 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         if (!_chunks.TryGetValue(chunkPosition, out ChunkRenderData chunk))
             return;
 
-        chunk.BakeVersion++;
-        _dirtyBakeChunks.Add(chunkPosition);
+        // A single invalidation is sufficient while a replacement is already
+        // queued. Incrementing on every dirty notification caused loading
+        // neighbors and liquid cells to repeatedly invalidate the same bake.
+        bool newlyQueued = _dirtyBakeChunks.Add(chunkPosition);
+        if (newlyQueued && _runningBakeChunks.Contains(chunkPosition))
+            chunk.BakeVersion++;
+    }
+
+    private void RequeueDirty(Vector2Int chunkPosition)
+    {
+        if (_chunks.ContainsKey(chunkPosition))
+            _dirtyBakeChunks.Add(chunkPosition);
     }
 
     private void StartPendingBakes()
@@ -506,16 +742,16 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
 
     private void ApplyCompletedBakes(int limit)
     {
-        int applied = 0;
-        while (applied < limit &&
+        int processed = 0;
+        while (processed < limit &&
                _completedBakes.TryDequeue(out ChunkBakeOutput output))
         {
+            processed++;
             _runningBakeChunks.Remove(output.ChunkPosition);
             if (output.Exception != null)
             {
                 Debug.LogException(output.Exception);
-                if (_chunks.ContainsKey(output.ChunkPosition))
-                    MarkDirty(output.ChunkPosition);
+                RequeueDirty(output.ChunkPosition);
                 continue;
             }
 
@@ -523,24 +759,32 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                     output.ChunkPosition,
                     out ChunkRenderData chunk))
             {
+                ReturnBakeOutput(output);
                 continue;
             }
 
             if (chunk.BakeVersion != output.Version)
             {
-                MarkDirty(output.ChunkPosition);
+                ReturnBakeOutput(output);
+                RequeueDirty(output.ChunkPosition);
                 continue;
             }
 
-            ApplyBakedChunk(output.ChunkPosition, output.NeighborMasks);
-            chunk.HasAppliedBake = true;
-            applied++;
+            try
+            {
+                ApplyBakedChunk(output.ChunkPosition, output.NeighborMasks);
+                chunk.HasAppliedBake = true;
+            }
+            finally
+            {
+                ReturnBakeOutput(output);
+            }
         }
     }
 
     private void ApplyBakedChunk(
         Vector2Int chunkPosition,
-        byte[][] neighborMasks)
+        byte[] neighborMasks)
     {
         if (!_chunks.TryGetValue(chunkPosition, out ChunkRenderData chunk))
             return;
@@ -550,7 +794,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         for (int layerIndex = 0; layerIndex < LayerCount; layerIndex++)
         {
             PersistentTileLayer layer = (PersistentTileLayer)layerIndex;
-            TileChangeData[] changes = new TileChangeData[CellCount];
+            int maskOffset = layerIndex * CellCount;
 
             for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
             {
@@ -559,16 +803,16 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                     int index = x + y * ChunkBuildResult.ChunkSize;
                     Vector3Int worldCell = new(startX + x, startY + y, 0);
                     Vector3Int localCell = new(x, y, 0);
-                    changes[index] = BakeCell(
+                    _bakedChanges[index] = BakeCell(
                         layer,
                         worldCell,
                         localCell,
                         chunk.Layers[layerIndex][index],
-                        neighborMasks[layerIndex][index]);
+                        neighborMasks[maskOffset + index]);
                 }
             }
 
-            chunk.Owner.ApplyBakedTiles(layer, changes);
+            chunk.Owner.ApplyBakedTiles(layer, _bakedChanges);
         }
     }
 
@@ -600,6 +844,14 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                     IndexToLocalCell(index),
                     logical);
                 chunk.Owner.ApplyBakedTile(layer, change);
+
+                // A full bake captured before this edit must not overwrite the
+                // immediately updated cell or any affected border neighbor.
+                if (_runningBakeChunks.Contains(chunkPosition) ||
+                    !chunk.HasAppliedBake)
+                {
+                    MarkDirty(chunkPosition);
+                }
             }
         }
     }
@@ -663,66 +915,81 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         Vector2Int chunkPosition,
         int version)
     {
-        const int border = 1;
-        int snapshotSize = ChunkBuildResult.ChunkSize + border * 2;
-        int startX = chunkPosition.x * ChunkBuildResult.ChunkSize - border;
-        int startY = chunkPosition.y * ChunkBuildResult.ChunkSize - border;
-        int[][] connectionKeys = new int[LayerCount][];
+        int startX =
+            chunkPosition.x * ChunkBuildResult.ChunkSize - SnapshotBorder;
+        int startY =
+            chunkPosition.y * ChunkBuildResult.ChunkSize - SnapshotBorder;
+        int keyCount = LayerCount * SnapshotCellCount;
+        int[] connectionKeys =
+            System.Buffers.ArrayPool<int>.Shared.Rent(keyCount);
+        Array.Clear(connectionKeys, 0, keyCount);
 
-        for (int layerIndex = 0; layerIndex < LayerCount; layerIndex++)
+        try
         {
-            PersistentTileLayer layer = (PersistentTileLayer)layerIndex;
-            int[] keys = new int[snapshotSize * snapshotSize];
-            Dictionary<string, int> groupKeys =
-                new(StringComparer.Ordinal);
-            Dictionary<TileData, int> tileKeys = new();
-            int nextKey = 1;
-
-            for (int y = 0; y < snapshotSize; y++)
+            for (int layerIndex = 0;
+                 layerIndex < LayerCount;
+                 layerIndex++)
             {
-                for (int x = 0; x < snapshotSize; x++)
+                PersistentTileLayer layer =
+                    (PersistentTileLayer)layerIndex;
+                int layerOffset = layerIndex * SnapshotCellCount;
+                _snapshotGroupKeys.Clear();
+                _snapshotTileKeys.Clear();
+                int nextKey = 1;
+
+                for (int y = 0; y < SnapshotSize; y++)
                 {
-                    Vector3Int worldCell =
-                        new(startX + x, startY + y, 0);
-                    if (!TryGetCell(layer, worldCell, out LogicalCell cell) ||
-                        cell.Tile == null)
+                    for (int x = 0; x < SnapshotSize; x++)
                     {
-                        continue;
-                    }
+                        Vector3Int worldCell =
+                            new(startX + x, startY + y, 0);
+                        if (!TryGetCell(
+                                layer,
+                                worldCell,
+                                out LogicalCell cell) ||
+                            cell.Tile == null)
+                        {
+                            continue;
+                        }
 
-                    AutoTileDefinition definition = cell.Tile.AutoTile;
-                    string group = definition != null
-                        ? definition.ConnectivityGroup
-                        : null;
-                    int key;
-                    if (!string.IsNullOrWhiteSpace(group))
-                    {
-                        if (!groupKeys.TryGetValue(group, out key))
+                        AutoTileDefinition definition = cell.Tile.AutoTile;
+                        string group = definition != null
+                            ? definition.ConnectivityGroup
+                            : null;
+                        int key;
+                        if (!string.IsNullOrWhiteSpace(group))
+                        {
+                            if (!_snapshotGroupKeys.TryGetValue(
+                                    group,
+                                    out key))
+                            {
+                                key = nextKey++;
+                                _snapshotGroupKeys.Add(group, key);
+                            }
+                        }
+                        else if (!_snapshotTileKeys.TryGetValue(
+                                     cell.Tile,
+                                     out key))
                         {
                             key = nextKey++;
-                            groupKeys.Add(group, key);
+                            _snapshotTileKeys.Add(cell.Tile, key);
                         }
-                    }
-                    else
-                    {
-                        if (!tileKeys.TryGetValue(cell.Tile, out key))
-                        {
-                            key = nextKey++;
-                            tileKeys.Add(cell.Tile, key);
-                        }
-                    }
 
-                    keys[x + y * snapshotSize] = key;
+                        connectionKeys[
+                            layerOffset + x + y * SnapshotSize] = key;
+                    }
                 }
             }
-
-            connectionKeys[layerIndex] = keys;
+        }
+        catch
+        {
+            System.Buffers.ArrayPool<int>.Shared.Return(connectionKeys);
+            throw;
         }
 
         return new ChunkBakeInput(
             chunkPosition,
             version,
-            snapshotSize,
             connectionKeys);
     }
 
@@ -741,54 +1008,79 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             ChunkBakeOutput output = BakeMasks(
                 CaptureBakeInput(position, chunk.BakeVersion));
             if (chunk.BakeVersion != output.Version)
+            {
+                ReturnBakeOutput(output);
                 continue;
+            }
 
-            ApplyBakedChunk(position, output.NeighborMasks);
-            chunk.HasAppliedBake = true;
+            try
+            {
+                ApplyBakedChunk(position, output.NeighborMasks);
+                chunk.HasAppliedBake = true;
+            }
+            finally
+            {
+                ReturnBakeOutput(output);
+            }
         }
     }
 
     private static ChunkBakeOutput BakeMasks(ChunkBakeInput input)
     {
         int size = ChunkBuildResult.ChunkSize;
-        byte[][] masks = new byte[LayerCount][];
-        for (int layer = 0; layer < LayerCount; layer++)
-            masks[layer] = new byte[CellCount];
+        int maskCount = LayerCount * CellCount;
+        byte[] masks =
+            System.Buffers.ArrayPool<byte>.Shared.Rent(maskCount);
+        Array.Clear(masks, 0, maskCount);
 
         // Bit order matches AutoTileDirections: NW, N, NE, W, E, SW, S, SE.
-        int[] offsetX = { -1, 0, 1, -1, 1, -1, 0, 1 };
-        int[] offsetY = { 1, 1, 1, 0, 0, -1, -1, -1 };
-        for (int layer = 0; layer < LayerCount; layer++)
+        try
         {
-            int[] keys = input.ConnectionKeys[layer];
-            for (int y = 0; y < size; y++)
+            for (int layer = 0; layer < LayerCount; layer++)
             {
-                for (int x = 0; x < size; x++)
+                int keyOffset = layer * SnapshotCellCount;
+                int maskOffset = layer * CellCount;
+                for (int y = 0; y < size; y++)
                 {
-                    int snapshotX = x + 1;
-                    int snapshotY = y + 1;
-                    int centerKey =
-                        keys[snapshotX + snapshotY * input.SnapshotSize];
-                    if (centerKey == 0)
-                        continue;
-
-                    byte mask = 0;
-                    for (int direction = 0;
-                         direction < AutoTileDirections.Count;
-                         direction++)
+                    for (int x = 0; x < size; x++)
                     {
-                        int neighborX = snapshotX + offsetX[direction];
-                        int neighborY = snapshotY + offsetY[direction];
-                        int neighborKey =
-                            keys[neighborX +
-                                 neighborY * input.SnapshotSize];
-                        if (neighborKey == centerKey)
-                            mask |= (byte)(1 << direction);
-                    }
+                        int snapshotX = x + SnapshotBorder;
+                        int snapshotY = y + SnapshotBorder;
+                        int centerKey = input.ConnectionKeys[
+                            keyOffset + snapshotX +
+                            snapshotY * SnapshotSize];
+                        if (centerKey == 0)
+                            continue;
 
-                    masks[layer][x + y * size] = mask;
+                        byte mask = 0;
+                        for (int direction = 0;
+                             direction < AutoTileDirections.Count;
+                             direction++)
+                        {
+                            Vector2Int offset =
+                                AutoTileDirections.Get(direction);
+                            int neighborX = snapshotX + offset.x;
+                            int neighborY = snapshotY + offset.y;
+                            int neighborKey = input.ConnectionKeys[
+                                keyOffset + neighborX +
+                                neighborY * SnapshotSize];
+                            if (neighborKey == centerKey)
+                                mask |= (byte)(1 << direction);
+                        }
+
+                        masks[maskOffset + x + y * size] = mask;
+                    }
                 }
             }
+        }
+        catch
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(masks);
+            throw;
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<int>.Shared.Return(input.ConnectionKeys);
         }
 
         return new ChunkBakeOutput(
@@ -804,7 +1096,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         out LogicalCell cell)
     {
         cell = default;
-        if (!Enum.IsDefined(typeof(PersistentTileLayer), layer) ||
+        if ((uint)layer >= LayerCount ||
             !TryGetChunkAndIndex(
                 worldCell,
                 out Vector2Int chunkPosition,
@@ -848,6 +1140,30 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             0);
     }
 
+    private ChunkRenderData AcquireChunkRenderData()
+    {
+        return _chunkDataPool.Count > 0
+            ? _chunkDataPool.Pop()
+            : new ChunkRenderData();
+    }
+
+    private int NextBakeVersion()
+    {
+        unchecked
+        {
+            _nextBakeVersion++;
+            if (_nextBakeVersion == 0)
+                _nextBakeVersion++;
+            return _nextBakeVersion;
+        }
+    }
+
+    private static void ReturnBakeOutput(ChunkBakeOutput output)
+    {
+        if (output.NeighborMasks != null)
+            System.Buffers.ArrayPool<byte>.Shared.Return(output.NeighborMasks);
+    }
+
     private static void CopyCells(
         Vector2Int chunkPosition,
         PersistentTileLayer layer,
@@ -881,8 +1197,8 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
 
     private sealed class ChunkRenderData
     {
-        public readonly Chunk Owner;
-        public readonly Vector2Int Position;
+        public Chunk Owner;
+        public Vector2Int Position;
         public int BakeVersion;
         public bool HasAppliedBake;
         public readonly LogicalCell[][] Layers = CreateLayers();
@@ -893,10 +1209,29 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         public readonly Color[] GeneratedLiquidColors =
             new Color[CellCount];
 
-        public ChunkRenderData(Chunk owner, Vector2Int position)
+        public void Reset(
+            Chunk owner,
+            Vector2Int position,
+            int bakeVersion)
         {
             Owner = owner;
             Position = position;
+            BakeVersion = bakeVersion;
+            HasAppliedBake = false;
+            for (int i = 0; i < Layers.Length; i++)
+                Array.Clear(Layers[i], 0, Layers[i].Length);
+            Array.Clear(
+                GeneratedLiquidCandidates,
+                0,
+                GeneratedLiquidCandidates.Length);
+            Array.Clear(
+                ResolvedGeneratedLiquids,
+                0,
+                ResolvedGeneratedLiquids.Length);
+            Array.Clear(
+                GeneratedLiquidColors,
+                0,
+                GeneratedLiquidColors.Length);
         }
 
         private static LogicalCell[][] CreateLayers()
@@ -912,18 +1247,15 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
     {
         public readonly Vector2Int ChunkPosition;
         public readonly int Version;
-        public readonly int SnapshotSize;
-        public readonly int[][] ConnectionKeys;
+        public readonly int[] ConnectionKeys;
 
         public ChunkBakeInput(
             Vector2Int chunkPosition,
             int version,
-            int snapshotSize,
-            int[][] connectionKeys)
+            int[] connectionKeys)
         {
             ChunkPosition = chunkPosition;
             Version = version;
-            SnapshotSize = snapshotSize;
             ConnectionKeys = connectionKeys;
         }
     }
@@ -932,13 +1264,13 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
     {
         public readonly Vector2Int ChunkPosition;
         public readonly int Version;
-        public readonly byte[][] NeighborMasks;
+        public readonly byte[] NeighborMasks;
         public readonly Exception Exception;
 
         public ChunkBakeOutput(
             Vector2Int chunkPosition,
             int version,
-            byte[][] neighborMasks,
+            byte[] neighborMasks,
             Exception exception)
         {
             ChunkPosition = chunkPosition;

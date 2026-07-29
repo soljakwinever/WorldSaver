@@ -18,6 +18,6 @@ MonoBehaviour:
   baseIntensity: 1
   temperatureOffset: -0.22
   moistureOffset: 0.12
-  ambientColorTint: {r: 0.58, g: 0.68, b: 0.82, a: 1}
+  ambientColorTint: {r: 0.13528979, g: 0.15861562, b: 0.19127177, a: 1}
   effects:
   - {fileID: 11400000, guid: 658b0dba2cce4c50836f206f7cbe8264, type: 2}

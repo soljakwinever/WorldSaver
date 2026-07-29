@@ -42,6 +42,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     [Inject] private WorldTilemapRenderer worldTilemapRenderer;
     
     private Vector2Int _lastPosition;
+    private bool _hasTouchedPosition;
     private Grid gameGrid;
     
     private float tickTimer;
@@ -95,6 +96,10 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
             "chunkloader.region",
             "Prints the chunk loader's current region.",
             DebugPrintCurrentRegion);
+        DebugLogConsole.AddCommand(
+            "chunkloader.reload",
+            "Unloads and reloads every currently loaded chunk.",
+            ReloadChunks);
         if (!chunkGenerator.IsRunning)
             chunkGenerator.Run(this,destroyCancellationToken);
     }
@@ -106,6 +111,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         timeSignalBus.DayChanged -= OnDayChanged;
         timeSignalBus.MonthChanged -= OnMonthChanged;
         DebugLogConsole.RemoveCommand(DebugPrintCurrentRegion);
+        DebugLogConsole.RemoveCommand(ReloadChunks);
     }
 
     private void DebugPrintCurrentRegion()
@@ -223,10 +229,14 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
 
     void TouchChunks()
     {
-        int yMin = Position.y - LoadDistance;
-        int yMax = Position.y + LoadDistance;
-        int xMin = Position.x - LoadDistance;
-        int xMax = Position.x + LoadDistance;
+        Vector2Int loaderPosition = Position;
+        _lastPosition = loaderPosition;
+        _hasTouchedPosition = true;
+
+        int yMin = loaderPosition.y - LoadDistance;
+        int yMax = loaderPosition.y + LoadDistance;
+        int xMin = loaderPosition.x - LoadDistance;
+        int xMax = loaderPosition.x + LoadDistance;
         
         List<Vector2Int> requestedChunks = new List<Vector2Int>();
         
@@ -334,7 +344,13 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         ProcessBiomeColorRefresh();
 
         tickTimer += Time.deltaTime;
-        if (tickTimer >= TickTime)
+        bool maintenanceTick = tickTimer >= TickTime;
+        bool loaderMoved = !_hasTouchedPosition || Position != _lastPosition;
+
+        if (loaderMoved || maintenanceTick)
+            TouchChunks();
+
+        if (maintenanceTick)
         {
             List<Vector2Int> toRemove = new List<Vector2Int>();
             foreach (var chunkInstance in _loadedChunks)
@@ -346,10 +362,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
             
             UnloadChunks(toRemove);
             
-            tickTimer = 0;
+            tickTimer -= TickTime;
         }
-        
-        TouchChunks();
     }
 
     private void UnloadChunks(IEnumerable<Vector2Int> toRemove)

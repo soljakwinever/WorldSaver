@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Project.Scripts.DataTypes;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -16,6 +17,8 @@ namespace Project.UI.MainMenu
     {
         public const string ActiveWorldKey = "WorldSaver.ActiveWorld";
         public const string ActiveSeedKey = "WorldSaver.ActiveSeed";
+        public const string ActivePresetIdKey = "WorldSaver.ActivePresetId";
+        public const string ActivePresetVersionKey = "WorldSaver.ActivePresetVersion";
         public const string BindingOverridesKey = "WorldSaver.BindingOverrides";
 
         private const string GameScene = "SampleScene";
@@ -30,6 +33,8 @@ namespace Project.UI.MainMenu
             public string name;
             public int seed;
             public string createdUtc;
+            public string presetId;
+            public int presetVersion = 1;
         }
 
         private Page _page;
@@ -47,6 +52,10 @@ namespace Project.UI.MainMenu
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
         private GUIStyle _messageStyle;
+        private WorldGenerationPresetCatalogData _presetCatalog;
+        private WorldGenerationPresetData[] _newWorldPresets =
+            Array.Empty<WorldGenerationPresetData>();
+        private int _newWorldPresetIndex;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void RestoreDisplaySettings()
@@ -75,6 +84,19 @@ namespace Project.UI.MainMenu
             _fullScreen = Screen.fullScreen;
             _vSync = QualitySettings.vSyncCount > 0;
             _showFps = PlayerPrefs.GetInt("WorldSaver.ShowFps", 1) != 0;
+            _presetCatalog =
+                Resources.Load<WorldGenerationPresetCatalogData>(
+                    "WorldGeneration/PresetCatalog");
+            _newWorldPresets = (_presetCatalog?.presets ??
+                                Array.Empty<WorldGenerationPresetData>())
+                .Where(preset => preset != null && preset.AvailableForNewWorlds)
+                .OrderBy(preset => preset.DisplayName, StringComparer.Ordinal)
+                .ToArray();
+            if (_newWorldPresets.Length == 0 &&
+                _presetCatalog?.newWorldDefault != null)
+            {
+                _newWorldPresets = new[] { _presetCatalog.newWorldDefault };
+            }
         }
 
         private void OnDestroy()
@@ -131,6 +153,18 @@ namespace Project.UI.MainMenu
             _newWorldName = GUILayout.TextField(_newWorldName, 48, GUILayout.Height(38));
             GUILayout.Space(8);
             GUILayout.Label("The world name is also used to create a deterministic generation seed.");
+            if (_newWorldPresets.Length > 0)
+            {
+                GUILayout.Space(12);
+                GUILayout.Label("WORLD TYPE");
+                string[] names = _newWorldPresets
+                    .Select(preset => preset.DisplayName)
+                    .ToArray();
+                _newWorldPresetIndex = GUILayout.SelectionGrid(
+                    Mathf.Clamp(_newWorldPresetIndex, 0, names.Length - 1),
+                    names,
+                    1);
+            }
             GUILayout.Space(22);
 
             GUI.enabled = !string.IsNullOrWhiteSpace(_newWorldName);
@@ -155,8 +189,21 @@ namespace Project.UI.MainMenu
                     GUILayout.BeginVertical(GUI.skin.box);
                     GUILayout.Label(world.name, _subtitleStyle);
                     GUILayout.Label($"Seed: {world.seed}");
+                    bool canResolve = TryResolveManifestPreset(
+                        world,
+                        out WorldGenerationPresetData preset);
+                    GUILayout.Label(
+                        canResolve
+                            ? $"World Type: {preset.DisplayName}"
+                            : $"Missing World Type: {world.presetId} v{world.presetVersion}");
+                    GUI.enabled = canResolve;
                     if (GUILayout.Button("PLAY", GUILayout.Height(34)))
-                        LaunchWorld(world.name, world.seed);
+                        LaunchWorld(
+                            world.name,
+                            world.seed,
+                            preset.PersistentId,
+                            preset.Version);
+                    GUI.enabled = true;
                     GUILayout.EndVertical();
                     GUILayout.Space(8);
                 }
@@ -296,25 +343,88 @@ namespace Project.UI.MainMenu
             }
 
             int seed = StableSeed(name);
+            WorldGenerationPresetData preset =
+                _newWorldPresets.Length > 0
+                    ? _newWorldPresets[Mathf.Clamp(
+                        _newWorldPresetIndex,
+                        0,
+                        _newWorldPresets.Length - 1)]
+                    : _presetCatalog?.newWorldDefault;
             Directory.CreateDirectory(directory);
             WorldManifest manifest = new()
             {
                 name = name,
                 seed = seed,
-                createdUtc = DateTime.UtcNow.ToString("O")
+                createdUtc = DateTime.UtcNow.ToString("O"),
+                presetId = preset?.PersistentId ?? string.Empty,
+                presetVersion = preset?.Version ?? 1
             };
             File.WriteAllText(
                 Path.Combine(directory, "world.json"),
                 JsonUtility.ToJson(manifest, true));
-            LaunchWorld(name, seed);
+            LaunchWorld(
+                name,
+                seed,
+                manifest.presetId,
+                manifest.presetVersion);
         }
 
-        private static void LaunchWorld(string name, int seed)
+        private static void LaunchWorld(
+            string name,
+            int seed,
+            string presetId,
+            int presetVersion)
         {
             PlayerPrefs.SetString(ActiveWorldKey, name);
             PlayerPrefs.SetInt(ActiveSeedKey, seed);
+            PlayerPrefs.SetString(ActivePresetIdKey, presetId ?? string.Empty);
+            PlayerPrefs.SetInt(
+                ActivePresetVersionKey,
+                Mathf.Max(1, presetVersion));
             PlayerPrefs.Save();
+            BackfillManifestPreset(name, presetId, presetVersion);
             ScreenFadeController.LoadScene(GameScene);
+        }
+
+        private bool TryResolveManifestPreset(
+            WorldManifest manifest,
+            out WorldGenerationPresetData preset)
+        {
+            preset = null;
+            if (_presetCatalog == null)
+                return string.IsNullOrWhiteSpace(manifest.presetId);
+            return _presetCatalog.TryResolve(
+                manifest.presetId,
+                manifest.presetVersion,
+                out preset);
+        }
+
+        private static void BackfillManifestPreset(
+            string worldName,
+            string presetId,
+            int presetVersion)
+        {
+            if (string.IsNullOrWhiteSpace(presetId))
+                return;
+
+            string path = Path.Combine(WorldDirectory(worldName), "world.json");
+            try
+            {
+                if (!File.Exists(path))
+                    return;
+                WorldManifest manifest =
+                    JsonUtility.FromJson<WorldManifest>(File.ReadAllText(path));
+                if (manifest == null || !string.IsNullOrWhiteSpace(manifest.presetId))
+                    return;
+                manifest.presetId = presetId;
+                manifest.presetVersion = Mathf.Max(1, presetVersion);
+                File.WriteAllText(path, JsonUtility.ToJson(manifest, true));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"Could not update preset identity for '{worldName}': {exception.Message}");
+            }
         }
 
         private static List<WorldManifest> ReadWorlds()

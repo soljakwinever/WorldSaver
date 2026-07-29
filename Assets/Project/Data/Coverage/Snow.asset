@@ -12,10 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 60a61a562cb34e1690c8b4371e97038b, type: 3}
   m_Name: Snow
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.CoverageData
-  coverageId: coverage
+  coverageId: snow
   coverageSprite: {fileID: 1036907120, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
   coverageColor: {r: 1, g: 1, b: 1, a: 1}
+  colorSource: 0
   renderPriority: 1
+  allowedTiles: []
+  restrictedTiles: []
   ambientTemperatureRange: {x: -1, y: -0.2}
   allowedWeatherIds:
   - snow.blizzard
@@ -23,9 +26,9 @@ MonoBehaviour:
   - snow.light
   allowedPhaseIds: []
   requiredActiveEffectIds: []
-  accumulationRate: 0.001
+  accumulationRate: 0.01
   accumulationRateVariation: 0.5
-  decayRate: 0.001
+  decayRate: 0.01
   initialCoverage: 0
   slowlyDecayWhenTemperatureFails: 1
   coverageTiling: {x: 1, y: 1}

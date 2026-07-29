@@ -18,17 +18,14 @@ namespace Project.Scripts.Pathfinding
         IDisposable
     {
         private readonly WorldGeneration _worldGeneration;
-        private readonly WorldData _worldData;
         private readonly MapSignalBus _mapSignals;
         private Dictionary<Vector2Int, LocalChunk> _localChunks = new();
 
         public WorldPathFindingMap(
             WorldGeneration worldGeneration,
-            WorldData worldData,
             MapSignalBus mapSignals)
         {
             _worldGeneration = worldGeneration;
-            _worldData = worldData;
             _mapSignals = mapSignals;
             _mapSignals.ChunkBuilt += OnChunkBuilt;
             _mapSignals.ChunkUnloaded += OnChunkUnloaded;
@@ -101,7 +98,8 @@ namespace Project.Scripts.Pathfinding
             for (int i = 0; i < cellCount; i++)
             {
                 walkable[i] =
-                    result.heights[i] > _worldData.waterHeight &&
+                    result.heights[i] >
+                    _worldGeneration.Elevation.waterHeight &&
                     !result.isCliff[i];
                 traversalCosts[i] = result.isRoad[i]
                     ? 1f

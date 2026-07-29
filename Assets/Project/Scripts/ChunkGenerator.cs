@@ -24,7 +24,6 @@ namespace Project.Scripts
         private readonly HashSet<Vector2Int> queuedOrRunning = new();
         private readonly HashSet<Vector2Int> completed = new();
         
-        [Inject] private WorldData worldData;
         [Inject] private WorldGeneration worldGeneration;
         [Inject] private Chunk.Pool chunkPool;
         
@@ -110,7 +109,9 @@ namespace Project.Scripts
                 
                 //Todo: World Snapshot
 
-                var propSpawnRules = worldData.propSpawnRules.ShuffleXY(chunkPosition.x, chunkPosition.y).ToArray();
+                var propSpawnRules = worldGeneration.PropSpawnRules
+                    .ShuffleXY(chunkPosition.x, chunkPosition.y)
+                    .ToArray();
                 
                 Task<ChunkBuildResult> task = Task.Run(() => BuildChunk(chunkPosition, worldGeneration, propSpawnRules, cancellationToken), cancellationToken);
 

@@ -13,7 +13,6 @@ namespace Project.Scripts
         private float currentSpeed;
         
         [Inject] private WorldGeneration worldGeneration;
-        [Inject] private WorldData worldData;
         
         private IInputManager inputManager;
         private bool _subscribedToInput = false;
@@ -42,7 +41,9 @@ namespace Project.Scripts
             
             _rigidbody2D = GetComponent<Rigidbody2D>();
             
-            var position = worldGeneration.FindSafeSpawnPosition(minHeight:worldData.beachHeight+0.1f, maxHeight:worldData.mountainHeight);
+            var position = worldGeneration.FindSafeSpawnPosition(
+                minHeight: worldGeneration.Elevation.beachHeight + 0.1f,
+                maxHeight: worldGeneration.Elevation.mountainHeight);
 
             transform.position = grid.CellToWorld(new Vector3Int(position.x, position.y, 0));
         }

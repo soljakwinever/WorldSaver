@@ -1185,6 +1185,7 @@ MonoBehaviour:
   chunkPrefab: {fileID: 3563933547565955901, guid: d8452f8f1d5815241a53a9ce0b22b33e, type: 3}
   nodePrefab: {fileID: 2924399243638633293, guid: 322f90328d2518144a7105ec7f6a85ce, type: 3}
   itemStackPrefab: {fileID: 6193604693065524535, guid: f916d42486232804390a017273955518, type: 3}
+  console: {fileID: 11452418, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
   worldUi: {fileID: 1477034259}
 --- !u!114 &1905862928
 MonoBehaviour:

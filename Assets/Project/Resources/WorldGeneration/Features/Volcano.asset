@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4004268f0e3fa6d4798da3e68644ccc2, type: 3}
+  m_Name: Volcano
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.FeatureData
+  persistentId: volcano
+  selectionWeight: 1
+  minimumRadius: 32
+  maximumRadius: 96
+  minimumAspect: 0.62
+  maximumAspect: 0.95
+  edgeWarp: 0.22
+  requireLand: 1
+  heightRange: {x: 0.2, y: 1}
+  moistureRange: {x: 0, y: 1}
+  temperatureRange: {x: 0.35, y: 1}
+  allowedBiomes:
+  - {fileID: 11400000, guid: 9deba257788954b4491107153ee7acfb, type: 2}
+  - {fileID: 11400000, guid: 86b0a203bc34b9b48b5e8042eacfc37a, type: 2}
+  - {fileID: 11400000, guid: d592ed03576c900468bbc1bafaf5b3eb, type: 2}
+  - {fileID: 11400000, guid: 5b28fc73a60f8e447944b1c7f332bd54, type: 2}
+  generators:
+  - enabled: 1
+    strength: 1
+    generator:
+      rid: 7749231041541471001
+  references:
+    version: 2
+    RefIds:
+    - rid: 7749231041541471001
+      type: {class: VolcanoFeatureGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        coneHeight: 0.44
+        rimHeight: 0.18
+        craterDepth: 0.32
+        ridgeHeight: 0.08
+        ridgeCount: 11

@@ -1,5 +1,4 @@
 #if UNITY_INCLUDE_TESTS
-using System.Reflection;
 using NUnit.Framework;
 using Project.Scripts;
 using Project.Scripts.DataTypes;
@@ -12,6 +11,7 @@ namespace Project.Tests.EditMode
     {
         private WorldData _worldData;
         private BiomeData _biome;
+        private WorldGenerationPresetData _preset;
         private IWorldGenerator _generator;
 
         [SetUp]
@@ -44,11 +44,12 @@ namespace Project.Tests.EditMode
             _biome.bumpScale = 9f;
             _biome.cliffScale = 18f;
 
-            WorldGeneration generator = new(_worldData);
-            FieldInfo biomeLibraryField = typeof(WorldGeneration)
-                .GetField("biomeLibrary", BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(biomeLibraryField, Is.Not.Null);
-            biomeLibraryField.SetValue(generator, new[] { _biome });
+            _preset = WorldGenerationPresetDefaults.CreateFromLegacy(_worldData);
+            _preset.climate.biomes = new[] { _biome };
+            WorldGeneration generator = new(
+                _worldData,
+                new WorldGenerationSelection(_worldData.seed, _preset),
+                null);
             _generator = generator;
         }
 
@@ -56,7 +57,25 @@ namespace Project.Tests.EditMode
         public void TearDown()
         {
             Object.DestroyImmediate(_biome);
+            DestroyPreset(_preset);
             Object.DestroyImmediate(_worldData);
+        }
+
+        private static void DestroyPreset(WorldGenerationPresetData preset)
+        {
+            if (preset == null)
+                return;
+
+            Object.DestroyImmediate(preset.climate);
+            Object.DestroyImmediate(preset.elevation);
+            Object.DestroyImmediate(preset.lakes);
+            Object.DestroyImmediate(preset.smallPools);
+            Object.DestroyImmediate(preset.valleys);
+            Object.DestroyImmediate(preset.microTerrain);
+            Object.DestroyImmediate(preset.outcrops);
+            Object.DestroyImmediate(preset.features);
+            Object.DestroyImmediate(preset.surfaceDetails);
+            Object.DestroyImmediate(preset);
         }
 
         [Test]

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cdc5e0be4c94981ba57dd5d82eaa634, type: 3}
+  m_Name: Wall 2
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TileData
+  TileId: 12
+  TileBase: {fileID: 11400000, guid: 4e541ba50aeeece458a1f59e146abec4, type: 2}
+  AutoTile: {fileID: 11400000, guid: b310d325ac15cb44bb6969fcaec17196, type: 2}
+  Color: {r: 1, g: 1, b: 1, a: 1}
+  Flags: 0
+  IsWall: 1
+  ceilingTile: {fileID: 11400000, guid: d4975b15b91d4ef47b318cc3d3a28091, type: 2}
+  droppedItem: {fileID: 0}
+  dropChance: 1
+  tags: []

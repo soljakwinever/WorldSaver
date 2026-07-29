@@ -69,6 +69,8 @@ namespace Project.Scripts
             }
         }
 
+        [Header("Legacy Generation Fallback")]
+        [Tooltip("Generation values below are used only when no preset catalog is available.")]
         public int seed;
         
         public bool heightMapDebug = false;

@@ -22,6 +22,7 @@ namespace Project.Scripts
         {
             public ushort LocalIndex;
             public float TerrainTemperature;
+            public float AccumulationMultiplier = 1f;
             public float Amount;
             public bool Initialized;
         }
@@ -38,13 +39,22 @@ namespace Project.Scripts
             new CoverageData[MaximumSavedCells];
         private readonly byte[] _displayedAlpha =
             new byte[MaximumSavedCells];
+        private readonly bool[] _dirtyCellFlags =
+            new bool[MaximumSavedCells];
+        private readonly ushort[] _dirtyCells =
+            new ushort[MaximumSavedCells];
+        private readonly ushort[] _visualChanges =
+            new ushort[MaximumSavedCells];
 
         private Chunk _chunk;
         private bool _ready;
+        private int _generation;
+        private CoverageData _displayedMaterialData;
 
         public ushort PersistentTypeId => TypeId;
         public ushort PersistentVersion => Version;
         public bool IsReady => _ready;
+        public int Generation => _generation;
 
         public void Configure(
             Chunk chunk,
@@ -52,8 +62,13 @@ namespace Project.Scripts
             float waterHeight,
             IReadOnlyList<CoverageData> coverageLayers)
         {
+            unchecked
+            {
+                _generation++;
+            }
             _chunk = chunk;
             _ready = false;
+            _displayedMaterialData = null;
             _layers.Clear();
             Array.Clear(_displayedData, 0, _displayedData.Length);
             Array.Clear(_displayedAlpha, 0, _displayedAlpha.Length);
@@ -92,7 +107,9 @@ namespace Project.Scripts
                     layer.Cells.TryAdd(index, new CellState
                     {
                         LocalIndex = index,
-                        TerrainTemperature = build.temperature[index]
+                        TerrainTemperature = build.temperature[index],
+                        AccumulationMultiplier =
+                            CalculateAccumulationMultiplier(data, index)
                     });
                 }
             }
@@ -106,6 +123,13 @@ namespace Project.Scripts
                 {
                     if (cell.Initialized)
                         continue;
+
+                    if (!TileAllowsCoverage(layer.Data, cell.LocalIndex))
+                    {
+                        cell.Amount = 0f;
+                        cell.Initialized = true;
+                        continue;
+                    }
 
                     WeatherSample sample =
                         regionalWeather.WithTerrainTemperature(
@@ -141,12 +165,17 @@ namespace Project.Scripts
                 return;
 
             float ticks = Mathf.Min(elapsedTicks, int.MaxValue);
-            HashSet<ushort> dirtyCells = new();
+            int dirtyCount = 0;
 
             foreach (LayerState layer in _layers.Values)
             {
+                bool accumulationAllowed =
+                    WeatherAllowsAccumulation(layer.Data, regionalWeather);
                 foreach (CellState cell in layer.Cells.Values)
                 {
+                    if (!TileAllowsCoverage(layer.Data, cell.LocalIndex))
+                        continue;
+
                     WeatherSample sample =
                         regionalWeather.WithTerrainTemperature(
                             cell.TerrainTemperature);
@@ -159,32 +188,45 @@ namespace Project.Scripts
                                 layer.Data.DecayRate * ticks)
                             : 0f;
                     }
-                    else if (WeatherAllowsAccumulation(layer.Data, sample))
+                    else if (accumulationAllowed)
                     {
-                        float accumulationMultiplier =
-                            GetAccumulationMultiplier(
-                                layer.Data,
-                                cell.LocalIndex);
                         cell.Amount = Mathf.Clamp01(
                             cell.Amount +
                             layer.Data.AccumulationRate *
-                            accumulationMultiplier *
+                            cell.AccumulationMultiplier *
                             ticks);
                     }
 
-                    if (!Mathf.Approximately(previous, cell.Amount))
-                        dirtyCells.Add(cell.LocalIndex);
+                    if (!Mathf.Approximately(previous, cell.Amount) &&
+                        !_dirtyCellFlags[cell.LocalIndex])
+                    {
+                        _dirtyCellFlags[cell.LocalIndex] = true;
+                        _dirtyCells[dirtyCount++] = cell.LocalIndex;
+                    }
                 }
             }
 
-            foreach (ushort index in dirtyCells)
-                RefreshVisual(index, force: false);
+            int visualCount = 0;
+            for (int i = 0; i < dirtyCount; i++)
+            {
+                ushort index = _dirtyCells[i];
+                _dirtyCellFlags[index] = false;
+                if (UpdateDisplayedVisual(index, force: false))
+                    _visualChanges[visualCount++] = index;
+            }
 
-            if (dirtyCells.Count > 0)
+            if (visualCount > 0)
+                _chunk?.ApplyCoverageVisuals(
+                    _visualChanges,
+                    visualCount,
+                    _displayedData,
+                    _displayedAlpha);
+
+            if (dirtyCount > 0)
                 RefreshMaterialProperties();
         }
 
-        private float GetAccumulationMultiplier(
+        private float CalculateAccumulationMultiplier(
             CoverageData data,
             ushort localIndex)
         {
@@ -222,6 +264,7 @@ namespace Project.Scripts
             amount = 0f;
             if (!_ready ||
                 coverage == null ||
+                !TileAllowsCoverage(coverage, localIndex) ||
                 !_layers.TryGetValue(
                     coverage.CoverageId,
                     out LayerState layer) ||
@@ -243,6 +286,7 @@ namespace Project.Scripts
         {
             if (!_ready ||
                 coverage == null ||
+                !TileAllowsCoverage(coverage, localIndex) ||
                 !_layers.TryGetValue(
                     coverage.CoverageId,
                     out LayerState layer) ||
@@ -260,12 +304,55 @@ namespace Project.Scripts
             return true;
         }
 
-        public void RefreshCell(ushort localIndex) =>
+        public void RefreshCell(ushort localIndex)
+        {
             RefreshVisual(localIndex, force: true);
+            RefreshMaterialProperties();
+        }
+
+        public void ClearCell(ushort localIndex)
+        {
+            bool found = false;
+            foreach (LayerState layer in _layers.Values)
+            {
+                if (!layer.Cells.TryGetValue(
+                        localIndex,
+                        out CellState cell))
+                {
+                    continue;
+                }
+
+                cell.Amount = 0f;
+                cell.Initialized = true;
+                found = true;
+            }
+
+            if (found && _ready)
+                RefreshCell(localIndex);
+        }
+
+        public void RefreshCellColor(ushort localIndex) =>
+            RefreshVisual(localIndex, force: true);
+
+        private bool TileAllowsCoverage(
+            CoverageData data,
+            ushort localIndex)
+        {
+            return _chunk != null &&
+                   _chunk.TryGetCoverageGroundTile(
+                       localIndex,
+                       out TileData tile) &&
+                   data.AllowsTile(tile);
+        }
 
         public void PrepareForPool()
         {
+            unchecked
+            {
+                _generation++;
+            }
             _ready = false;
+            _displayedMaterialData = null;
             _layers.Clear();
             _chunk?.ClearCoverageVisuals();
             _chunk = null;
@@ -273,19 +360,33 @@ namespace Project.Scripts
 
         public void WriteState(BinaryWriter writer)
         {
-            writer.Write(_layers.Count);
             List<string> coverageIds = new(_layers.Keys);
             coverageIds.Sort(StringComparer.Ordinal);
+            int savedLayerCount = 0;
+            foreach (string coverageId in coverageIds)
+            {
+                if (CountSavedCells(_layers[coverageId]) > 0)
+                    savedLayerCount++;
+            }
+
+            writer.Write(savedLayerCount);
             foreach (string coverageId in coverageIds)
             {
                 LayerState layer = _layers[coverageId];
+                int savedCellCount = CountSavedCells(layer);
+                if (savedCellCount == 0)
+                    continue;
+
                 writer.Write(coverageId);
-                writer.Write(layer.Cells.Count);
+                writer.Write(savedCellCount);
                 List<ushort> cellIndices = new(layer.Cells.Keys);
                 cellIndices.Sort();
                 foreach (ushort cellIndex in cellIndices)
                 {
                     CellState cell = layer.Cells[cellIndex];
+                    if (cell.Amount <= 0f)
+                        continue;
+
                     writer.Write(cell.LocalIndex);
                     writer.Write(Mathf.Clamp01(cell.Amount));
                 }
@@ -312,6 +413,18 @@ namespace Project.Scripts
                     throw new InvalidDataException("Invalid coverage cell count.");
 
                 _layers.TryGetValue(coverageId, out LayerState layer);
+                if (layer != null)
+                {
+                    // A persisted layer uses zero as its sparse default. Mark
+                    // omitted cells initialized so CompleteRestore does not
+                    // regenerate them from current weather or neighboring chunks.
+                    foreach (CellState cell in layer.Cells.Values)
+                    {
+                        cell.Amount = 0f;
+                        cell.Initialized = true;
+                    }
+                }
+
                 for (int cellIndex = 0; cellIndex < cellCount; cellIndex++)
                 {
                     ushort localIndex = reader.ReadUInt16();
@@ -336,7 +449,28 @@ namespace Project.Scripts
             }
         }
 
-        public bool IsAtBaseline() => _layers.Count == 0;
+        public bool IsAtBaseline()
+        {
+            foreach (LayerState layer in _layers.Values)
+            {
+                if (CountSavedCells(layer) > 0)
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static int CountSavedCells(LayerState layer)
+        {
+            int count = 0;
+            foreach (CellState cell in layer.Cells.Values)
+            {
+                if (cell.Amount > 0f)
+                    count++;
+            }
+
+            return count;
+        }
 
         public static bool ConditionsAllow(
             CoverageData data,
@@ -439,13 +573,37 @@ namespace Project.Scripts
 
         private void RefreshAllVisuals(bool force)
         {
+            int visualCount = 0;
             for (ushort index = 0; index < MaximumSavedCells; index++)
-                RefreshVisual(index, force);
+            {
+                if (UpdateDisplayedVisual(index, force))
+                    _visualChanges[visualCount++] = index;
+            }
 
-            RefreshMaterialProperties();
+            if (visualCount > 0)
+                _chunk?.ApplyCoverageVisuals(
+                    _visualChanges,
+                    visualCount,
+                    _displayedData,
+                    _displayedAlpha);
+
+            RefreshMaterialProperties(force: true);
         }
 
         private void RefreshVisual(ushort localIndex, bool force)
+        {
+            if (!UpdateDisplayedVisual(localIndex, force))
+                return;
+
+            _visualChanges[0] = localIndex;
+            _chunk?.ApplyCoverageVisuals(
+                _visualChanges,
+                1,
+                _displayedData,
+                _displayedAlpha);
+        }
+
+        private bool UpdateDisplayedVisual(ushort localIndex, bool force)
         {
             CoverageData winner = null;
             float winnerAmount = 0f;
@@ -454,7 +612,8 @@ namespace Project.Scripts
                 if (!layer.Cells.TryGetValue(
                         localIndex,
                         out CellState cell) ||
-                    cell.Amount <= 0f)
+                    cell.Amount <= 0f ||
+                    !TileAllowsCoverage(layer.Data, localIndex))
                 {
                     continue;
                 }
@@ -477,32 +636,36 @@ namespace Project.Scripts
                 _displayedData[localIndex] == winner &&
                 _displayedAlpha[localIndex] == alpha)
             {
-                return;
+                return false;
             }
 
             _displayedData[localIndex] = winner;
             _displayedAlpha[localIndex] = alpha;
-            _chunk?.ApplyCoverageVisual(
-                localIndex,
-                winner,
-                alpha / 255f);
+            return true;
         }
 
-        private void RefreshMaterialProperties()
+        private void RefreshMaterialProperties(bool force = false)
         {
             CoverageData winner = null;
-            float total = 0f;
-            int count = 0;
 
             foreach (LayerState layer in _layers.Values)
             {
-                float layerTotal = 0f;
+                bool hasCoverage = false;
                 foreach (CellState cell in layer.Cells.Values)
                 {
-                    layerTotal += cell.Amount;
+                    if (cell.Amount <= 0f ||
+                        !TileAllowsCoverage(
+                            layer.Data,
+                            cell.LocalIndex))
+                    {
+                        continue;
+                    }
+
+                    hasCoverage = true;
+                    break;
                 }
 
-                if (layerTotal <= 0f)
+                if (!hasCoverage)
                     continue;
 
                 if (winner == null ||
@@ -513,14 +676,14 @@ namespace Project.Scripts
                          winner.CoverageId) < 0))
                 {
                     winner = layer.Data;
-                    total = layerTotal;
-                    count = layer.Cells.Count;
                 }
             }
 
-            _chunk?.ApplyCoverageMaterial(
-                winner,
-                count == 0 ? 0f : total / count);
+            if (!force && winner == _displayedMaterialData)
+                return;
+
+            _displayedMaterialData = winner;
+            _chunk?.ApplyCoverageMaterial(winner, 0f);
         }
     }
 }
