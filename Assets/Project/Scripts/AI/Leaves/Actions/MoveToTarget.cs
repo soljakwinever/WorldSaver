@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Project.Scripts.AI.GraphEditor;
 using Project.Scripts.AI.Leaves.Sensors;
 using Project.Scripts.Interface;
@@ -43,11 +45,21 @@ namespace Project.Scripts.AI.Leaves.Actions
         [NonSerialized]
         private float nextRepathTime;
 
+        [NonSerialized]
+        private Task<List<Vector2Int>> pendingPath;
+
+        [NonSerialized]
+        private CancellationTokenSource pathCancellation;
+
+        [NonSerialized]
+        private Vector2Int pendingDestination;
+
         protected override void OnEnter()
         {
             path.Clear();
             waypointIndex = 0;
             nextRepathTime = 0f;
+            CancelPendingPath();
 
             self = Blackboard.TryGet(AiKeys.Self, out GameObject owner) &&
                    owner != null
@@ -65,6 +77,10 @@ namespace Project.Scripts.AI.Leaves.Actions
                     out Vector3 targetPosition))
                 return NodeState.Failure;
 
+            PendingPathState pendingState = ConsumePendingPath();
+            if (pendingState == PendingPathState.Failed)
+                return NodeState.Failure;
+
             float tolerance = Mathf.Max(0.001f, arrivalTolerance);
             if ((self.position - targetPosition).sqrMagnitude <=
                 tolerance * tolerance)
@@ -73,13 +89,29 @@ namespace Project.Scripts.AI.Leaves.Actions
             Vector2Int targetCell = Vector2Int.FloorToInt(targetPosition);
             bool destinationChanged = path.Count == 0 ||
                                       targetCell != plannedDestination;
-            if (destinationChanged || Time.time >= nextRepathTime)
+            bool pendingDestinationChanged =
+                pendingPath != null && targetCell != pendingDestination;
+            bool pathExpired = Time.time >= nextRepathTime;
+            if (pendingDestinationChanged ||
+                pendingPath == null && (destinationChanged || pathExpired))
             {
-                if (!TryPlanPath(targetCell))
-                    return NodeState.Failure;
-
-                nextRepathTime = Time.time + Mathf.Max(0f, repathInterval);
+                // Continuation frames are for cheap movement only. Defer A* to
+                // a full tree pass so pathfinding cannot unexpectedly dominate
+                // every-frame AI work.
+                if (IsContinuationPass)
+                {
+                    RequestEvaluation();
+                }
+                else
+                {
+                    StartPathRequest(targetCell);
+                }
             }
+
+            if (path.Count == 0)
+                return pendingPath != null
+                    ? NodeState.Running
+                    : NodeState.Failure;
 
             SkipReachedWaypoints(tolerance * tolerance);
             if (waypointIndex >= path.Count)
@@ -99,27 +131,76 @@ namespace Project.Scripts.AI.Leaves.Actions
 
         protected override void OnAbort()
         {
+            CancelPendingPath();
             path.Clear();
             waypointIndex = 0;
         }
 
-        private bool TryPlanPath(Vector2Int destination)
+        protected override void OnExit()
         {
-            path.Clear();
-            Vector2Int start = Vector2Int.FloorToInt(self.position);
-            if (!pathFinder.TryFindPath(
-                    start,
-                    destination,
-                    path,
-                    Mathf.Max(1, maximumVisitedTiles)))
-                return false;
+            CancelPendingPath();
+        }
 
+        private void StartPathRequest(Vector2Int destination)
+        {
+            CancelPendingPath();
+            Vector2Int start = Vector2Int.FloorToInt(self.position);
+            pathCancellation = new CancellationTokenSource();
+            pendingDestination = destination;
+            pendingPath = pathFinder.FindPathAsync(
+                start,
+                destination,
+                Mathf.Max(1, maximumVisitedTiles),
+                pathCancellation.Token);
+        }
+
+        private PendingPathState ConsumePendingPath()
+        {
+            if (pendingPath == null || !pendingPath.IsCompleted)
+                return PendingPathState.Waiting;
+
+            Task<List<Vector2Int>> completed = pendingPath;
+            Vector2Int destination = pendingDestination;
+            pendingPath = null;
+            pathCancellation?.Dispose();
+            pathCancellation = null;
+
+            if (completed.IsFaulted)
+            {
+                _ = completed.Exception;
+                return PendingPathState.Failed;
+            }
+            if (completed.IsCanceled)
+                return PendingPathState.Failed;
+
+            List<Vector2Int> result = completed.Result;
+            if (result == null || result.Count == 0)
+                return PendingPathState.Failed;
+
+            path.Clear();
+            path.AddRange(result);
             plannedDestination = destination;
             waypointIndex = path.Count > 1 ? 1 : 0;
             Blackboard.Set(
                 AiKeys.Destination,
                 CellCenter(destination, self.position.z));
-            return path.Count > 0;
+
+            float interval = Mathf.Max(0f, repathInterval);
+            nextRepathTime = Time.time + interval;
+            if (interval > 0f)
+                RequestEvaluation(interval);
+            return PendingPathState.Ready;
+        }
+
+        private void CancelPendingPath()
+        {
+            if (pathCancellation != null)
+            {
+                pathCancellation.Cancel();
+                pathCancellation.Dispose();
+                pathCancellation = null;
+            }
+            pendingPath = null;
         }
 
         private void SkipReachedWaypoints(float toleranceSquared)
@@ -139,6 +220,13 @@ namespace Project.Scripts.AI.Leaves.Actions
         private static Vector3 CellCenter(Vector2Int cell, float z)
         {
             return new Vector3(cell.x + 0.5f, cell.y + 0.5f, z);
+        }
+
+        private enum PendingPathState
+        {
+            Waiting,
+            Ready,
+            Failed
         }
     }
 }

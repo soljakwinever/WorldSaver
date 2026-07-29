@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using IngameDebugConsole;
 using Project.Scripts;
 using Project.Scripts.Bus;
 using Project.Scripts.Interface;
 using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.TimeAndWeather;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Zenject;
@@ -24,6 +27,10 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     }
 
     public int LoadedChunks => _loadedChunks.Count;
+    public float CurrentAmbientTemperature =>
+        track == null ? 0f : weatherService.GetAmbientTemperature(track.position);
+    public WeatherSample CurrentWeather =>
+        track == null ? default : weatherService.Sample(track.position);
 
     [SerializeField] private GameObject cursor;
     
@@ -31,6 +38,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     [Inject] private MapSignalBus mapSignalBus;
     [Inject] private TimeSignalBus timeSignalBus;
     [Inject] private WorldData worldData;
+    [Inject] private IRegionalWeatherService weatherService;
+    [Inject] private WorldTilemapRenderer worldTilemapRenderer;
     
     private Vector2Int _lastPosition;
     private Grid gameGrid;
@@ -82,6 +91,10 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         timeSignalBus.HourChanged += OnHourChanged;
         timeSignalBus.DayChanged += OnDayChanged;
         timeSignalBus.MonthChanged += OnMonthChanged;
+        DebugLogConsole.AddCommand(
+            "chunkloader.region",
+            "Prints the chunk loader's current region.",
+            DebugPrintCurrentRegion);
         if (!chunkGenerator.IsRunning)
             chunkGenerator.Run(this,destroyCancellationToken);
     }
@@ -92,6 +105,23 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         timeSignalBus.HourChanged -= OnHourChanged;
         timeSignalBus.DayChanged -= OnDayChanged;
         timeSignalBus.MonthChanged -= OnMonthChanged;
+        DebugLogConsole.RemoveCommand(DebugPrintCurrentRegion);
+    }
+
+    private void DebugPrintCurrentRegion()
+    {
+        if (track == null)
+        {
+            Debug.LogWarning(
+                "Chunk loader cannot determine its current region because no tracked transform is assigned.");
+            return;
+        }
+
+        Vector2Int chunkPosition = Position;
+        Vector2Int regionPosition =
+            WorldPartition.ChunkToRegion(chunkPosition);
+        Debug.Log(
+            $"Chunk loader region: {regionPosition} (chunk: {chunkPosition}).");
     }
 
     private void OnHourChanged(TimeChangedArgs args)
@@ -335,6 +365,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
             // return the same pooled Chunk a second time.
             _loadedChunks.Remove(chunkPosition);
             chunkGenerator.ChunkUnloaded(chunkPosition);
+            worldTilemapRenderer.RemoveChunk(chunkPosition);
             mapSignalBus.RaiseChunkUnloaded(chunkPosition);
 
             if (instance.chunk is Chunk chunk)

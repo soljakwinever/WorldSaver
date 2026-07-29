@@ -585,7 +585,7 @@ MonoBehaviour:
       data:
         m_Value:
           serializedVersion: 2
-          m_Bits: 1
+          m_Bits: 9
     - rid: 1367514886237585448
       type: {class: 'Constant`1[[System.String, mscorlib]]', ns: Unity.GraphToolkit.Editor, asm: UnityEditor.GraphToolkitModule}
       data:
@@ -1026,7 +1026,7 @@ MonoBehaviour:
     - rid: 1367514886237585583
       type: {class: 'Constant`1[[System.Single, mscorlib]]', ns: Unity.GraphToolkit.Editor, asm: UnityEditor.GraphToolkitModule}
       data:
-        m_Value: 0.08
+        m_Value: 1
     - rid: 1367514886237585584
       type: {class: 'Constant`1[[System.Single, mscorlib]]', ns: Unity.GraphToolkit.Editor, asm: UnityEditor.GraphToolkitModule}
       data:

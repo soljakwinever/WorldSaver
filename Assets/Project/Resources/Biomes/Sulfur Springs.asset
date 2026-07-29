@@ -32,6 +32,8 @@ MonoBehaviour:
   cliffChance: 0.08
   cliffStrength: 0.035
   cliffScale: 20
+  lakeStrength: 0.25
+  SmallPoolsStrength: 6
   volcanoChance: 0.25
   craterChance: 0.04
   mesaChance: 0
@@ -42,8 +44,14 @@ MonoBehaviour:
   waterColor: {r: 0.627451, g: 0.74509805, b: 0.23529412, a: 1}
   cliffColor: {r: 0.39215687, g: 0.39215687, b: 0.25490198, a: 1}
   beachColor: {r: 0.74509805, g: 0.6862745, b: 0.3529412, a: 1}
+  springTint: {r: 1, g: 1, b: 1, a: 1}
+  summerTint: {r: 1, g: 1, b: 1, a: 1}
+  fallTint: {r: 1, g: 1, b: 1, a: 1}
+  winterTint: {r: 1, g: 1, b: 1, a: 1}
+  SeasonColorEffectMod: 1
   overrideGroundTile: {fileID: 11400000, guid: 70777777777747778777777777777777, type: 2}
   overridePathTile: {fileID: 0}
   overrideWaterTile: {fileID: 0}
   overrideCliffTile: {fileID: 0}
   overrideBeachTile: {fileID: 0}
+  overrideMinedTileReplacement: {fileID: 0}

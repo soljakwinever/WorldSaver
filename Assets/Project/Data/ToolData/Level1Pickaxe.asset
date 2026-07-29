@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.ToolData
   _toolName: Level1Pickaxe
   _toolType: 2
-  _power: 1
+  _power: 8
   _staminaCost: 1
   _actions:
   - {fileID: 11400000, guid: d7dd636ed98efc848a84c99f803e278c, type: 2}

@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22d56fcdd34e16849814ad144383ff4a, type: 3}
+  m_Name: WeatherSimulationSettings
+  m_EditorClassIdentifier: 
+  samplesPerChunkAxis: 2
+  seasonalTemperatureOffsets: {x: 0.05, y: 0.2, z: -0.05, w: -0.25}
+  seasonalMoistureOffsets: {x: 0.1, y: -0.05, z: 0.05, w: 0}
+  yearlyTemperatureRange: 0.05
+  yearlyMoistureRange: 0.03
+  dailyTemperatureRange: 0.08
+  simulationIntervalTicks: 10
+  neighborWeatherInfluence: 0.35
+  accumulationMeltPerTick: 0.001
+  weather:
+  - {fileID: 11400000, guid: 1c4bc95275b04287a21eb1d2e5bc2d97, type: 2}
+  - {fileID: 11400000, guid: f1441abe067048db8e68bd822ca9b01c, type: 2}
+  - {fileID: 11400000, guid: cf073b2af36b4a8e902c420337ed32ba, type: 2}
+  - {fileID: 11400000, guid: 828192369799472c9212db475d5df829, type: 2}
+  - {fileID: 11400000, guid: b57dec32733241109d72d858b66bbda4, type: 2}
+  - {fileID: 11400000, guid: 80f4624769c3491ead6381b1e512e9eb, type: 2}
+  - {fileID: 11400000, guid: 9600318f4fb14c8b82dfa11c26423cc0, type: 2}
+  - {fileID: 11400000, guid: 8d50c54b2e6e404082814c2487bd7030, type: 2}
+  - {fileID: 11400000, guid: 4b51cc579780499a8012af7868a349dc, type: 2}

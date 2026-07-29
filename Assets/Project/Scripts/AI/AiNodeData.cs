@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Project.Scripts.AI
 {
     [CreateAssetMenu(fileName = "New AI Node Data", menuName = "AI/AI Node Data", order = 0)]
-    public class AiNodeData : ScriptableObject
+    public class AiNodeData : BehaviourTreeData
     {
         [SerializeReference, ManagedReferenceSelector(typeof(AiNode))]
         private AiNode _root = new RootNode();

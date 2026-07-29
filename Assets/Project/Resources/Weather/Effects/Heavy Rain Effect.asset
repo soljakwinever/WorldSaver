@@ -1,0 +1,74 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 723d3c7867204e4458a738ca9b417235, type: 3}
+  m_Name: Heavy Rain Effect
+  m_EditorClassIdentifier: 
+  effectId: precipitation.rain.heavy
+  kind: 1
+  intensity:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.15
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.85
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  pulseIntervalTicks: 2
+  effectPrefab: {fileID: 5228066269019927886, guid: 428995ff35f16e64fbdd7e0d71586433, type: 3}
+  spawnOnPhaseStart: 0
+  spawnOnPulse: 0
+  spawnChancePerPulse: 1
+  prefabLifetimeSeconds: 5
+  fullScreenParticleEffect: 1
+  fullScreenReferenceHeight: 1
+  fullScreenCameraDistance: 10
+  fullScreenBlendInSeconds: 2
+  fullScreenBlendOutSeconds: 1
+  finishParticlesOnStop: 1
+  particleStopTimeoutSeconds: 30
+  temperatureOffset: -0.05
+  puddleAccumulationPerTick: 0.002
+  snowAccumulationPerTick: 0

@@ -48,5 +48,6 @@ namespace Project.Scripts.DataTypes
         public Color winterTint;
         public float SeasonColorEffectMod;
         public float lakeStrength;
+        public float SmallPoolsStrength;
     }
 }

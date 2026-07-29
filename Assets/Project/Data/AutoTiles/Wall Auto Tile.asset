@@ -1,0 +1,165 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a021cc47b21246b99add5abca1520ea1, type: 3}
+  m_Name: Wall Auto Tile
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.AutoTileDefinition
+  ConnectivityGroup: 
+  DefaultSprite: {fileID: 289034434, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+  DefaultColliderType: 1
+  Rules:
+  - RequiredNeighbors: 255
+    ForbiddenNeighbors: 0
+    Sprites:
+    - {fileID: -2016769737, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 1
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 72
+    ForbiddenNeighbors: 22
+    Sprites:
+    - {fileID: -550598054, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 80
+    ForbiddenNeighbors: 11
+    Sprites:
+    - {fileID: 7223950226953391895, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 18
+    ForbiddenNeighbors: 104
+    Sprites:
+    - {fileID: 918727653, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 10
+    ForbiddenNeighbors: 208
+    Sprites:
+    - {fileID: -2019955281, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 88
+    ForbiddenNeighbors: 2
+    Sprites:
+    - {fileID: -839848509, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 1
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 82
+    ForbiddenNeighbors: 8
+    Sprites:
+    - {fileID: 891477268, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 1
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 74
+    ForbiddenNeighbors: 16
+    Sprites:
+    - {fileID: 1414993925, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 1
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 26
+    ForbiddenNeighbors: 64
+    Sprites:
+    - {fileID: -1754516065, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 1
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 90
+    ForbiddenNeighbors: 1
+    Sprites:
+    - {fileID: 1559948388, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 90
+    ForbiddenNeighbors: 4
+    Sprites:
+    - {fileID: 1994461684, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 90
+    ForbiddenNeighbors: 32
+    Sprites:
+    - {fileID: 1340645342, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 90
+    ForbiddenNeighbors: 128
+    Sprites:
+    - {fileID: 220723058, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 18
+    ForbiddenNeighbors: 76
+    Sprites:
+    - {fileID: -693010350, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 1
+    RandomTransform: 0
+  - RequiredNeighbors: 16
+    ForbiddenNeighbors: 107
+    Sprites:
+    - {fileID: 132388824, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 8
+    ForbiddenNeighbors: 214
+    Sprites:
+    - {fileID: 392638363, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 64
+    ForbiddenNeighbors: 31
+    Sprites:
+    - {fileID: 1065893794, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 2
+    ForbiddenNeighbors: 248
+    Sprites:
+    - {fileID: 1078828718, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 24
+    ForbiddenNeighbors: 66
+    Sprites:
+    - {fileID: 890337566, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 66
+    ForbiddenNeighbors: 24
+    Sprites:
+    - {fileID: -608959851, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 2
+    RuleTransform: 0
+    RandomTransform: 0
+  - RequiredNeighbors: 90
+    ForbiddenNeighbors: 165
+    Sprites:
+    - {fileID: -847314536, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 1
+    RuleTransform: 0
+    RandomTransform: 0

@@ -1,0 +1,24 @@
+{
+    "name": "Playwinever.TimeAndWeather.Tests",
+    "references": [
+        "Playwinever.TimeAndWeather",
+        "Playwinever.Interface",
+        "Playwinever.Datatypes.Enums"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

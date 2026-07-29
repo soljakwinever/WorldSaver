@@ -9,7 +9,7 @@ namespace Project.Scripts.Gameplay
 {
     [RequireComponent(typeof(CircleCollider2D))]
     [RequireComponent(typeof(Rigidbody2D))]
-    public sealed class TestNPCChaser : MonoBehaviour
+    public sealed class TestNPCChaser : MonoBehaviour, IStunnable
     {
         [SerializeField, Min(0.1f)] private float movementSpeed = 3f;
         [SerializeField, Min(0.1f)] private float detectionRadius = 7f;
@@ -32,6 +32,7 @@ namespace Project.Scripts.Gameplay
         private Task<List<Vector2Int>> _pendingPath;
         private CancellationTokenSource _pathCancellation;
         private Vector2Int _pendingDestination;
+        private float _stunnedUntil;
 
         [Inject]
         public void Construct(IPathFindingService pathFinder)
@@ -52,7 +53,7 @@ namespace Project.Scripts.Gameplay
                 detection = gameObject.AddComponent<CircleCollider2D>();
             detection.isTrigger = true;
             detection.radius = detectionRadius;
-            EnsureTestVisual();
+            //EnsureTestVisual();
         }
 
         private void EnsureTestVisual()
@@ -109,6 +110,9 @@ namespace Project.Scripts.Gameplay
 
         private void Update()
         {
+            if (Time.time < _stunnedUntil)
+                return;
+
             ApplyCompletedPath();
 
             if (_player == null || _pathFinder == null ||
@@ -171,6 +175,9 @@ namespace Project.Scripts.Gameplay
 
         private void FixedUpdate()
         {
+            if (Time.time < _stunnedUntil)
+                return;
+
             if (_player == null || _waypointIndex >= _path.Count)
                 return;
 
@@ -282,6 +289,19 @@ namespace Project.Scripts.Gameplay
         private void OnDisable()
         {
             CancelPendingPath(false);
+        }
+
+        public void Stun(float duration)
+        {
+            if (duration <= 0f)
+                return;
+
+            _stunnedUntil = Mathf.Max(
+                _stunnedUntil,
+                Time.time + duration);
+            _heading = Vector2.zero;
+            _headingVelocity = Vector2.zero;
+            _body.linearVelocity = Vector2.zero;
         }
 
         private void CancelPendingPath(bool createReplacement = true)

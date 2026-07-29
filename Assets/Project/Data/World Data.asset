@@ -27,12 +27,15 @@ MonoBehaviour:
   minedTileReplacement: {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
   tileSpreadRules:
   - {fileID: 11400000, guid: c5077881638646b5be27072cfec50c92, type: 2}
+  coverageLayers:
+  - {fileID: 11400000, guid: e0d6ae861dc3aa54db97f4422316c1c0, type: 2}
   seed: 322657246
   heightMapDebug: 0
   previewNoiseLayer: 1
   waterHeight: 0.1
   beachHeight: 0.15
   mountainHeight: 0.9
+  globalTemperatureOffset: 0
   cliffHeight: 0.085
   outCropStrength: 2
   outCropThreshold: 0.7
@@ -43,10 +46,13 @@ MonoBehaviour:
   erosionNoiseScale: 0.5
   valleyNoiseScale: 32
   peakValleyNoiseScale: 0.5
+  grassHeightNoiseScale: 10
   valleyDepth: 0.22
   valleyWidth: 0.12
   lakeDepth: 1
   lakeNoiseScale: 0.5
+  SmallPoolsScale: 7
+  SmallPoolsStrength: 0.06
   hillStrength: 0
   bumpStrength: 8
   featureCellSize: 1024
@@ -641,7 +647,7 @@ MonoBehaviour:
   startSeason: 0
   springTint: {r: 0.83775, g: 1, b: 0.823, a: 1}
   summerTint: {r: 1, g: 1, b: 1, a: 1}
-  fallTint: {r: 1, g: 0.8104213, b: 0.4669811, a: 1}
+  fallTint: {r: 0.766, g: 0.7031414, b: 0.33703998, a: 1}
   winterTint: {r: 0.759, g: 0.9116334, b: 1, a: 1}
   seasonalTintCurve:
     serializedVersion: 2

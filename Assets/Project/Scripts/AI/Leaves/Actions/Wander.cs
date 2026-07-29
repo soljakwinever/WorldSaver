@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Project.Scripts.AI.GraphEditor;
 using Project.Scripts.Interface;
 using UnityEngine;
@@ -40,15 +42,65 @@ namespace Project.Scripts.AI.Leaves.Actions
         [NonSerialized]
         private bool hasPath;
 
+        [NonSerialized]
+        private IPathFindingMap map;
+
+        [NonSerialized]
+        private IPathFindingService pathFinder;
+
+        [NonSerialized]
+        private Task<List<Vector2Int>> pendingPath;
+
+        [NonSerialized]
+        private CancellationTokenSource pathCancellation;
+
+        [NonSerialized]
+        private Vector2Int pendingDestination;
+
+        [NonSerialized]
+        private int attemptsRemaining;
+
         protected override void OnEnter()
         {
             path.Clear();
             waypointIndex = 0;
-            hasPath = TryCreatePath();
+            hasPath = false;
+            CancelPendingPath();
+            attemptsRemaining = Mathf.Max(1, candidateAttempts);
+
+            if (!Blackboard.TryGet(AiKeys.Self, out GameObject owner) ||
+                owner == null ||
+                !Blackboard.TryGet(AiKeys.PathFindingMap, out map) ||
+                map == null ||
+                !Blackboard.TryGet(
+                    AiKeys.PathFindingService,
+                    out pathFinder) ||
+                pathFinder == null)
+            {
+                return;
+            }
+
+            self = owner.transform;
+            StartNextPathRequest();
         }
 
         protected override NodeState OnTick()
         {
+            if (!hasPath)
+            {
+                if (pendingPath == null)
+                    return NodeState.Failure;
+                if (!pendingPath.IsCompleted)
+                    return NodeState.Running;
+
+                if (!ConsumePendingPath())
+                {
+                    if (!StartNextPathRequest())
+                        return NodeState.Failure;
+                    return NodeState.Running;
+                }
+            }
+
             if (!hasPath || self == null)
                 return NodeState.Failure;
 
@@ -74,31 +126,26 @@ namespace Project.Scripts.AI.Leaves.Actions
 
         protected override void OnAbort()
         {
+            CancelPendingPath();
             path.Clear();
             hasPath = false;
         }
 
-        private bool TryCreatePath()
+        protected override void OnExit()
         {
-            if (!Blackboard.TryGet(AiKeys.Self, out GameObject owner) ||
-                owner == null ||
-                !Blackboard.TryGet(
-                    AiKeys.PathFindingMap,
-                    out IPathFindingMap map) ||
-                map == null ||
-                !Blackboard.TryGet(
-                    AiKeys.PathFindingService,
-                    out IPathFindingService pathFinder) ||
-                pathFinder == null)
+            CancelPendingPath();
+        }
+
+        private bool StartNextPathRequest()
+        {
+            CancelPendingPath();
+            if (self == null || map == null || pathFinder == null)
                 return false;
 
-            self = owner.transform;
             Vector2Int start = Vector2Int.FloorToInt(self.position);
-            int attempts = Mathf.Max(1, candidateAttempts);
-            int searchBudget = Mathf.Max(1, maximumVisitedTiles);
             float searchRadius = Mathf.Max(0.5f, radius);
 
-            for (int attempt = 0; attempt < attempts; attempt++)
+            while (attemptsRemaining-- > 0)
             {
                 Vector2 offset = UnityEngine.Random.insideUnitCircle *
                                  searchRadius;
@@ -108,22 +155,58 @@ namespace Project.Scripts.AI.Leaves.Actions
                 if (destination == start || !map.IsWalkable(destination))
                     continue;
 
-                if (!pathFinder.TryFindPath(
-                        start,
-                        destination,
-                        path,
-                        searchBudget))
-                    continue;
-
-                waypointIndex = path.Count > 1 ? 1 : 0;
-                Blackboard.Set(
-                    AiKeys.Destination,
-                    CellCenter(destination, self.position.z));
-                return path.Count > 0;
+                pathCancellation = new CancellationTokenSource();
+                pendingDestination = destination;
+                pendingPath = pathFinder.FindPathAsync(
+                    start,
+                    destination,
+                    Mathf.Max(1, maximumVisitedTiles),
+                    pathCancellation.Token);
+                return true;
             }
 
-            path.Clear();
             return false;
+        }
+
+        private bool ConsumePendingPath()
+        {
+            Task<List<Vector2Int>> completed = pendingPath;
+            Vector2Int destination = pendingDestination;
+            pendingPath = null;
+            pathCancellation?.Dispose();
+            pathCancellation = null;
+
+            if (completed.IsFaulted)
+            {
+                _ = completed.Exception;
+                return false;
+            }
+            if (completed.IsCanceled)
+                return false;
+
+            List<Vector2Int> result = completed.Result;
+            if (result == null || result.Count == 0)
+                return false;
+
+            path.Clear();
+            path.AddRange(result);
+            waypointIndex = path.Count > 1 ? 1 : 0;
+            hasPath = true;
+            Blackboard.Set(
+                AiKeys.Destination,
+                CellCenter(destination, self.position.z));
+            return true;
+        }
+
+        private void CancelPendingPath()
+        {
+            if (pathCancellation != null)
+            {
+                pathCancellation.Cancel();
+                pathCancellation.Dispose();
+                pathCancellation = null;
+            }
+            pendingPath = null;
         }
 
         private void SkipReachedWaypoints(float toleranceSquared)

@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53058c402cfd0e649ae635e6d81e17f0, type: 3}
+  m_Name: Heavy Rain
+  m_EditorClassIdentifier: 
+  weatherId: rain.heavy
+  displayName: Heavy Rain
+  selectionWeight: 1.1
+  seasons: 255
+  temperatureRange: {x: -0.1, y: 1}
+  moistureRange: {x: 0.55, y: 1}
+  waterCoverageRange: {x: 0, y: 1}
+  cooldownTicks: 240
+  phases:
+  - {fileID: 11400000, guid: f3c096f5fe934e1dbbb9ebe596cd990c, type: 2}
+  - {fileID: 11400000, guid: 947784c77d3548109e15fdbe753d17db, type: 2}
+  - {fileID: 11400000, guid: f3c096f5fe934e1dbbb9ebe596cd990c, type: 2}

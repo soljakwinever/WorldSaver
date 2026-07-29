@@ -44,6 +44,11 @@ namespace Project.Scripts
             public bool restoreComplete;
         }
 
+        private void OnApplicationQuit()
+        {
+            RequestSave();
+        }
+
         private void Update()
         {
             long currentTick = _worldClock.CurrentTick;
@@ -111,7 +116,8 @@ namespace Project.Scripts
                 root.Restore(state);
 
                 long currentTick = _worldClock.CurrentTick;
-                long regionFromTick = SimulateRegion(region, currentTick);
+                long regionFromTick =
+                    await SimulateRegionAsync(region, currentTick);
                 SimulateChunk(root, state, regionFromTick, currentTick);
 
                 root.CompleteRestore();
@@ -224,7 +230,9 @@ namespace Project.Scripts
             _regions.MarkDirty(active.region);
         }
 
-        private long SimulateRegion(RuntimeRegion region, long currentTick)
+        private async Awaitable<long> SimulateRegionAsync(
+            RuntimeRegion region,
+            long currentTick)
         {
             long fromTick = region.LastSimulatedTick;
 
@@ -234,12 +242,19 @@ namespace Project.Scripts
             if (currentTick <= fromTick)
                 return fromTick;
 
-            if (_regionSimulation.Simulate(
+            bool applied = await _regionSimulation.SimulateAsync(
                     region,
                     currentTick,
-                    offlineSimulationPolicy))
+                    offlineSimulationPolicy);
+            if (applied)
             {
                 _regions.MarkDirty(region);
+            }
+            else
+            {
+                // A concurrent chunk capture or live simulation invalidated
+                // the detached result. Allow a later restore to retry.
+                _simulatedRegions.Remove(region);
             }
 
             return fromTick;
@@ -311,7 +326,7 @@ namespace Project.Scripts
                     RuntimeRegion region =
                         await _regions.GetReadyAsync(position, currentTick);
 
-                    if (_regionSimulation.Simulate(
+                    if (await _regionSimulation.SimulateAsync(
                             region,
                             currentTick,
                             OfflineSimulationPolicy.Regional))

@@ -1,5 +1,6 @@
 #if UNITY_INCLUDE_TESTS
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Project.Scripts.Interface;
 using Project.Scripts.Pathfinding;
@@ -99,6 +100,23 @@ namespace Project.Tests.EditMode
             Assert.That(path, Is.Empty);
         }
 
+        [Test]
+        public async Task FindsPathAgainstWorkerSafeLocalSnapshot()
+        {
+            LocalTestMap map = new();
+            PathFindingService service = new(map);
+
+            List<Vector2Int> path = await service.FindPathAsync(
+                new Vector2Int(-4, 2),
+                new Vector2Int(4, 2),
+                100);
+
+            Assert.That(map.SnapshotRequests, Is.EqualTo(1));
+            Assert.That(path, Is.Not.Null);
+            Assert.That(path[0], Is.EqualTo(new Vector2Int(-4, 2)));
+            Assert.That(path[path.Count - 1], Is.EqualTo(new Vector2Int(4, 2)));
+        }
+
         private sealed class TestMap : IPathFindingMap
         {
             public readonly HashSet<Vector2Int> Blocked = new();
@@ -113,6 +131,33 @@ namespace Project.Tests.EditMode
 
             public float GetTraversalCost(Vector2Int worldCell) =>
                 Costs.TryGetValue(worldCell, out float cost) ? cost : 1f;
+        }
+
+        private sealed class LocalTestMap :
+            IPathFindingMap,
+            ILocalPathFindingMap
+        {
+            private readonly TestMap _snapshot = new();
+
+            public int SnapshotRequests { get; private set; }
+
+            public bool TryCreateLocalSnapshot(
+                Vector2Int start,
+                Vector2Int destination,
+                out IPathFindingMap snapshot)
+            {
+                SnapshotRequests++;
+                snapshot = _snapshot;
+                return true;
+            }
+
+            public bool IsWalkable(Vector2Int worldCell) =>
+                throw new AssertionException(
+                    "The generated-world fallback must not be used for a local async search.");
+
+            public float GetTraversalCost(Vector2Int worldCell) =>
+                throw new AssertionException(
+                    "The generated-world fallback must not be used for a local async search.");
         }
     }
 }

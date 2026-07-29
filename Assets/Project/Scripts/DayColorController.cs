@@ -1,37 +1,42 @@
-using System;
 using Project.Scripts.GameTime;
 using Project.Scripts.Interface;
+using Project.Scripts.TimeAndWeather;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
-using UnityEngine.U2D;
 using Zenject;
 
 namespace Project.Scripts
 {
     public class DayColorController : MonoBehaviour
     {
-        private static readonly int DayColor = Shader.PropertyToID("_DayColor");
-        
         [SerializeField] private Light2D globalLight;
         
         private ITimeController timeController;
         [Inject] private WorldData worldData;
+        [Inject] private IRegionalWeatherService weatherService;
+        [Inject] private Chunkloader chunkloader;
 
         private void Awake()
         {
             timeController = GetComponent<TimeController>();
-            //Shader.SetGlobalColor(DayColor, Color.white);       
         }
 
-        private void OnDisable()
+        private void Update()
         {
-            //Shader.SetGlobalColor(DayColor, Color.white);       
-        }
+            Color dayColor =
+                worldData.dayColorGradient.Evaluate(timeController.DayProgress);
+            Color weatherTint = Color.white;
 
-        void Update()
-        {
-            //Shader.SetGlobalColor(DayColor, );       
-            globalLight.color = worldData.dayColorGradient.Evaluate(timeController.DayProgress);
+            if (chunkloader.track != null)
+            {
+                weatherTint = weatherService
+                    .Sample(chunkloader.track.position)
+                    .AmbientColorTint;
+            }
+
+            Color combinedColor = dayColor * weatherTint;
+            combinedColor.a = dayColor.a;
+            globalLight.color = combinedColor;
         }
     }
 }

@@ -130,11 +130,18 @@ namespace Project.Scripts
         {
             if (rule == null ||
                 rule.persistence != NPCPersistence.Transient ||
-                rule.npcPrefab == null)
+                rule.enemyData == null && rule.npcPrefab == null)
                 return;
 
             foreach (Vector2 position in GetSpawnPositions(chunkPosition, rule))
-                population.TransientNPCs.Add(_pool.Spawn(rule.npcPrefab, position));
+            {
+                GameObject prefab = rule.enemyData != null
+                    ? rule.enemyData.visual
+                    : rule.npcPrefab;
+                if (prefab != null)
+                    population.TransientNPCs.Add(
+                        _pool.Spawn(prefab, position, rule.enemyData));
+            }
         }
 
         private IEnumerable<Vector2> GetSpawnPositions(

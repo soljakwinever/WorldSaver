@@ -82,5 +82,40 @@ namespace Project.Scripts.DataTypes
             if (_revision == writtenRevision)
                 _savedRevision = writtenRevision;
         }
+
+        public bool TryApplySimulationResult(
+            RuntimeRegion simulated,
+            ulong expectedRevision)
+        {
+            if (simulated == null ||
+                simulated.Position != Position ||
+                _revision != expectedRevision)
+            {
+                return false;
+            }
+
+            _chunkStates.Clear();
+            foreach (KeyValuePair<ushort, ChunkState> pair in
+                     simulated.ChangedChunks)
+            {
+                _chunkStates.Add(
+                    pair.Key,
+                    pair.Value?.CreateSnapshot());
+            }
+
+            _components.Clear();
+            foreach (KeyValuePair<ushort, RegionComponentRecord> pair in
+                     simulated.Components)
+            {
+                _components.Add(
+                    pair.Key,
+                    pair.Value?.CreateSnapshot());
+            }
+
+            LastSimulatedTick = simulated.LastSimulatedTick;
+            NextScheduledTick = simulated.NextScheduledTick;
+            MarkDirty();
+            return true;
+        }
     }
 }

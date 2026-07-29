@@ -38,4 +38,16 @@ namespace Project.Scripts.Interface
         bool IsWalkable(Vector2Int worldCell);
         float GetTraversalCost(Vector2Int worldCell);
     }
+
+    /// <summary>
+    /// Provides an immutable, worker-safe view of currently loaded navigation
+    /// chunks. Cells outside the captured view are treated as unwalkable.
+    /// </summary>
+    public interface ILocalPathFindingMap
+    {
+        bool TryCreateLocalSnapshot(
+            Vector2Int start,
+            Vector2Int destination,
+            out IPathFindingMap snapshot);
+    }
 }

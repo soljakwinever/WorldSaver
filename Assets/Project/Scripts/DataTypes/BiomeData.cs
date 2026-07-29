@@ -35,6 +35,8 @@ namespace Project.Scripts
         public float cliffScale = 18f;
 
         public float lakeStrength = 0.25f;
+        [Min(0f)]
+        public float SmallPoolsStrength = 1f;
         
         public float volcanoChance = 0f;
         public float craterChance = 0f;

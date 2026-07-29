@@ -13,12 +13,13 @@ MonoBehaviour:
   m_Name: Test NPC Spawn Rule
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemySpawnRule
   rules: []
-  npcPrefab: {fileID: 100000, guid: 21e1850f50e74f3cb96516e45b82a56b, type: 3}
+  enemyData: {fileID: 11400000, guid: 29351ecf21b921c4a9e2c86398a503d0, type: 2}
+  npcPrefab: {fileID: 2119611675089420321, guid: 5b82825f26e20cb4f9ea1797a724b824, type: 3}
   persistentNodeData: {fileID: 0}
   persistence: 0
   minimumPerChunk: 1
   maximumPerChunk: 1
-  spawnChance: 1
+  spawnChance: 0.321
   minimumSpacing: 2
   seasons: -1
   firstHour: 0

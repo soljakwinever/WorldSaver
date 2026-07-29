@@ -16,6 +16,8 @@ public class WorldGeneration : IWorldGenerator
     FastNoiseLite peakValleyNoise;
     FastNoiseLite valleyNoise;
     FastNoiseLite roughnessNoise;
+    FastNoiseLite grassHeightNoise;
+    FastNoiseLite smallPoolsNoise;
     
     private FastNoiseLite outcropNoise;
     private FastNoiseLite outcropEdgeNoise;
@@ -102,6 +104,23 @@ public class WorldGeneration : IWorldGenerator
         roughnessNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
         roughnessNoise.SetFractalOctaves(2);
         roughnessNoise.SetFractalGain(0.45f);
+
+        // High-frequency FBm produces irregular, rough-edged patches.
+        grassHeightNoise = new FastNoiseLite();
+        grassHeightNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
+        grassHeightNoise.SetSeed(314159 + worldData.seed);
+        grassHeightNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
+        grassHeightNoise.SetFractalOctaves(5);
+        grassHeightNoise.SetFractalLacunarity(2.65f);
+        grassHeightNoise.SetFractalGain(0.58f);
+
+        smallPoolsNoise = new FastNoiseLite();
+        smallPoolsNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+        smallPoolsNoise.SetSeed(271828 + worldData.seed);
+        smallPoolsNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
+        smallPoolsNoise.SetFractalOctaves(3);
+        smallPoolsNoise.SetFractalLacunarity(2.2f);
+        smallPoolsNoise.SetFractalGain(0.5f);
         
         peakValleyNoise = new FastNoiseLite();
         peakValleyNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
@@ -195,7 +214,16 @@ public class WorldGeneration : IWorldGenerator
     {
         return propNoise.GetNoise(worldX / ruleNoiseScale, worldY / ruleNoiseScale);
     }
-    
+
+    public float GrassHeightNoise(int worldX, int worldY)
+    {
+        float scale = Mathf.Max(0.01f, worldData.grassHeightNoiseScale);
+        return Mathf.InverseLerp(
+            -0.25f,
+            0.5f,
+            grassHeightNoise.GetNoise(worldX / scale, worldY / scale));
+    }
+
     private int GetTileIndex(float continentalNoise)
     {
         return 0;
@@ -255,6 +283,10 @@ public class WorldGeneration : IWorldGenerator
             case WorldData.NoiseLayer.Lakes:
                 height=ApplyLakes(x, y, height, biomeData.lakeStrength);
                 break;
+            case WorldData.NoiseLayer.GrassHeight:
+                return GrassHeightNoise(x, y);
+            case WorldData.NoiseLayer.SmallPools:
+                return SmallPoolsNoise(x, y);
         }
         return height;
     }
@@ -314,6 +346,11 @@ public class WorldGeneration : IWorldGenerator
         height += erosionEffect;
 
         height = ApplyLakes(x, y, height, biomeData.lakeStrength);
+        height = ApplySmallPools(
+            x,
+            y,
+            height,
+            biomeData.SmallPoolsStrength);
         
         height = ApplyValleys(x, y, height, biomeData.valleyStrength);
         
@@ -540,6 +577,32 @@ public class WorldGeneration : IWorldGenerator
         height += lake * landMask;
         
         return height;
+    }
+
+    private float SmallPoolsNoise(int x, int y)
+    {
+        float scale = Mathf.Max(0.01f, worldData.SmallPoolsScale);
+        float normalized = Mathf.InverseLerp(
+            -1f,
+            1f,
+            smallPoolsNoise.GetNoise(x / scale, y / scale));
+
+        // Concentrate the effect around noise minima to form isolated pools.
+        return Mathf.Pow(1f - normalized, 4f);
+    }
+
+    private float ApplySmallPools(
+        int x,
+        int y,
+        float height,
+        float biomeStrength)
+    {
+        float depth = SmallPoolsNoise(x, y) *
+                      Mathf.Max(0f, worldData.SmallPoolsStrength) *
+                      Mathf.Max(0f, biomeStrength);
+
+        // This layer is deliberately subtractive and can never raise terrain.
+        return height - depth;
     }
 
     private float ApplyMountainIslands(

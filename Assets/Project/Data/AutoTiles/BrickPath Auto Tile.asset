@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a021cc47b21246b99add5abca1520ea1, type: 3}
+  m_Name: BrickPath Auto Tile
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.AutoTileDefinition
+  ConnectivityGroup: 
+  DefaultSprite: {fileID: 551952744, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+  DefaultColliderType: 0
+  Rules:
+  - RequiredNeighbors: 0
+    ForbiddenNeighbors: 0
+    Sprites:
+    - {fileID: 551952744, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+    ColliderType: 0
+    RuleTransform: 0
+    RandomTransform: 0

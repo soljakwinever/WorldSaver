@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,6 +20,15 @@ namespace Project.Scripts.Pathfinding
         private readonly WalkabilityQuadtree _walkability;
         private readonly bool _allowDiagonals;
         private readonly object _syncRoot = new();
+        private readonly SemaphoreSlim _workerSlots = new(2, 2);
+        private readonly ConcurrentBag<SearchWorkspace> _workerWorkspaces =
+            new();
+        // All searches are already serialized by _syncRoot, so these working
+        // collections can be reused instead of allocating three large objects
+        // for every NPC path request.
+        private readonly MinHeap _open = new();
+        private readonly Dictionary<Vector2Int, NodeRecord> _records = new();
+        private readonly HashSet<Vector2Int> _closed = new();
 
         public PathFindingService(
             IPathFindingMap map,
@@ -28,6 +38,8 @@ namespace Project.Scripts.Pathfinding
             _map = map ?? throw new ArgumentNullException(nameof(map));
             _allowDiagonals = allowDiagonals;
             _walkability = new WalkabilityQuadtree(map, spatialIndexDepth);
+            _workerWorkspaces.Add(new SearchWorkspace());
+            _workerWorkspaces.Add(new SearchWorkspace());
         }
 
         public bool TryFindPath(
@@ -54,24 +66,102 @@ namespace Project.Scripts.Pathfinding
             if (maxVisitedTiles <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxVisitedTiles));
 
-            return Task.Run(() =>
+            IPathFindingMap searchMap = _map;
+            IPathFindingMap snapshot = null;
+            bool localSnapshot =
+                _map is ILocalPathFindingMap localMap &&
+                localMap.TryCreateLocalSnapshot(
+                    start,
+                    destination,
+                    out snapshot);
+            if (localSnapshot)
+                searchMap = snapshot;
+
+            return RunAsync();
+
+            async Task<List<Vector2Int>> RunAsync()
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                List<Vector2Int> path = new();
-                lock (_syncRoot)
+                await _workerSlots.WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                SearchWorkspace workspace = null;
+                try
                 {
-                    bool found = TryFindPathCore(
-                        start,
-                        destination,
-                        path,
-                        maxVisitedTiles,
-                        cancellationToken);
-                    return found ? path : null;
+                    if (localSnapshot &&
+                        !_workerWorkspaces.TryTake(out workspace))
+                    {
+                        workspace = new SearchWorkspace();
+                    }
+
+                    return await Task.Run(() =>
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        List<Vector2Int> path = new();
+
+                        if (localSnapshot)
+                        {
+                            bool found = TryFindPathCore(
+                                searchMap,
+                                null,
+                                workspace.Open,
+                                workspace.Records,
+                                workspace.Closed,
+                                start,
+                                destination,
+                                path,
+                                maxVisitedTiles,
+                                cancellationToken);
+                            return found ? path : null;
+                        }
+
+                        // Long-distance searches retain the generated-world
+                        // quadtree fallback and its serialized shared cache.
+                        lock (_syncRoot)
+                        {
+                            bool found = TryFindPathCore(
+                                start,
+                                destination,
+                                path,
+                                maxVisitedTiles,
+                                cancellationToken);
+                            return found ? path : null;
+                        }
+                    }, cancellationToken).ConfigureAwait(false);
                 }
-            }, cancellationToken);
+                finally
+                {
+                    if (workspace != null)
+                        _workerWorkspaces.Add(workspace);
+                    _workerSlots.Release();
+                }
+            }
         }
 
         private bool TryFindPathCore(
+            Vector2Int start,
+            Vector2Int destination,
+            List<Vector2Int> path,
+            int maxVisitedTiles,
+            CancellationToken cancellationToken)
+        {
+            return TryFindPathCore(
+                _map,
+                _walkability,
+                _open,
+                _records,
+                _closed,
+                start,
+                destination,
+                path,
+                maxVisitedTiles,
+                cancellationToken);
+        }
+
+        private bool TryFindPathCore(
+            IPathFindingMap map,
+            WalkabilityQuadtree walkability,
+            MinHeap open,
+            Dictionary<Vector2Int, NodeRecord> records,
+            HashSet<Vector2Int> closed,
             Vector2Int start,
             Vector2Int destination,
             List<Vector2Int> path,
@@ -84,8 +174,11 @@ namespace Project.Scripts.Pathfinding
                 throw new ArgumentOutOfRangeException(nameof(maxVisitedTiles));
 
             path.Clear();
-            if (!_walkability.IsWalkable(start) ||
-                !_walkability.IsWalkable(destination))
+            open.Clear();
+            records.Clear();
+            closed.Clear();
+            if (!IsWalkable(map, walkability, start) ||
+                !IsWalkable(map, walkability, destination))
                 return false;
 
             if (start == destination)
@@ -94,13 +187,14 @@ namespace Project.Scripts.Pathfinding
                 return true;
             }
 
-            MinHeap open = new();
-            Dictionary<Vector2Int, NodeRecord> records = new();
-            HashSet<Vector2Int> closed = new();
             long sequence = 0;
 
             records[start] = new NodeRecord(0f, start, false);
-            open.Push(new OpenNode(start, Heuristic(start, destination), 0f, sequence++));
+            open.Push(new OpenNode(
+                start,
+                Heuristic(start, destination),
+                0f,
+                sequence++));
 
             int visited = 0;
             while (open.Count > 0 && visited < maxVisitedTiles)
@@ -108,7 +202,9 @@ namespace Project.Scripts.Pathfinding
                 cancellationToken.ThrowIfCancellationRequested();
                 OpenNode currentEntry = open.Pop();
                 if (closed.Contains(currentEntry.Position) ||
-                    !records.TryGetValue(currentEntry.Position, out NodeRecord current) ||
+                    !records.TryGetValue(
+                        currentEntry.Position,
+                        out NodeRecord current) ||
                     currentEntry.CostFromStart > current.Cost + 0.0001f)
                     continue;
 
@@ -125,6 +221,8 @@ namespace Project.Scripts.Pathfinding
                     currentEntry.Position,
                     destination,
                     current.Cost,
+                    map,
+                    walkability,
                     records,
                     closed,
                     open,
@@ -152,6 +250,8 @@ namespace Project.Scripts.Pathfinding
             Vector2Int current,
             Vector2Int destination,
             float currentCost,
+            IPathFindingMap map,
+            WalkabilityQuadtree walkability,
             Dictionary<Vector2Int, NodeRecord> records,
             HashSet<Vector2Int> closed,
             MinHeap open,
@@ -162,16 +262,23 @@ namespace Project.Scripts.Pathfinding
             {
                 Vector2Int offset = Directions[i];
                 Vector2Int next = current + offset;
-                if (closed.Contains(next) || !_walkability.IsWalkable(next))
+                if (closed.Contains(next) ||
+                    !IsWalkable(map, walkability, next))
                     continue;
 
                 bool diagonal = offset.x != 0 && offset.y != 0;
                 if (diagonal &&
-                    (!_walkability.IsWalkable(current + new Vector2Int(offset.x, 0)) ||
-                     !_walkability.IsWalkable(current + new Vector2Int(0, offset.y))))
+                    (!IsWalkable(
+                         map,
+                         walkability,
+                         current + new Vector2Int(offset.x, 0)) ||
+                     !IsWalkable(
+                         map,
+                         walkability,
+                         current + new Vector2Int(0, offset.y))))
                     continue;
 
-                float traversalCost = _map.GetTraversalCost(next);
+                float traversalCost = map.GetTraversalCost(next);
                 if (float.IsNaN(traversalCost) ||
                     float.IsInfinity(traversalCost) ||
                     traversalCost < 0f)
@@ -190,6 +297,16 @@ namespace Project.Scripts.Pathfinding
                 float priority = candidate + Heuristic(next, destination);
                 open.Push(new OpenNode(next, priority, candidate, sequence++));
             }
+        }
+
+        private static bool IsWalkable(
+            IPathFindingMap map,
+            WalkabilityQuadtree walkability,
+            Vector2Int position)
+        {
+            return walkability != null
+                ? walkability.IsWalkable(position)
+                : map.IsWalkable(position);
         }
 
         private float Heuristic(Vector2Int from, Vector2Int to)
@@ -270,6 +387,11 @@ namespace Project.Scripts.Pathfinding
             private readonly List<OpenNode> _items = new();
             public int Count => _items.Count;
 
+            public void Clear()
+            {
+                _items.Clear();
+            }
+
             public void Push(OpenNode value)
             {
                 _items.Add(value);
@@ -319,6 +441,13 @@ namespace Project.Scripts.Pathfinding
                 return priority < 0 ||
                        (priority == 0 && a.Sequence < b.Sequence);
             }
+        }
+
+        private sealed class SearchWorkspace
+        {
+            public readonly MinHeap Open = new();
+            public readonly Dictionary<Vector2Int, NodeRecord> Records = new();
+            public readonly HashSet<Vector2Int> Closed = new();
         }
     }
 }

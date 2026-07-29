@@ -1,5 +1,7 @@
 using UnityEngine;
 using Zenject;
+using Project.Scripts.DataTypes;
+using Project.Scripts.Gameplay;
 
 namespace Project.Scripts
 {
@@ -10,7 +12,8 @@ namespace Project.Scripts
     }
 
     /// <summary>Dedicated MonoMemoryPool for transient, chunk-owned NPCs.</summary>
-    public sealed class NPCSpawnPool : MonoMemoryPool<GameObject, Vector3, NPCSpawnInstance>
+    public sealed class NPCSpawnPool :
+        MonoMemoryPool<GameObject, Vector3, EnemyData, NPCSpawnInstance>
     {
         private readonly DiContainer _container;
 
@@ -19,7 +22,11 @@ namespace Project.Scripts
             _container = container;
         }
 
-        protected override void Reinitialize(GameObject prefab, Vector3 position, NPCSpawnInstance item)
+        protected override void Reinitialize(
+            GameObject prefab,
+            Vector3 position,
+            EnemyData enemyData,
+            NPCSpawnInstance item)
         {
             if (prefab == null)
                 return;
@@ -44,6 +51,14 @@ namespace Project.Scripts
                 Vector3.zero,
                 Quaternion.identity);
             item.gameObject.SetActive(true);
+
+            if (enemyData != null)
+            {
+                EnemyRuntime runtime =
+                    item.Visual.GetComponent<EnemyRuntime>() ??
+                    _container.InstantiateComponent<EnemyRuntime>(item.Visual);
+                runtime.Initialize(enemyData);
+            }
         }
 
         protected override void OnDespawned(NPCSpawnInstance item)

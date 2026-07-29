@@ -14,4 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TileData
   TileId: 9
   TileBase: {fileID: 11400000, guid: 65fec0bce8bc9f143a589caf3d6bdbda, type: 2}
+  AutoTile: {fileID: 11400000, guid: 18d5c7c7975493240adb864abc38d86f, type: 2}
   Color: {r: 1, g: 1, b: 1, a: 1}
+  droppedItem: {fileID: 0}
+  dropChance: 1
+  tags: []

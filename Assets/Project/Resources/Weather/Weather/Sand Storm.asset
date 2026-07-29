@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53058c402cfd0e649ae635e6d81e17f0, type: 3}
+  m_Name: Sand Storm
+  m_EditorClassIdentifier: 
+  weatherId: sandstorm
+  displayName: Sand Storm
+  selectionWeight: 0.65
+  seasons: 7
+  temperatureRange: {x: 0.25, y: 1}
+  moistureRange: {x: 0, y: 0.35}
+  waterCoverageRange: {x: 0, y: 0.3}
+  cooldownTicks: 480
+  phases:
+  - {fileID: 11400000, guid: cc25db842947427295c17328f848c211, type: 2}
+  - {fileID: 11400000, guid: b4992ec77fed491ea0a7bb7530ac5a4a, type: 2}
+  - {fileID: 11400000, guid: d66dd70e9be6431380447b49651ef5e0, type: 2}

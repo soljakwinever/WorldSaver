@@ -124,6 +124,7 @@ public static class BiomeSelector
             blend.SeasonColorEffectMod += biome.SeasonColorEffectMod * weight;
             
             blend.lakeStrength += biome.lakeStrength * weight;
+            blend.SmallPoolsStrength += biome.SmallPoolsStrength * weight;
         }
         
         return blend;
@@ -173,6 +174,10 @@ public static class BiomeSelector
             weight);
         
         blend.lakeStrength += Mathf.Lerp(biomeA.lakeStrength, biomeB.lakeStrength, weight);
+        blend.SmallPoolsStrength += Mathf.Lerp(
+            biomeA.SmallPoolsStrength,
+            biomeB.SmallPoolsStrength,
+            weight);
         
         return blend;
     }
@@ -206,7 +211,9 @@ public static class BiomeSelector
             summerTint = biome.summerTint,
             fallTint = biome.fallTint,
             winterTint = biome.winterTint,
-            SeasonColorEffectMod = biome.SeasonColorEffectMod
+            SeasonColorEffectMod = biome.SeasonColorEffectMod,
+            lakeStrength = biome.lakeStrength,
+            SmallPoolsStrength = biome.SmallPoolsStrength
         };
     }
 

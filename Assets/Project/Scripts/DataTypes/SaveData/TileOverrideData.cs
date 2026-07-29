@@ -5,7 +5,9 @@ namespace Project.Scripts.DataTypes.SaveData
     public enum PersistentTileLayer : byte
     {
         Ground = 0,
-        Water = 1
+        Water = 1,
+        Wall = 2,
+        Ceiling = 3
     }
 
     public enum TileOverrideKind : byte

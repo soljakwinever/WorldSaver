@@ -13,7 +13,8 @@ namespace Project.Scripts.AI.Decorators
         [Project.Scripts.AI.GraphEditor.InputPort("Cooldown")]
         private float cooldown;
         
-        private float currentCooldown;
+        [NonSerialized]
+        private float _readyTime;
         
         public Cooldown() : base()
         {
@@ -30,12 +31,14 @@ namespace Project.Scripts.AI.Decorators
 
         protected override NodeState OnTick()
         {
-            currentCooldown = Mathf.Max(
-                0f,
-                currentCooldown - Time.deltaTime);
-
-            if (currentCooldown > 0f)
+            float remaining = _readyTime - Time.time;
+            if (remaining > 0f)
+            {
+                // Ensure the runner wakes on the first frame this action can
+                // execute again, even when the normal decision tick is later.
+                RequestEvaluation(remaining);
                 return state = NodeState.Failure;
+            }
 
             if (Child == null)
                 return state = NodeState.Failure;
@@ -47,7 +50,12 @@ namespace Project.Scripts.AI.Decorators
         protected override NodeState Decorate(NodeState currentState)
         {
             if (currentState == NodeState.Success)
-                currentCooldown = cooldown;
+            {
+                float duration = Mathf.Max(0f, cooldown);
+                _readyTime = Time.time + duration;
+                if (duration > 0f)
+                    RequestEvaluation(duration);
+            }
 
             return currentState;
         }

@@ -33,6 +33,8 @@ namespace Project.Scripts.DataTypes
         public EnemySpawnRule[] rules = Array.Empty<EnemySpawnRule>();
 
         [Header("NPC")]
+        [Tooltip("Enemy definition used for transient spawns. Its visual replaces npcPrefab when assigned.")]
+        public EnemyData enemyData;
         public GameObject npcPrefab;
         [Tooltip("Required for persistent NPCs. The NodeData must have a registered runtime EntityArchetype.")]
         public NodeData persistentNodeData;

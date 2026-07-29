@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53058c402cfd0e649ae635e6d81e17f0, type: 3}
+  m_Name: Light Snow
+  m_EditorClassIdentifier: 
+  weatherId: snow.light
+  displayName: Light Snow
+  selectionWeight: 1.5
+  seasons: 9
+  temperatureRange: {x: -1, y: 0.15}
+  moistureRange: {x: 0.25, y: 1}
+  waterCoverageRange: {x: 0, y: 1}
+  cooldownTicks: 180
+  phases:
+  - {fileID: 11400000, guid: 9aa2432c9ce44a2281bdc2dc6a30e18d, type: 2}

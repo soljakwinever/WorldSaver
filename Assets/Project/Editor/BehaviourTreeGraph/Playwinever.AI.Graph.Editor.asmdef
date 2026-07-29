@@ -4,6 +4,7 @@
     "references": [
         "Playwinever.AI",
         "Playwinever.Interface",
+        "Playwinever.Datatypes.Enums",
         "Unity.GraphToolkit.Common.Editor",
         "Unity.GraphToolkit.Utility.Editor",
         "Unity.GraphToolkit.Editor"

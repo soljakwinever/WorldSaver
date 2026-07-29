@@ -121,6 +121,83 @@ namespace Project.Tests.EditMode
             UnityEngine.Object.DestroyImmediate(weapon);
         }
 
+        [Test]
+        public void TransientTargetIsKnockedAwayFromAttacker()
+        {
+            _attacker.transform.position = Vector3.left;
+            Rigidbody2D body = _target.AddComponent<Rigidbody2D>();
+            TransientHealth transientHealth =
+                _target.AddComponent<TransientHealth>();
+            transientHealth.Initialize(10);
+
+            _attackService.Attack(
+                transientHealth,
+                new AttackContext(_attacker, null, 1));
+
+            Assert.That(body.linearVelocity.x, Is.GreaterThan(0f));
+            Assert.That(transientHealth.Health, Is.EqualTo(9));
+        }
+
+        [Test]
+        public void DamagedTransientTargetStunsItsAi()
+        {
+            TransientHealth transientHealth =
+                _target.AddComponent<TransientHealth>();
+            transientHealth.Initialize(10);
+            StunnableSpy stunnable = _target.AddComponent<StunnableSpy>();
+
+            _attackService.Attack(
+                transientHealth,
+                new AttackContext(_attacker, null, 1));
+
+            Assert.That(stunnable.StunCount, Is.EqualTo(1));
+            Assert.That(stunnable.LastDuration, Is.GreaterThan(0f));
+        }
+
+        [Test]
+        public void DropChanceHonorsNeverPartialAndGuaranteedValues()
+        {
+            DropData drop = new();
+
+            drop.dropChance = 0f;
+            Assert.That(drop.PassesDropChance(0f), Is.False);
+
+            drop.dropChance = 0.25f;
+            Assert.That(drop.PassesDropChance(0.249f), Is.True);
+            Assert.That(drop.PassesDropChance(0.25f), Is.False);
+
+            drop.dropChance = 1f;
+            Assert.That(drop.PassesDropChance(1f), Is.True);
+        }
+
+        [Test]
+        public void ItemPickupLaunchAppliesOutwardImpulse()
+        {
+            GameObject pickupObject = new("Pickup");
+            ItemStackPickup pickup =
+                pickupObject.AddComponent<ItemStackPickup>();
+
+            pickup.Launch(Vector2.right * 2f);
+
+            Rigidbody2D body = pickupObject.GetComponent<Rigidbody2D>();
+            Assert.That(body, Is.Not.Null);
+            Assert.That(body.linearVelocity.x, Is.GreaterThan(0f));
+
+            UnityEngine.Object.DestroyImmediate(pickupObject);
+        }
+
+        private sealed class StunnableSpy : MonoBehaviour, IStunnable
+        {
+            public int StunCount { get; private set; }
+            public float LastDuration { get; private set; }
+
+            public void Stun(float duration)
+            {
+                StunCount++;
+                LastDuration = duration;
+            }
+        }
+
         private static void SetWeaponPower(ToolData weapon, int power)
         {
             typeof(ToolData)

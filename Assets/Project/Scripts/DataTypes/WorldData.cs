@@ -20,6 +20,10 @@ namespace Project.Scripts
         [Tooltip("Rules such as grass spreading onto dirt. Only loaded chunks are simulated.")]
         public TileSpreadRule[] tileSpreadRules = Array.Empty<TileSpreadRule>();
 
+        [Header("Tile Coverage")]
+        [Tooltip("Coverage layers simulated on every non-water tile.")]
+        public CoverageData[] coverageLayers = Array.Empty<CoverageData>();
+
         public bool TryGetTileData(int tileId, out TileData tileData)
         {
             tileData = null;
@@ -32,7 +36,7 @@ namespace Project.Scripts
                 {
                     if (candidate == null ||
                         candidate.TileId != tileId ||
-                        candidate.TileBase == null)
+                        !candidate.HasVisual)
                         continue;
 
                     if (tileData != null)
@@ -58,7 +62,7 @@ namespace Project.Scripts
             {
                 if (tile == null)
                     continue;
-                if (tile.TileId < 0 || tile.TileBase == null)
+                if (tile.TileId < 0 || !tile.HasVisual)
                     Debug.LogError($"Invalid tile definition '{tile.name}'.", tile);
                 else if (!ids.Add(tile.TileId))
                     Debug.LogError($"Duplicate persistent tile ID {tile.TileId}.", this);
@@ -73,6 +77,11 @@ namespace Project.Scripts
         public float waterHeight = 0.2f;
         public float beachHeight = 0.3f;
         public float mountainHeight = 0.5f;
+
+        [Header("Climate")]
+        [Range(-2f, 2f)]
+        [Tooltip("Initial normalized temperature offset applied to every weather region.")]
+        public float globalTemperatureOffset;
         
         public float cliffHeight = 0.005f;
         
@@ -88,6 +97,11 @@ namespace Project.Scripts
         public float valleyNoiseScale = 32;
         public float peakValleyNoiseScale = 8.5f;
 
+        [Header("Grass Height")]
+        [Min(0.01f)]
+        [Tooltip("World-space scale of grass-height patches.")]
+        public float grassHeightNoiseScale = 10f;
+
         [Header("Valley")]
         public float valleyDepth = 0.22f;
         public float valleyWidth = 0.12f;
@@ -95,6 +109,12 @@ namespace Project.Scripts
         [Header("Lakes")]
         public float lakeDepth = 0.1f;
         public float lakeNoiseScale = 4;
+
+        [Header("Small Pools")]
+        [Min(0.01f)]
+        public float SmallPoolsScale = 7f;
+        [Min(0f)]
+        public float SmallPoolsStrength = 0.06f;
         
         public float hillStrength = 2f;
         public float bumpStrength = 1f;
@@ -149,7 +169,9 @@ namespace Project.Scripts
             PeakValley,
             MountainIsland,
             LocalLandforms,
-            Lakes
+            Lakes,
+            GrassHeight,
+            SmallPools
         }
 
         [Serializable]

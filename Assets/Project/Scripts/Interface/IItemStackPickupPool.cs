@@ -9,7 +9,8 @@ namespace Project.Scripts.Interface
             ItemData item,
             int count,
             ItemData.Rarity rarity,
-            Vector3 position);
+            Vector3 position,
+            Vector2 impulse = default);
 
         void Despawn(IItemStackPickup pickup);
     }

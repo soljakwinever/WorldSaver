@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using UnityEngine;
@@ -59,6 +60,8 @@ namespace Project.Scripts.Core
         {
             if (state == null)
                 return;
+
+            RestoreChunkComponents(state.components);
 
             if (state.tileOverrides != null)
             {
@@ -170,6 +173,8 @@ namespace Project.Scripts.Core
                     state.entities.Add(record);
             }
 
+            CaptureChunkComponents(state);
+
             foreach (TileOverrideData tileOverride in _tileOverrides.Values)
                 state.tileOverrides.Add(tileOverride.CreateSnapshot());
 
@@ -275,6 +280,84 @@ namespace Project.Scripts.Core
 
             entity.SetOwner(this);
             entity.SetPersistenceReady(false);
+        }
+
+        private void CaptureChunkComponents(ChunkState state)
+        {
+            HashSet<ushort> capturedTypes = new();
+            foreach (MonoBehaviour behaviour in GetComponents<MonoBehaviour>())
+            {
+                if (behaviour is not IPersistentComponent component)
+                    continue;
+
+                if (!capturedTypes.Add(component.PersistentTypeId))
+                {
+                    Debug.LogError(
+                        $"Chunk {_chunkPosition} has duplicate persistent " +
+                        $"component type {component.PersistentTypeId}.",
+                        this);
+                    continue;
+                }
+
+                if (component.IsAtBaseline())
+                    continue;
+
+                using MemoryStream stream = new();
+                using (BinaryWriter writer = new(
+                           stream,
+                           System.Text.Encoding.UTF8,
+                           leaveOpen: true))
+                {
+                    component.WriteState(writer);
+                }
+
+                state.components.Add(new PersistenceComponentRecord
+                {
+                    typeId = component.PersistentTypeId,
+                    version = component.PersistentVersion,
+                    data = stream.ToArray()
+                });
+            }
+        }
+
+        private void RestoreChunkComponents(
+            List<PersistenceComponentRecord> records)
+        {
+            if (records == null || records.Count == 0)
+                return;
+
+            Dictionary<ushort, IPersistentComponent> components = new();
+            foreach (MonoBehaviour behaviour in GetComponents<MonoBehaviour>())
+            {
+                if (behaviour is not IPersistentComponent component)
+                    continue;
+
+                if (!components.TryAdd(
+                        component.PersistentTypeId,
+                        component))
+                {
+                    Debug.LogError(
+                        $"Chunk {_chunkPosition} has duplicate persistent " +
+                        $"component type {component.PersistentTypeId}.",
+                        this);
+                }
+            }
+
+            foreach (PersistenceComponentRecord saved in records)
+            {
+                if (saved == null ||
+                    !components.TryGetValue(
+                        saved.typeId,
+                        out IPersistentComponent component))
+                {
+                    continue;
+                }
+
+                using MemoryStream stream =
+                    new(saved.data ?? Array.Empty<byte>(), writable: false);
+                using BinaryReader reader = new(stream);
+                component.ReadState(reader, saved.version);
+            }
         }
 
         private void RestoreRemovedEntity(PersistentEntityRecord record)

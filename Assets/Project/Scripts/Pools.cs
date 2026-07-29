@@ -13,10 +13,12 @@ namespace Project.Scripts
             ItemData itemData,
             int count,
             ItemData.Rarity rarity,
-            UnityEngine.Vector3 position)
+            UnityEngine.Vector3 position,
+            UnityEngine.Vector2 impulse)
         {
             ItemStackPickup pickup = Spawn(itemData, count, rarity);
             pickup.transform.position = position;
+            pickup.Launch(impulse);
         }
 
         void IItemStackPickupPool.Despawn(IItemStackPickup pickup)

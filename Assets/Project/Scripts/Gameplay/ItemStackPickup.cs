@@ -7,6 +7,7 @@ using UnityEngine;
 namespace Project.Scripts.Gameplay
 {
     [RequireComponent(typeof(Collider2D))]
+    [RequireComponent(typeof(Rigidbody2D))]
     public sealed class ItemStackPickup : MonoBehaviour, IInteractable, IItemStackPickup
     {
         [SerializeField] private ItemData item;
@@ -15,6 +16,7 @@ namespace Project.Scripts.Gameplay
         [SerializeField] private ItemData.Rarity rarity = ItemData.Rarity.Common;
 
         private IItemStackPickupPool _pool;
+        private Rigidbody2D _body;
 
         public void SetPool(IItemStackPickupPool pool)
         {
@@ -48,8 +50,27 @@ namespace Project.Scripts.Gameplay
 
         private void Awake()
         {
+            _body = GetComponent<Rigidbody2D>() ??
+                gameObject.AddComponent<Rigidbody2D>();
+            _body.bodyType = RigidbodyType2D.Dynamic;
+            _body.gravityScale = 0f;
+            _body.linearDamping = 4f;
+            _body.angularDamping = 4f;
+
             if (generateRarity)
                 rarity = ItemRarityUtility.Generate();
+        }
+
+        public void Launch(Vector2 impulse)
+        {
+            _body ??= GetComponent<Rigidbody2D>();
+            if (_body == null)
+                return;
+
+            _body.linearVelocity = Vector2.zero;
+            _body.angularVelocity = 0f;
+            if (impulse.sqrMagnitude > 0f)
+                _body.AddForce(impulse, ForceMode2D.Impulse);
         }
 
         public Vector3 GetPosition()

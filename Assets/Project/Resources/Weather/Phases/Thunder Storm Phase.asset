@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1131223ceb0f23844af85be8cc8c7f1d, type: 3}
+  m_Name: Thunder Storm Phase
+  m_EditorClassIdentifier: 
+  phaseId: rain.thunder
+  minimumDurationTicks: 180
+  maximumDurationTicks: 420
+  baseIntensity: 1
+  temperatureOffset: -0.05
+  moistureOffset: 0.2
+  ambientColorTint: {r: 0.45, g: 0.52, b: 0.68, a: 1}
+  effects:
+  - {fileID: 11400000, guid: 726203580e854cafb21e7a41635e07af, type: 2}
+  - {fileID: 11400000, guid: 6b006909e4cd474ebefcbf2c9989c608, type: 2}
