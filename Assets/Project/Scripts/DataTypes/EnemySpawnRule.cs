@@ -22,6 +22,16 @@ namespace Project.Scripts.DataTypes
         Persistent
     }
 
+    [Serializable]
+    public sealed class EnemySpawnVariation
+    {
+        public EnemyData enemyData;
+
+        [Range(0f, 1f)]
+        [Tooltip("Absolute chance that this variation replaces the default enemy. Variations are checked in list order; unused probability falls back to the default.")]
+        public float chance;
+    }
+
     /// <summary>
     /// Describes one NPC population and the world conditions under which it may spawn.
     /// Assets can also act as rule sets by referencing additional rules.
@@ -34,9 +44,8 @@ namespace Project.Scripts.DataTypes
         public EnemySpawnRule[] rules = Array.Empty<EnemySpawnRule>();
 
         [Header("NPC")]
-        [Tooltip("Enemy definition used for transient spawns. Its visual replaces npcPrefab when assigned.")]
+        [Tooltip("Enemy definition used for transient spawns. Its Visual prefab is always spawned.")]
         public EnemyData enemyData;
-        public GameObject npcPrefab;
         [Tooltip("Required for persistent NPCs. The NodeData must have a registered runtime EntityArchetype.")]
         public NodeData persistentNodeData;
         public NPCPersistence persistence = NPCPersistence.Transient;
@@ -46,10 +55,28 @@ namespace Project.Scripts.DataTypes
         [Min(0)] public int maximumPerChunk = 2;
         [Range(0f, 1f)] public float spawnChance = 0.5f;
         [Min(0f)] public float minimumSpacing = 2f;
+        [Min(0), Tooltip("Maximum living transient enemies from this rule across all loaded chunks.")]
+        public int maxAllowed = 20;
+        [Min(1), Tooltip("World ticks between attempts to add one offscreen enemy while below Max Allowed.")]
+        public int spawnIntervalTicks = 30;
+
+        [Header("Variations")]
+        [Tooltip("Optional enemies that can replace the default Enemy Data when an individual transient enemy is spawned.")]
+        public List<EnemySpawnVariation> variations = new();
+
+        [Header("Transient Lifecycle")]
+        [Tooltip("Recycle transient NPCs after they have remained idle and outside the camera view for the configured durations.")]
+        public bool recycleOffscreenIdle = true;
+        [Min(0), Tooltip("Minimum age in world ticks before this NPC can be recycled.")]
+        public int minimumLifetimeTicks = 120;
+        [Min(1), Tooltip("Continuous idle world ticks required before this NPC can be recycled.")]
+        public int idleTicksBeforeRecycle = 30;
 
         [Header("Time")]
         public SeasonMask seasons = SeasonMask.All;
+        [Tooltip("First eligible hour. For late-night spawning, use a value such as 22 and set Last Hour to an earlier morning hour.")]
         [Range(0, 23)] public int firstHour;
+        [Tooltip("Exclusive final eligible hour. A value earlier than First Hour creates an overnight window that crosses midnight.")]
         [Range(0, 24)] public int lastHour = 24;
 
         [Header("Biomes")]
@@ -79,9 +106,33 @@ namespace Project.Scripts.DataTypes
                 : hour >= firstHour || hour < lastHour;
         }
 
+        public EnemyData SelectEnemyData(float roll)
+        {
+            roll = Mathf.Clamp01(roll);
+            float threshold = 0f;
+            if (variations != null)
+            {
+                foreach (EnemySpawnVariation variation in variations)
+                {
+                    if (variation?.enemyData == null)
+                        continue;
+
+                    threshold += Mathf.Clamp01(variation.chance);
+                    if (roll < threshold)
+                        return variation.enemyData;
+                }
+            }
+
+            return enemyData;
+        }
+
         private void OnValidate()
         {
             maximumPerChunk = Mathf.Max(minimumPerChunk, maximumPerChunk);
+            maxAllowed = Mathf.Max(0, maxAllowed);
+            spawnIntervalTicks = Mathf.Max(1, spawnIntervalTicks);
+            minimumLifetimeTicks = Mathf.Max(0, minimumLifetimeTicks);
+            idleTicksBeforeRecycle = Mathf.Max(1, idleTicksBeforeRecycle);
         }
     }
 }

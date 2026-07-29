@@ -28,6 +28,10 @@ namespace Project.Scripts
         [Tooltip("Maximum number of room flood fills completed per frame.")]
         public int roomFloodFillsPerFrame = 4;
 
+        [Min(0)]
+        [Tooltip("Maximum cell gap between rooms that share one building trigger.")]
+        public int buildingRoomConnectionDistance = 1;
+
         [Min(0.01f)]
         [Tooltip("Seconds used to fade the outside-world visibility mask.")]
         public float roomOutsideFadeSeconds = 0.2f;
@@ -148,6 +152,10 @@ namespace Project.Scripts
 
         [Header("NPC Spawning")]
         public EnemySpawnRule[] enemySpawnRules = Array.Empty<EnemySpawnRule>();
+        [Min(1), Tooltip("World ticks between checks for recyclable transient NPCs.")]
+        public int transientRecycleCheckIntervalTicks = 5;
+        [Min(0f), Tooltip("Extra viewport border used before an NPC counts as offscreen.")]
+        public float transientOffscreenViewportMargin = 0.1f;
 
         [Header("Runtime Entities")]
         public DataTypes.EntityArchetype[] runtimeEntityArchetypes;

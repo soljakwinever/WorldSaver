@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Project.Scripts.AI;
 using Project.Scripts.Bus;
+using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using UnityEngine;
@@ -15,16 +17,20 @@ namespace Project.Scripts
         private readonly NPCSpawnPool _pool;
         private readonly WorldGeneration _worldGeneration;
         private readonly WorldData _worldData;
+        private readonly IWorldClock _worldClock;
         private readonly ITimeController _time;
         private readonly INPCSpawnEnvironmentProvider _environment;
         private readonly Dictionary<Vector2Int, ChunkPopulation> _populations = new();
         private readonly List<Vector2Int> _pendingPersistentChunks = new();
+        private readonly Dictionary<EnemySpawnRule, long> _nextRuleSpawnTicks = new();
+        private long _nextTransientRecycleTick;
 
         public NPCSpawnController(
             MapSignalBus mapSignals,
             NPCSpawnPool pool,
             WorldGeneration worldGeneration,
             WorldData worldData,
+            IWorldClock worldClock,
             ITimeController time,
             INPCSpawnEnvironmentProvider environment)
         {
@@ -32,6 +38,7 @@ namespace Project.Scripts
             _pool = pool;
             _worldGeneration = worldGeneration;
             _worldData = worldData;
+            _worldClock = worldClock;
             _time = time;
             _environment = environment;
         }
@@ -40,6 +47,7 @@ namespace Project.Scripts
         {
             _mapSignals.ChunkLoaded += OnChunkLoaded;
             _mapSignals.ChunkUnloaded += OnChunkUnloaded;
+            ScheduleNextTransientRecycleCheck();
         }
 
         public void Dispose()
@@ -64,6 +72,15 @@ namespace Project.Scripts
                 if (TrySpawnPersistentRules(position, population.Chunk, population))
                     _pendingPersistentChunks.RemoveAt(i);
             }
+
+            long currentTick = _worldClock.CurrentTick;
+            if (currentTick >= _nextTransientRecycleTick)
+            {
+                RecycleTransientNPCs(currentTick);
+                ScheduleNextTransientRecycleCheck();
+            }
+
+            SpawnUnderfilledTransientRules(currentTick);
         }
 
         private void OnChunkLoaded(Vector2Int position, IChunk loaded)
@@ -85,9 +102,9 @@ namespace Project.Scripts
             if (!_populations.Remove(position, out ChunkPopulation population))
                 return;
 
-            foreach (NPCSpawnInstance npc in population.TransientNPCs)
-                if (npc != null)
-                    _pool.Despawn(npc);
+            foreach (TransientPopulationEntry entry in population.TransientNPCs)
+                if (entry.Instance != null)
+                    _pool.Despawn(entry.Instance);
             _pendingPersistentChunks.Remove(position);
         }
 
@@ -130,18 +147,416 @@ namespace Project.Scripts
         {
             if (rule == null ||
                 rule.persistence != NPCPersistence.Transient ||
-                rule.enemyData == null && rule.npcPrefab == null)
+                !HasTransientSpawnDefinition(rule))
                 return;
 
             foreach (Vector2 position in GetSpawnPositions(chunkPosition, rule))
             {
-                GameObject prefab = rule.enemyData != null
-                    ? rule.enemyData.visual
-                    : rule.npcPrefab;
-                if (prefab != null)
-                    population.TransientNPCs.Add(
-                        _pool.Spawn(prefab, position, rule.enemyData));
+                if (!IsUnderPopulationCap(
+                        CountLivingTransient(rule),
+                        rule.maxAllowed))
+                    break;
+
+                TrySpawnTransient(
+                    rule,
+                    position,
+                    population,
+                    _worldClock.CurrentTick,
+                    population.TransientNPCs.Count);
             }
+        }
+
+        private void SpawnUnderfilledTransientRules(long currentTick)
+        {
+            Camera camera = Camera.main;
+            if (camera == null || _populations.Count == 0)
+                return;
+
+            float viewportMargin =
+                Mathf.Max(0f, _worldData.transientOffscreenViewportMargin);
+            foreach (EnemySpawnRule rule in EnumerateRules())
+            {
+                if (rule == null ||
+                    rule.persistence != NPCPersistence.Transient ||
+                    !HasTransientSpawnDefinition(rule) ||
+                    rule.maxAllowed <= 0)
+                {
+                    continue;
+                }
+
+                int interval = Mathf.Max(1, rule.spawnIntervalTicks);
+                if (!_nextRuleSpawnTicks.TryGetValue(rule, out long nextTick))
+                {
+                    _nextRuleSpawnTicks[rule] = currentTick + interval;
+                    continue;
+                }
+                if (currentTick < nextTick)
+                    continue;
+
+                _nextRuleSpawnTicks[rule] = currentTick + interval;
+                if (!AllowsCurrentWorldState(rule) ||
+                    !IsUnderPopulationCap(
+                        CountLivingTransient(rule),
+                        rule.maxAllowed) ||
+                    !TryGetPeriodicSpawnPosition(
+                        rule,
+                        currentTick,
+                        camera,
+                        viewportMargin,
+                        out ChunkPopulation population,
+                        out Vector2 position))
+                {
+                    continue;
+                }
+
+                TrySpawnTransient(
+                    rule,
+                    position,
+                    population,
+                    currentTick,
+                    unchecked((int)currentTick));
+            }
+        }
+
+        private bool TryGetPeriodicSpawnPosition(
+            EnemySpawnRule rule,
+            long currentTick,
+            Camera camera,
+            float viewportMargin,
+            out ChunkPopulation population,
+            out Vector2 position)
+        {
+            var candidates =
+                new List<KeyValuePair<Vector2Int, ChunkPopulation>>(_populations);
+            int startIndex = candidates.Count == 0
+                ? 0
+                : (int)((uint)HashCode.Combine(
+                    rule.GetEntityId(),
+                    unchecked((int)currentTick)) %
+                    (uint)candidates.Count);
+
+            for (int offset = 0; offset < candidates.Count; offset++)
+            {
+                KeyValuePair<Vector2Int, ChunkPopulation> candidate =
+                    candidates[(startIndex + offset) % candidates.Count];
+                if (TryGetOffscreenSpawnPosition(
+                        candidate.Key,
+                        rule,
+                        currentTick,
+                        offset,
+                        camera,
+                        viewportMargin,
+                        out position))
+                {
+                    population = candidate.Value;
+                    return true;
+                }
+            }
+
+            population = null;
+            position = default;
+            return false;
+        }
+
+        private bool TrySpawnTransient(
+            EnemySpawnRule rule,
+            Vector2 position,
+            ChunkPopulation population,
+            long spawnTick,
+            int salt)
+        {
+            NPCSpawnInstance instance =
+                CreateTransientInstance(rule, position, spawnTick, salt);
+            if (instance == null)
+                return false;
+
+            population.TransientNPCs.Add(
+                new TransientPopulationEntry(instance, rule, spawnTick));
+            return true;
+        }
+
+        private NPCSpawnInstance CreateTransientInstance(
+            EnemySpawnRule rule,
+            Vector2 position,
+            long spawnTick,
+            int salt)
+        {
+            int seed = HashCode.Combine(
+                unchecked((int)_worldGeneration.Seed),
+                rule.GetEntityId(),
+                Mathf.FloorToInt(position.x * 100f),
+                Mathf.FloorToInt(position.y * 100f),
+                unchecked((int)spawnTick),
+                salt);
+            EnemyData selectedEnemy =
+                rule.SelectEnemyData((float)new System.Random(seed).NextDouble());
+            if (!TryResolveTransientVisual(
+                    selectedEnemy,
+                    out GameObject prefab))
+            {
+                return null;
+            }
+
+            return _pool.Spawn(prefab, position, selectedEnemy);
+        }
+
+        private static bool HasTransientSpawnDefinition(
+            EnemySpawnRule rule)
+        {
+            if (rule.enemyData?.visual != null)
+                return true;
+            if (rule.variations == null)
+                return false;
+
+            foreach (EnemySpawnVariation variation in rule.variations)
+                if (variation?.enemyData?.visual != null)
+                    return true;
+
+            return false;
+        }
+
+        internal static bool TryResolveTransientVisual(
+            EnemyData enemyData,
+            out GameObject visual)
+        {
+            visual = enemyData != null ? enemyData.visual : null;
+            return visual != null;
+        }
+
+        private int CountLivingTransient(EnemySpawnRule rule)
+        {
+            int count = 0;
+            foreach (ChunkPopulation population in _populations.Values)
+            {
+                foreach (TransientPopulationEntry entry in population.TransientNPCs)
+                {
+                    if (ReferenceEquals(entry.Rule, rule) &&
+                        entry.Instance != null &&
+                        entry.Instance.Visual != null)
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        internal static bool IsUnderPopulationCap(
+            int livingCount,
+            int maxAllowed)
+        {
+            return maxAllowed > 0 &&
+                   Mathf.Max(0, livingCount) < maxAllowed;
+        }
+
+        private void RecycleTransientNPCs(long currentTick)
+        {
+            Camera camera = Camera.main;
+            float viewportMargin =
+                Mathf.Max(0f, _worldData.transientOffscreenViewportMargin);
+
+            foreach (KeyValuePair<Vector2Int, ChunkPopulation> pair in _populations)
+            {
+                List<TransientPopulationEntry> entries =
+                    pair.Value.TransientNPCs;
+                for (int i = entries.Count - 1; i >= 0; i--)
+                {
+                    TransientPopulationEntry entry = entries[i];
+                    NPCSpawnInstance instance = entry.Instance;
+
+                    // Enemy death destroys the visual but leaves the pooled
+                    // shell owned by this population.
+                    if (instance == null || instance.Visual == null)
+                    {
+                        if (instance != null)
+                            _pool.Despawn(instance);
+                        entries.RemoveAt(i);
+                        continue;
+                    }
+
+                    if (!IsMarkedIdle(instance))
+                    {
+                        entry.IdleSinceTick = null;
+                        continue;
+                    }
+
+                    entry.IdleSinceTick ??= currentTick;
+                    EnemySpawnRule rule = entry.Rule;
+                    if (camera == null ||
+                        rule == null ||
+                        !rule.recycleOffscreenIdle ||
+                        !IsOffscreen(
+                            camera,
+                            instance.Visual.transform.position,
+                            viewportMargin) ||
+                        !ShouldRecycleTransient(
+                            currentTick,
+                            entry.SpawnTick,
+                            entry.IdleSinceTick,
+                            rule.minimumLifetimeTicks,
+                            rule.idleTicksBeforeRecycle) ||
+                        !TryGetOffscreenSpawnPosition(
+                            pair.Key,
+                            rule,
+                            currentTick,
+                            entry.Generation + 1,
+                            camera,
+                            viewportMargin,
+                            out Vector2 replacementPosition))
+                    {
+                        continue;
+                    }
+
+                    NPCSpawnInstance replacement = CreateTransientInstance(
+                        rule,
+                        replacementPosition,
+                        currentTick,
+                        entry.Generation + 1);
+                    if (replacement == null)
+                        continue;
+
+                    _pool.Despawn(instance);
+                    entry.Instance = replacement;
+                    entry.SpawnTick = currentTick;
+                    entry.IdleSinceTick = null;
+                    entry.Generation++;
+                }
+            }
+        }
+
+        private bool TryGetOffscreenSpawnPosition(
+            Vector2Int chunkPosition,
+            EnemySpawnRule rule,
+            long currentTick,
+            int generation,
+            Camera camera,
+            float viewportMargin,
+            out Vector2 position)
+        {
+            int seed = HashCode.Combine(
+                unchecked((int)_worldGeneration.Seed),
+                chunkPosition.x,
+                chunkPosition.y,
+                rule.GetEntityId(),
+                unchecked((int)currentTick),
+                generation);
+            System.Random random = new(seed);
+            int startX = chunkPosition.x * ChunkBuildResult.ChunkSize;
+            int startY = chunkPosition.y * ChunkBuildResult.ChunkSize;
+            float minimumSpacingSquared =
+                rule.minimumSpacing * rule.minimumSpacing;
+
+            for (int attempt = 0; attempt < 64; attempt++)
+            {
+                Vector2 candidate = new(
+                    startX + (float)random.NextDouble() * ChunkBuildResult.ChunkSize,
+                    startY + (float)random.NextDouble() * ChunkBuildResult.ChunkSize);
+                Vector2Int cell = Vector2Int.FloorToInt(candidate);
+                TerrainSample sample =
+                    _worldGeneration.GetTerrainSample(cell.x, cell.y);
+                if (!IsNavigableSpawn(sample) ||
+                    !AllowsBiome(rule, sample.biome) ||
+                    !IsOffscreen(camera, candidate, viewportMargin) ||
+                    IsTooCloseToPopulation(
+                        candidate,
+                        minimumSpacingSquared))
+                {
+                    continue;
+                }
+
+                position = candidate;
+                return true;
+            }
+
+            position = default;
+            return false;
+        }
+
+        private bool IsTooCloseToPopulation(
+            Vector2 candidate,
+            float minimumSpacingSquared)
+        {
+            if (minimumSpacingSquared <= 0f)
+                return false;
+
+            foreach (ChunkPopulation population in _populations.Values)
+            {
+                foreach (TransientPopulationEntry entry in population.TransientNPCs)
+                {
+                    if (entry.Instance == null || entry.Instance.Visual == null)
+                        continue;
+
+                    Vector2 existing =
+                        entry.Instance.Visual.transform.position;
+                    if ((existing - candidate).sqrMagnitude <
+                        minimumSpacingSquared)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsMarkedIdle(NPCSpawnInstance instance)
+        {
+            AiNodeRunner runner =
+                instance.Visual.GetComponent<AiNodeRunner>();
+            return runner != null &&
+                   runner.Blackboard.GetOrDefault(AiKeys.IsIdle);
+        }
+
+        internal static bool ShouldRecycleTransient(
+            long currentTick,
+            long spawnTick,
+            long? idleSinceTick,
+            int minimumLifetimeTicks,
+            int minimumIdleTicks)
+        {
+            return idleSinceTick.HasValue &&
+                   HasElapsed(
+                       currentTick,
+                       spawnTick,
+                       Mathf.Max(0, minimumLifetimeTicks)) &&
+                   HasElapsed(
+                       currentTick,
+                       idleSinceTick.Value,
+                       Mathf.Max(1, minimumIdleTicks));
+        }
+
+        internal static bool IsOffscreen(
+            Camera camera,
+            Vector3 worldPosition,
+            float viewportMargin)
+        {
+            if (camera == null)
+                return false;
+
+            float margin = Mathf.Max(0f, viewportMargin);
+            Vector3 viewport = camera.WorldToViewportPoint(worldPosition);
+            return viewport.z <= 0f ||
+                   viewport.x < -margin ||
+                   viewport.x > 1f + margin ||
+                   viewport.y < -margin ||
+                   viewport.y > 1f + margin;
+        }
+
+        private static bool HasElapsed(
+            long currentTick,
+            long startingTick,
+            int duration)
+        {
+            return currentTick >= startingTick &&
+                   currentTick - startingTick >= duration;
+        }
+
+        private void ScheduleNextTransientRecycleCheck()
+        {
+            _nextTransientRecycleTick =
+                _worldClock.CurrentTick +
+                Mathf.Max(1, _worldData.transientRecycleCheckIntervalTicks);
         }
 
         private IEnumerable<Vector2> GetSpawnPositions(
@@ -251,10 +666,29 @@ namespace Project.Scripts
         private sealed class ChunkPopulation
         {
             public readonly Chunk Chunk;
-            public readonly List<NPCSpawnInstance> TransientNPCs = new();
+            public readonly List<TransientPopulationEntry> TransientNPCs = new();
             public readonly HashSet<EnemySpawnRule> PersistentRules = new();
 
             public ChunkPopulation(Chunk chunk) => Chunk = chunk;
+        }
+
+        private sealed class TransientPopulationEntry
+        {
+            public NPCSpawnInstance Instance;
+            public readonly EnemySpawnRule Rule;
+            public long SpawnTick;
+            public long? IdleSinceTick;
+            public int Generation;
+
+            public TransientPopulationEntry(
+                NPCSpawnInstance instance,
+                EnemySpawnRule rule,
+                long spawnTick)
+            {
+                Instance = instance;
+                Rule = rule;
+                SpawnTick = spawnTick;
+            }
         }
     }
 }

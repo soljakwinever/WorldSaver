@@ -130,6 +130,13 @@ namespace Project.Editor.AI.Generated
     }
 
     [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Decorators", null, "Tick Idle")]
+    internal sealed class Project_Scripts_AI_Decorators_TickIdle_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Decorators.TickIdle);
+    }
+
+    [Serializable]
     [global::Unity.GraphToolkit.Editor.Node("Decorators", null, "Timeout")]
     internal sealed class Project_Scripts_AI_Decorators_Timeout_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
@@ -176,6 +183,13 @@ namespace Project.Editor.AI.Generated
     internal sealed class Project_Scripts_AI_Leaves_Actions_Wander_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
         internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.Wander);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Wander Toward Target")]
+    internal sealed class Project_Scripts_AI_Leaves_Actions_WanderTowardTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.WanderTowardTarget);
     }
 
     [Serializable]

@@ -13,6 +13,7 @@ namespace Project.Scripts
     /// </summary>
     public sealed class RoomDetectionSystem : MonoBehaviour
     {
+        private const string BuildingsLayerName = "Buildings";
         private const int MaximumDirtyCellsPerFrame = 128;
         private const int MaximumSeedDequeuesPerFrame = 4096;
 
@@ -26,6 +27,7 @@ namespace Project.Scripts
 
         [Inject] private WorldData _worldData;
         [Inject] private WorldTilemapRenderer _renderer;
+        [Inject] private Grid _grid;
 
         private readonly Dictionary<Vector2Int, Chunk> _readyChunks = new();
         private readonly Dictionary<Vector3Int, Room> _roomByInterior = new();
@@ -41,12 +43,18 @@ namespace Project.Scripts
         private readonly HashSet<Vector3Int> _paddedRoofCells = new();
         private readonly HashSet<Vector3Int> _activeRoofFadeCells = new();
         private readonly List<WorldTilemapRenderer.CellData> _roofCells = new();
+        private readonly List<BuildingRoomCluster> _buildingClusters = new();
+        private readonly List<BuildingRoomTrigger> _buildingTriggers = new();
+        private readonly Stack<BuildingRoomTrigger> _pooledBuildingTriggers = new();
         private readonly RoomFloodFill _floodFill = new();
         private Room _activeRoofRoom;
         private float _activeRoofAlpha = 1f;
+        private bool _buildingCollidersDirty;
         private long _nextRoomId;
 
         public IReadOnlyCollection<Room> Rooms => _rooms;
+        public IReadOnlyList<BuildingRoomTrigger> BuildingTriggers =>
+            _buildingTriggers;
 
         private void Update()
         {
@@ -166,7 +174,8 @@ namespace Project.Scripts
         {
             if (_dirtyCells.Count == 0 &&
                 _pendingSeeds.Count == 0 &&
-                _dirtyRoofChunks.Count == 0)
+                _dirtyRoofChunks.Count == 0 &&
+                !_buildingCollidersDirty)
             {
                 return;
             }
@@ -174,6 +183,7 @@ namespace Project.Scripts
             ProcessDirtyCells(MaximumDirtyCellsPerFrame);
             ProcessFloodFills(Mathf.Max(1, _worldData.roomFloodFillsPerFrame));
             ApplyDirtyRoofs();
+            RebuildBuildingColliders();
         }
 
         private void ProcessDirtyCells(int budget)
@@ -305,6 +315,7 @@ namespace Project.Scripts
             }
             _rooms.Add(room);
             UpdateRoofCoverage(room, 1);
+            _buildingCollidersDirty = true;
         }
 
         private void RemoveRoom(Room room)
@@ -334,6 +345,67 @@ namespace Project.Scripts
                     chunk.RemoveRoomSegment(segment);
                 _dirtyRoofChunks.Add(segment.ChunkPosition);
             }
+            _buildingCollidersDirty = true;
+        }
+
+        private void RebuildBuildingColliders()
+        {
+            if (!_buildingCollidersDirty)
+                return;
+
+            _buildingCollidersDirty = false;
+            BuildingRoomClusterer.Build(
+                _rooms,
+                _worldData.buildingRoomConnectionDistance,
+                _buildingClusters);
+
+            int buildingLayer = LayerMask.NameToLayer(BuildingsLayerName);
+            if (buildingLayer < 0)
+            {
+                Debug.LogError(
+                    $"Required Unity layer '{BuildingsLayerName}' is missing.",
+                    this);
+                return;
+            }
+
+            while (_buildingTriggers.Count > _buildingClusters.Count)
+            {
+                int last = _buildingTriggers.Count - 1;
+                BuildingRoomTrigger trigger = _buildingTriggers[last];
+                _buildingTriggers.RemoveAt(last);
+                trigger.Release();
+                _pooledBuildingTriggers.Push(trigger);
+            }
+
+            for (int i = 0; i < _buildingClusters.Count; i++)
+            {
+                BuildingRoomTrigger trigger;
+                if (i < _buildingTriggers.Count)
+                {
+                    trigger = _buildingTriggers[i];
+                }
+                else
+                {
+                    trigger = AcquireBuildingTrigger();
+                    _buildingTriggers.Add(trigger);
+                }
+
+                trigger.Configure(
+                    _buildingClusters[i],
+                    i + 1,
+                    buildingLayer,
+                    _grid);
+            }
+        }
+
+        private BuildingRoomTrigger AcquireBuildingTrigger()
+        {
+            if (_pooledBuildingTriggers.Count > 0)
+                return _pooledBuildingTriggers.Pop();
+
+            GameObject building = new("Building");
+            building.transform.SetParent(transform, true);
+            return building.AddComponent<BuildingRoomTrigger>();
         }
 
         private void ApplyDirtyRoofs()

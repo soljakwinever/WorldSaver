@@ -28,6 +28,14 @@ namespace Project.Scripts.AI
         public static readonly BlackboardKey<GameObject> Self =
             new BlackboardKey<GameObject>("Self");
 
+        /// <summary>
+        /// True only while an idle branch wrapped in TickIdle is active.
+        /// Spawn lifecycle systems use this marker without depending on a
+        /// specific idle action such as Wander or Wait.
+        /// </summary>
+        public static readonly BlackboardKey<bool> IsIdle =
+            new BlackboardKey<bool>("Is Idle");
+
         public static readonly BlackboardKey<IPathFindingService> PathFindingService =
             new BlackboardKey<IPathFindingService>("Path Finding Service");
 
@@ -74,6 +82,9 @@ namespace Project.Scripts.AI
                     owner != null ? owner.transform.position : Vector3.zero;
                 blackboard.Set(Destination, initialDestination);
             }
+
+            if (!blackboard.ContainsLocal(IsIdle))
+                blackboard.Set(IsIdle, false);
         }
     }
 }

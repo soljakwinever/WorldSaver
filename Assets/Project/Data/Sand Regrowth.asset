@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e4746bc9b6e4d54a7a93432d1ef78ab, type: 3}
   m_Name: Sand Regrowth
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TileSpreadRule
-  sourceTile: {fileID: 11400000, guid: 70777777777747778777777777777777, type: 2}
+  sourceTile: {fileID: 11400000, guid: a0aaaaaaaaaa4aaa8aaaaaaaaaaaaaaa, type: 2}
   resultTile: {fileID: 0}
   validTargets:
   - {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
   layer: 0
   allowedSourceOrigins: -1
   allowedTargetOrigins: 2
-  restrictByTerrain: 1
+  restrictByTerrain: 0
   allowedBiomes:
   - {fileID: 11400000, guid: d592ed03576c900468bbc1bafaf5b3eb, type: 2}
   - {fileID: 11400000, guid: c410b1fad906afb44a720375b168c442, type: 2}
@@ -34,6 +34,6 @@ MonoBehaviour:
   cliff: 2
   road: 2
   trail: 2
-  intervalTicks: 120
-  chancePerTarget: 0.1
+  intervalTicks: 1
+  chancePerTarget: 1
   includeDiagonals: 0

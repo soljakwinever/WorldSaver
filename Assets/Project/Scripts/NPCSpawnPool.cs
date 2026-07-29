@@ -31,8 +31,8 @@ namespace Project.Scripts
             if (prefab == null)
                 return;
 
-            // The pooled shell contains the rule prefab as its only child. This permits
-            // different enemy and villager prefabs to share one chunk population pool.
+            // The pooled shell contains the selected EnemyData visual as its
+            // only child, allowing different enemy types to share one pool.
             if (item.Prefab != prefab || item.Visual == null)
             {
                 if (item.Visual != null)
@@ -51,6 +51,7 @@ namespace Project.Scripts
                 Vector3.zero,
                 Quaternion.identity);
             item.gameObject.SetActive(true);
+            item.Visual.SetActive(true);
 
             if (enemyData != null)
             {
@@ -64,6 +65,8 @@ namespace Project.Scripts
         protected override void OnDespawned(NPCSpawnInstance item)
         {
             item.name = "Pooled NPC";
+            if (item.Visual != null)
+                item.Visual.SetActive(false);
             base.OnDespawned(item);
         }
     }

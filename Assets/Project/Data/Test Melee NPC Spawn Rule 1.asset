@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f0601214a8eb444409db783645d86b44, type: 3}
-  m_Name: Test NPC Spawn Rule
+  m_Name: Test Melee NPC Spawn Rule 1
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemySpawnRule
   rules: []
-  enemyData: {fileID: 11400000, guid: 29351ecf21b921c4a9e2c86398a503d0, type: 2}
+  enemyData: {fileID: 11400000, guid: 0f9e7938d4b3f904098076225798ddad, type: 2}
   persistentNodeData: {fileID: 0}
   persistence: 0
   minimumPerChunk: 1
@@ -24,11 +24,11 @@ MonoBehaviour:
   spawnIntervalTicks: 30
   variations: []
   recycleOffscreenIdle: 1
-  minimumLifetimeTicks: 30
+  minimumLifetimeTicks: 15
   idleTicksBeforeRecycle: 1
   seasons: -1
-  firstHour: 8
-  lastHour: 17
+  firstHour: 20
+  lastHour: 5
   allowedBiomes: []
   restrictedBiomes: []
   requiredEvent: 

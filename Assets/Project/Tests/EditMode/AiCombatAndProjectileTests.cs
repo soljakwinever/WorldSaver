@@ -179,6 +179,30 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void WanderTowardTargetBiasesItsStepTowardTarget()
+        {
+            GameObject self = CreateGameObject("Self");
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = Vector3.right * 10f;
+            CapturingPathFinder pathFinder = new();
+
+            WanderTowardTarget node = new();
+            SetField(node, "stepRadius", 5f);
+            SetField(node, "targetBias", 1f);
+            SetField(node, "candidateAttempts", 1);
+            Blackboard blackboard =
+                CreateBlackboard(self, target.transform);
+            blackboard.Set(AiKeys.PathFindingMap, new WalkableMap());
+            blackboard.Set(AiKeys.PathFindingService, pathFinder);
+            node.Bind(blackboard);
+
+            Assert.That(
+                node.Evaluate(),
+                Is.EqualTo(AiNode.NodeState.Running));
+            Assert.That(pathFinder.LastDestination.x, Is.GreaterThan(0));
+        }
+
+        [Test]
         public void DetectNearbySelectsNearestAndClearsMissingTarget()
         {
             GameObject self = CreateGameObject("Self");

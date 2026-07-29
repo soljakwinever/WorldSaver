@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using Project.Scripts;
+using Project.Scripts.DataTypes;
 using UnityEngine;
 
 namespace Project.Tests.EditMode
@@ -169,6 +170,58 @@ namespace Project.Tests.EditMode
             Assert.That(triangles.Count, Is.EqualTo(48));
         }
 
+        [Test]
+        public void NearbyRoomsShareOneBuildingBoundsTrigger()
+        {
+            Room first = CreateRoom(1, 0, 0, 2, 2);
+            Room second = CreateRoom(2, 3, 0, 5, 2);
+            List<BuildingRoomCluster> clusters = new();
+
+            BuildingRoomClusterer.Build(
+                new[] { first, second },
+                1,
+                clusters);
+
+            Assert.That(clusters.Count, Is.EqualTo(1));
+            Assert.That(clusters[0].Rooms.Count, Is.EqualTo(2));
+            Assert.That(
+                clusters[0].Bounds,
+                Is.EqualTo(new BoundsInt(0, 0, 0, 5, 2, 1)));
+        }
+
+        [Test]
+        public void DistantRoomsReceiveSeparateBuildingTriggers()
+        {
+            Room first = CreateRoom(1, 0, 0, 2, 2);
+            Room second = CreateRoom(2, 4, 0, 6, 2);
+            List<BuildingRoomCluster> clusters = new();
+
+            BuildingRoomClusterer.Build(
+                new[] { first, second },
+                1,
+                clusters);
+
+            Assert.That(clusters.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void BuildingRoomConnectionsAreTransitive()
+        {
+            Room first = CreateRoom(1, 0, 0, 2, 2);
+            Room middle = CreateRoom(2, 3, 0, 5, 2);
+            Room last = CreateRoom(3, 6, 0, 8, 2);
+            List<BuildingRoomCluster> clusters = new();
+
+            BuildingRoomClusterer.Build(
+                new[] { first, middle, last },
+                1,
+                clusters);
+
+            Assert.That(clusters.Count, Is.EqualTo(1));
+            Assert.That(clusters[0].Rooms.Count, Is.EqualTo(3));
+            Assert.That(clusters[0].Bounds.xMax, Is.EqualTo(8));
+        }
+
         private static RoomCellKind Classify(
             Vector3Int cell,
             HashSet<Vector3Int> boundary,
@@ -205,6 +258,27 @@ namespace Project.Tests.EditMode
                 result.Add(new Vector3Int(maximumX, y));
             }
             return result;
+        }
+
+        private static Room CreateRoom(
+            long id,
+            int minimumX,
+            int minimumY,
+            int maximumX,
+            int maximumY)
+        {
+            List<Vector3Int> cells = new();
+            for (int y = minimumY; y < maximumY; y++)
+            {
+                for (int x = minimumX; x < maximumX; x++)
+                    cells.Add(new Vector3Int(x, y));
+            }
+
+            return new Room(
+                id,
+                cells.ToArray(),
+                System.Array.Empty<Vector3Int>(),
+                System.Array.Empty<RoomChunkSegment>());
         }
     }
 }

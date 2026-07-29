@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b319666b71c34b71aaf4935c3ee02487, type: 3}
-  m_Name: Bunny
+  m_Name: Zombie
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
-  hp: 5
+  hp: 20
   defense: 0
-  experienceValue: 10
-  visual: {fileID: 2119611675089420321, guid: 5b82825f26e20cb4f9ea1797a724b824, type: 3}
-  behaviourTree: {fileID: -7413323278554932356, guid: 81c430f02d381614bbd4a9a8ca5a1f19, type: 3}
+  experienceValue: 1
+  visual: {fileID: 2119611675089420321, guid: dd90672a05bae2d4980af5765d4dd76d, type: 3}
+  behaviourTree: {fileID: -7413323278554932356, guid: e3c3f3720c044574eaa13b6d0ea7b84e, type: 3}
   drops:
   - item: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
     dropChance: 0.3

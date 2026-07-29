@@ -56,6 +56,8 @@ namespace Project.Scripts
 
         public void Configure(AiNodeData data)
         {
+            Blackboard.Set(AiKeys.IsIdle, false);
+
             if (_runtimeData != null)
                 Destroy(_runtimeData);
 
@@ -71,6 +73,7 @@ namespace Project.Scripts
             if (!ReferenceEquals(_root, root))
                 _root?.Abort();
 
+            Blackboard.Set(AiKeys.IsIdle, false);
             _root = root;
             _root?.Bind(Blackboard, RequestEvaluation);
             int interval = Mathf.Max(1, tickRate);
