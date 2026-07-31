@@ -13,7 +13,7 @@ namespace Project.Scripts.Gameplay
     /// Applies an EnemyData definition to a spawned enemy and resolves its death.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class EnemyRuntime : MonoBehaviour
+    public sealed class EnemyRuntime : MonoBehaviour, IEntityDamageSource
     {
         private const float GoldenAngle = 2.39996323f;
 
@@ -22,6 +22,9 @@ namespace Project.Scripts.Gameplay
         private TransientHealth _health;
 
         public EnemyData Data { get; private set; }
+        public EntityDamageSource DamageSource => EntityDamageSource.Enemy;
+        public System.Collections.Generic.IReadOnlyList<EntityTag> DamageTags =>
+            Data?.damageTags ?? Array.Empty<EntityTag>();
 
         [Inject]
         public void Construct(

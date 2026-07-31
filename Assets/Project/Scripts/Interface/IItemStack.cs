@@ -6,6 +6,7 @@ namespace Project.Scripts.Interface
     {
         ItemData Item { get; }
         ItemData.Rarity Rarity { get; }
+        byte Durability { get; }
         int Count { get; }
         int Capacity { get; }
         int RemainingCapacity { get; }

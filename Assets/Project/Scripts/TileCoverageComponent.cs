@@ -1,7 +1,9 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Project.Scripts.DataTypes;
+using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using Project.Scripts.TimeAndWeather;
 using UnityEngine;
@@ -10,7 +12,8 @@ namespace Project.Scripts
 {
     public sealed class TileCoverageComponent :
         MonoBehaviour,
-        IPersistentComponent
+        IPersistentComponent,
+        ITownTileRepairSource
     {
         public const ushort TypeId = 0x4356; // "CV"
         private const ushort Version = 1;
@@ -47,6 +50,14 @@ namespace Project.Scripts
             new ushort[MaximumSavedCells];
         private readonly ushort[] _visualChanges =
             new ushort[MaximumSavedCells];
+        private readonly Coroutine[] _coverageFadeRoutines =
+            new Coroutine[MaximumSavedCells];
+        private readonly float[] _animatedCoverageAmounts =
+            new float[MaximumSavedCells];
+
+        [SerializeField, Min(0f)]
+        [Tooltip("Seconds taken for mined coverage to recede through the accumulation shader.")]
+        private float coverageMiningFadeDuration = 0.25f;
 
         private Chunk _chunk;
         private bool _ready;
@@ -58,12 +69,43 @@ namespace Project.Scripts
         public bool IsReady => _ready;
         public int Generation => _generation;
 
+        private void OnEnable()
+        {
+            TownTileRepairRegistry.Register(this);
+        }
+
+        private void OnDisable()
+        {
+            TownTileRepairRegistry.Unregister(this);
+        }
+
+        public int GetMaximumMissingHealth(
+            Vector2 townCenter,
+            float townRadius) =>
+            _chunk == null
+                ? 0
+                : _chunk.GetMaximumDamagedWallHealth(
+                    townCenter,
+                    townRadius);
+
+        public int RepairDamagedTiles(
+            Vector2 townCenter,
+            float townRadius,
+            int healthPerTile) =>
+            _chunk == null
+                ? 0
+                : _chunk.RepairDamagedWalls(
+                    townCenter,
+                    townRadius,
+                    healthPerTile);
+
         public void Configure(
             Chunk chunk,
             ChunkBuildResult build,
             float waterHeight,
             IReadOnlyList<CoverageData> coverageLayers)
         {
+            CancelAllCoverageFades();
             unchecked
             {
                 _generation++;
@@ -118,25 +160,42 @@ namespace Project.Scripts
             }
         }
 
-        public void CompleteRestore(WeatherSample regionalWeather)
+        public void CompleteRestore(IRegionalWeatherService weather)
         {
             foreach (LayerState layer in _layers.Values)
             {
                 foreach (CellState cell in layer.Cells.Values)
                 {
-                    if (cell.Initialized)
-                        continue;
-
                     if (!TileAllowsCoverage(layer.Data, cell.LocalIndex))
                     {
-                        cell.Amount = 0f;
+                        if (!cell.Initialized)
+                        {
+                            cell.Amount = 0f;
+                            cell.Initialized = true;
+                        }
+                        continue;
+                    }
+
+                    WeatherSample sample = SampleCellWeather(
+                        weather,
+                        cell);
+                    if (TryGetWeatherOverrideCoverage(
+                            layer.Data,
+                            sample,
+                            _indoorCells[cell.LocalIndex],
+                            out float overrideCoverage))
+                    {
+                        cell.Amount = overrideCoverage;
                         cell.Initialized = true;
                         continue;
                     }
 
-                    WeatherSample sample =
-                        regionalWeather.WithTerrainTemperature(
-                            cell.TerrainTemperature);
+                    bool weatherAllowsAccumulation =
+                        WeatherAllowsAccumulation(layer.Data, sample);
+
+                    if (cell.Initialized)
+                        continue;
+
                     if (TemperatureAllowsPersistence(layer.Data, sample))
                     {
                         cell.Amount = _chunk.TryGetNeighborCoverageSeed(
@@ -146,7 +205,7 @@ namespace Project.Scripts
                             ? neighborAmount
                             : AllowsWeatherAccumulation(
                                 _indoorCells[cell.LocalIndex],
-                                WeatherAllowsAccumulation(layer.Data, sample))
+                                weatherAllowsAccumulation)
                                 ? layer.Data.InitialCoverage
                                 : 0f;
                     }
@@ -163,7 +222,7 @@ namespace Project.Scripts
         }
 
         public void Advance(
-            WeatherSample regionalWeather,
+            IRegionalWeatherService weather,
             long elapsedTicks)
         {
             if (!_ready || elapsedTicks <= 0)
@@ -174,17 +233,33 @@ namespace Project.Scripts
 
             foreach (LayerState layer in _layers.Values)
             {
-                bool accumulationAllowed =
-                    WeatherAllowsAccumulation(layer.Data, regionalWeather);
                 foreach (CellState cell in layer.Cells.Values)
                 {
                     if (!TileAllowsCoverage(layer.Data, cell.LocalIndex))
                         continue;
 
-                    WeatherSample sample =
-                        regionalWeather.WithTerrainTemperature(
-                            cell.TerrainTemperature);
+                    WeatherSample sample = SampleCellWeather(
+                        weather,
+                        cell);
                     float previous = cell.Amount;
+                    if (TryGetWeatherOverrideCoverage(
+                            layer.Data,
+                            sample,
+                            _indoorCells[cell.LocalIndex],
+                            out float overrideCoverage))
+                    {
+                        cell.Amount = overrideCoverage;
+                        if (previous != cell.Amount &&
+                            !_dirtyCellFlags[cell.LocalIndex])
+                        {
+                            _dirtyCellFlags[cell.LocalIndex] = true;
+                            _dirtyCells[dirtyCount++] = cell.LocalIndex;
+                        }
+                        continue;
+                    }
+
+                    bool accumulationAllowed =
+                        WeatherAllowsAccumulation(layer.Data, sample);
                     if (!TemperatureAllowsPersistence(layer.Data, sample))
                     {
                         cell.Amount = layer.Data.SlowlyDecayWhenTemperatureFails
@@ -193,18 +268,21 @@ namespace Project.Scripts
                                 layer.Data.DecayRate * ticks)
                             : 0f;
                     }
-                    else if (AllowsWeatherAccumulation(
-                                 _indoorCells[cell.LocalIndex],
-                                 accumulationAllowed))
+                    else
                     {
-                        cell.Amount = Mathf.Clamp01(
-                            cell.Amount +
+                        cell.Amount = ApplyWeatherAccumulation(
+                            cell.Amount,
                             layer.Data.AccumulationRate *
                             cell.AccumulationMultiplier *
-                            ticks);
+                            ticks,
+                            _indoorCells[cell.LocalIndex],
+                            accumulationAllowed);
                     }
 
-                    if (!Mathf.Approximately(previous, cell.Amount) &&
+                    // Exact comparison is intentional: when Clamp01 produces
+                    // the final 1.0 value, the coverage tile must get one last
+                    // visual update even if the delta is approximately zero.
+                    if (previous != cell.Amount &&
                         !_dirtyCellFlags[cell.LocalIndex])
                     {
                         _dirtyCellFlags[cell.LocalIndex] = true;
@@ -214,12 +292,26 @@ namespace Project.Scripts
             }
 
             int visualCount = 0;
+            bool navigationChanged = false;
             for (int i = 0; i < dirtyCount; i++)
             {
                 ushort index = _dirtyCells[i];
                 _dirtyCellFlags[index] = false;
+                CoverageData previousCoverage = _displayedData[index];
                 if (UpdateDisplayedVisual(index, force: false))
+                {
+                    CoverageData currentCoverage = _displayedData[index];
+                    navigationChanged |=
+                        HasPathingHint(previousCoverage) ||
+                        HasPathingHint(currentCoverage);
+                    // An active mining fade owns this cell's rendered alpha.
+                    // Keep its persisted target current without snapping the
+                    // tile to that target during weather accumulation.
+                    if (_coverageFadeRoutines[index] != null)
+                        continue;
+
                     _visualChanges[visualCount++] = index;
+                }
             }
 
             if (visualCount > 0)
@@ -229,8 +321,28 @@ namespace Project.Scripts
                     _displayedData,
                     _displayedAlpha);
 
+            if (navigationChanged)
+                _chunk?.NotifyNavigationChanged();
+
             if (dirtyCount > 0)
+            {
                 RefreshMaterialProperties();
+            }
+        }
+
+        private WeatherSample SampleCellWeather(
+            IRegionalWeatherService weather,
+            CellState cell)
+        {
+            int size = ChunkBuildResult.ChunkSize;
+            return weather.Sample(new Vector2(
+                    _chunk.Position.x * size +
+                    cell.LocalIndex % size +
+                    0.5f,
+                    _chunk.Position.y * size +
+                    cell.LocalIndex / size +
+                    0.5f),
+                cell.TerrainTemperature);
         }
 
         private float CalculateAccumulationMultiplier(
@@ -319,6 +431,21 @@ namespace Project.Scripts
                 out _);
         }
 
+        public bool TryGetPathingCoverage(
+            ushort localIndex,
+            out CoverageData data,
+            out float amount)
+        {
+            bool found = TryGetDisplayedCoverage(
+                localIndex,
+                out LayerState layer,
+                out CellState cell);
+            data = found ? layer.Data : null;
+            amount = found ? cell.Amount : 0f;
+            return found && data.PathingTerrain !=
+                TileData.AiPathingTerrain.Normal;
+        }
+
         public bool TryReduceCoverage(
             ushort localIndex,
             float amount)
@@ -332,9 +459,19 @@ namespace Project.Scripts
                 return false;
             }
 
+            float startAmount = _coverageFadeRoutines[localIndex] != null
+                ? _animatedCoverageAmounts[localIndex]
+                : cell.Amount;
+            CoverageData fadingCoverage = layer.Data;
+
             cell.Amount = Mathf.Max(0f, cell.Amount - amount);
             cell.Initialized = true;
-            RefreshVisual(localIndex, force: true);
+
+            UpdateDisplayedVisual(localIndex, force: true);
+            StartCoverageFade(
+                localIndex,
+                fadingCoverage,
+                startAmount);
             RefreshMaterialProperties();
             return true;
         }
@@ -366,53 +503,70 @@ namespace Project.Scripts
                 RefreshCell(localIndex);
         }
 
-        public void SetRoomInteriorCells(
-            IReadOnlyList<ushort> localIndices,
-            bool isInterior)
+        /// <summary>
+        /// Clears coverage in the portion of a world-space tile area owned by
+        /// this chunk. This is applied after restore for deterministic world
+        /// features such as the spawn platform.
+        /// </summary>
+        public void ClearWorldArea(RectInt worldArea)
         {
-            if (localIndices == null || localIndices.Count == 0)
+            if (_chunk == null ||
+                worldArea.width <= 0 ||
+                worldArea.height <= 0)
+            {
+                return;
+            }
+
+            int size = ChunkBuildResult.ChunkSize;
+            RectInt chunkArea = new(
+                _chunk.Position.x * size,
+                _chunk.Position.y * size,
+                size,
+                size);
+            int minimumX = Mathf.Max(worldArea.xMin, chunkArea.xMin);
+            int maximumX = Mathf.Min(worldArea.xMax, chunkArea.xMax);
+            int minimumY = Mathf.Max(worldArea.yMin, chunkArea.yMin);
+            int maximumY = Mathf.Min(worldArea.yMax, chunkArea.yMax);
+            if (minimumX >= maximumX || minimumY >= maximumY)
                 return;
 
             int visualCount = 0;
             bool amountChanged = false;
-            for (int i = 0; i < localIndices.Count; i++)
+            for (int worldY = minimumY; worldY < maximumY; worldY++)
             {
-                ushort localIndex = localIndices[i];
-                if (localIndex >= MaximumSavedCells ||
-                    _indoorCells[localIndex] == isInterior)
+                for (int worldX = minimumX; worldX < maximumX; worldX++)
                 {
-                    continue;
-                }
+                    int localX = worldX - chunkArea.xMin;
+                    int localY = worldY - chunkArea.yMin;
+                    ushort localIndex =
+                        checked((ushort)(localX + localY * size));
 
-                _indoorCells[localIndex] = isInterior;
-                if (!isInterior)
-                    continue;
-
-                foreach (LayerState layer in _layers.Values)
-                {
-                    if (!layer.Cells.TryGetValue(
-                            localIndex,
-                            out CellState cell) ||
-                        cell.Amount <= 0f)
+                    foreach (LayerState layer in _layers.Values)
                     {
-                        continue;
+                        if (!layer.Cells.TryGetValue(
+                                localIndex,
+                                out CellState cell))
+                        {
+                            continue;
+                        }
+
+                        amountChanged |= cell.Amount > 0f;
+                        cell.Amount = 0f;
+                        cell.Initialized = true;
                     }
 
-                    cell.Amount = 0f;
-                    cell.Initialized = true;
-                    amountChanged = true;
-                }
-
-                if (_ready &&
-                    UpdateDisplayedVisual(localIndex, force: false))
-                {
-                    _visualChanges[visualCount++] = localIndex;
+                    if (_ready &&
+                        UpdateDisplayedVisual(localIndex, force: false))
+                    {
+                        CancelCoverageFade(localIndex);
+                        _visualChanges[visualCount++] = localIndex;
+                    }
                 }
             }
 
             if (visualCount > 0)
             {
-                _chunk?.ApplyCoverageVisuals(
+                _chunk.ApplyCoverageVisuals(
                     _visualChanges,
                     visualCount,
                     _displayedData,
@@ -423,10 +577,45 @@ namespace Project.Scripts
                 RefreshMaterialProperties();
         }
 
-        internal static bool AllowsWeatherAccumulation(
+        public void SetRoomInteriorCells(
+            IReadOnlyList<ushort> localIndices,
+            bool isInterior)
+        {
+            if (localIndices == null || localIndices.Count == 0)
+                return;
+
+            for (int i = 0; i < localIndices.Count; i++)
+            {
+                ushort localIndex = localIndices[i];
+                if (localIndex >= MaximumSavedCells)
+                    continue;
+
+                _indoorCells[localIndex] = isInterior;
+            }
+        }
+
+        public static bool AllowsWeatherAccumulation(
             bool isRoomInterior,
             bool weatherAllowsAccumulation) =>
             !isRoomInterior && weatherAllowsAccumulation;
+
+        public static float ApplyWeatherAccumulation(
+            float currentAmount,
+            float accumulatedAmount,
+            bool isRoomInterior,
+            bool weatherAllowsAccumulation)
+        {
+            currentAmount = Mathf.Clamp01(currentAmount);
+            if (!AllowsWeatherAccumulation(
+                    isRoomInterior,
+                    weatherAllowsAccumulation))
+            {
+                return currentAmount;
+            }
+
+            return Mathf.Clamp01(
+                currentAmount + Mathf.Max(0f, accumulatedAmount));
+        }
 
         public void RefreshCellColor(ushort localIndex) =>
             RefreshVisual(localIndex, force: true);
@@ -444,6 +633,7 @@ namespace Project.Scripts
 
         public void PrepareForPool()
         {
+            CancelAllCoverageFades();
             unchecked
             {
                 _generation++;
@@ -597,6 +787,8 @@ namespace Project.Scripts
             WeatherSample sample)
         {
             if (data == null ||
+                sample.HasWeatherOverride &&
+                sample.WeatherOverrideInfluence <= 0f ||
                 !MatchesId(data.AllowedWeatherIds, sample.WeatherId) ||
                 !MatchesId(data.AllowedPhaseIds, sample.PhaseId))
             {
@@ -643,6 +835,28 @@ namespace Project.Scripts
             return false;
         }
 
+        public static bool TryGetWeatherOverrideCoverage(
+            CoverageData data,
+            WeatherSample sample,
+            bool isIndoor,
+            out float coverage)
+        {
+            coverage = 0f;
+            if (data == null ||
+                !sample.HasWeatherOverride ||
+                !ContainsExplicitId(
+                    data.AllowedWeatherIds,
+                    sample.WeatherId))
+            {
+                return false;
+            }
+
+            coverage = isIndoor
+                ? 0f
+                : sample.WeatherOverrideInfluence;
+            return true;
+        }
+
         private static bool MatchesId(
             string[] allowedIds,
             string currentId)
@@ -669,8 +883,40 @@ namespace Project.Scripts
             return !hasRestriction;
         }
 
+        private static bool ContainsExplicitId(
+            string[] allowedIds,
+            string currentId)
+        {
+            if (allowedIds == null ||
+                string.IsNullOrWhiteSpace(currentId))
+            {
+                return false;
+            }
+
+            foreach (string allowed in allowedIds)
+            {
+                if (string.Equals(
+                        allowed,
+                        currentId,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasPathingHint(CoverageData data)
+        {
+            return data != null &&
+                   data.PathingTerrain !=
+                   TileData.AiPathingTerrain.Normal;
+        }
+
         private void RefreshAllVisuals(bool force)
         {
+            CancelAllCoverageFades();
             int visualCount = 0;
             for (ushort index = 0; index < MaximumSavedCells; index++)
             {
@@ -690,6 +936,7 @@ namespace Project.Scripts
 
         private void RefreshVisual(ushort localIndex, bool force)
         {
+            CancelCoverageFade(localIndex);
             if (!UpdateDisplayedVisual(localIndex, force))
                 return;
 
@@ -699,6 +946,93 @@ namespace Project.Scripts
                 1,
                 _displayedData,
                 _displayedAlpha);
+        }
+
+        private void StartCoverageFade(
+            ushort localIndex,
+            CoverageData coverage,
+            float startAmount)
+        {
+            CancelCoverageFade(localIndex);
+
+            if (coverageMiningFadeDuration <= 0f ||
+                !isActiveAndEnabled ||
+                !Application.isPlaying)
+            {
+                RefreshVisual(localIndex, force: true);
+                return;
+            }
+
+            _animatedCoverageAmounts[localIndex] =
+                Mathf.Clamp01(startAmount);
+            _coverageFadeRoutines[localIndex] = StartCoroutine(
+                FadeCoverageVisual(
+                    localIndex,
+                    coverage,
+                    Mathf.Clamp01(startAmount)));
+        }
+
+        private IEnumerator FadeCoverageVisual(
+            ushort localIndex,
+            CoverageData coverage,
+            float startAmount)
+        {
+            float elapsed = 0f;
+            while (elapsed < coverageMiningFadeDuration)
+            {
+                elapsed += Time.deltaTime;
+                float progress = Mathf.Clamp01(
+                    elapsed / coverageMiningFadeDuration);
+                float targetAmount = GetPersistedDisplayedAmount(
+                    localIndex,
+                    coverage);
+                float amount = Mathf.Lerp(
+                    startAmount,
+                    targetAmount,
+                    Mathf.SmoothStep(0f, 1f, progress));
+                _animatedCoverageAmounts[localIndex] = amount;
+                _chunk?.ApplyCoverageVisual(
+                    localIndex,
+                    coverage,
+                    amount);
+                yield return null;
+            }
+
+            _coverageFadeRoutines[localIndex] = null;
+            RefreshVisual(localIndex, force: true);
+        }
+
+        private float GetPersistedDisplayedAmount(
+            ushort localIndex,
+            CoverageData expectedCoverage)
+        {
+            return TryGetDisplayedCoverage(
+                       localIndex,
+                       out LayerState persistedLayer,
+                       out CellState persistedCell) &&
+                   persistedLayer.Data == expectedCoverage
+                ? persistedCell.Amount
+                : 0f;
+        }
+
+        private void CancelCoverageFade(ushort localIndex)
+        {
+            Coroutine routine = _coverageFadeRoutines[localIndex];
+            if (routine == null)
+                return;
+
+            StopCoroutine(routine);
+            _coverageFadeRoutines[localIndex] = null;
+        }
+
+        private void CancelAllCoverageFades()
+        {
+            for (ushort index = 0;
+                 index < MaximumSavedCells;
+                 index++)
+            {
+                CancelCoverageFade(index);
+            }
         }
 
         private bool UpdateDisplayedVisual(ushort localIndex, bool force)

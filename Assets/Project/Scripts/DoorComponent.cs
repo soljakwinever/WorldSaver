@@ -4,21 +4,36 @@ using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
+using Project.Scripts.Bus;
 using UnityEngine;
 using Zenject;
 
 namespace Project.Scripts.Gameplay
 {
+    public enum DoorAccessPolicy : byte
+    {
+        Owner,
+        Village,
+        Faction,
+        Neutral,
+        Enemy
+    }
+
     /// <summary>
     /// Persistent tile-backed door. Both tile states remain room boundaries;
     /// their TileBase assets control whether the door blocks movement.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class DoorComponent : MonoBehaviour, IInteractable,
-        IEntityComponent, IPersistentComponent, IPersistenceInteractionGate
+        IEntityComponent, IPersistentComponent, IPersistenceInteractionGate,
+        IEntityRemovalHandler
     {
+        private static readonly System.Collections.Generic.Dictionary<
+            Vector2Int,
+            DoorComponent> DoorsByCell = new();
+
         public const ushort TypeId = 13;
-        private const ushort CurrentVersion = 2;
+        private const ushort CurrentVersion = 4;
 
         private Chunk _chunk;
         private Grid _grid;
@@ -36,16 +51,33 @@ namespace Project.Scripts.Gameplay
         private bool _hasPersistedCell;
         private EntityPersistenceKind _persistenceKind;
         private bool _allowLegacyMigration;
+        private DoorAccessPolicy _accessPolicy;
+        private string _ownerId;
+        private string _villageId;
+        private string _factionId;
+        private bool _locked;
+        private int _lockpickDifficulty;
+        private int _breakHealth;
+        private int _startingBreakHealth;
+        private bool _startsLocked;
+        private bool _accessBypassed;
+        private MapSignalBus _mapSignals;
 
         public IPersistentEntity PersistentEntity { get; set; }
         public ushort PersistentTypeId => TypeId;
         public ushort PersistentVersion => CurrentVersion;
         public bool IsOpen => _isOpen;
+        public bool IsLocked => _locked;
+        public DoorAccessPolicy AccessPolicy => _accessPolicy;
+        public string OwnerId => _ownerId;
+        public string VillageId => _villageId;
+        public string FactionId => _factionId;
 
         [Inject]
-        public void Construct(Grid grid)
+        public void Construct(Grid grid, MapSignalBus mapSignals)
         {
             _grid = grid;
+            _mapSignals = mapSignals;
         }
 
         public void Initialize(
@@ -58,8 +90,14 @@ namespace Project.Scripts.Gameplay
             EntityPersistenceKind persistenceKind,
             bool startsOpen,
             string openPrompt,
-            string closePrompt)
+            string closePrompt,
+            DoorAccessPolicy accessPolicy = DoorAccessPolicy.Neutral,
+            AccessIdentity accessIdentity = default,
+            bool startsLocked = false,
+            int lockpickDifficulty = 1,
+            int breakHealth = 25)
         {
+            UnregisterPathingHint();
             _chunk = chunk;
             _allowLegacyMigration =
                 chunk != null && !chunk.IsPersistenceRestoreCompleted;
@@ -78,6 +116,15 @@ namespace Project.Scripts.Gameplay
             _closePrompt = string.IsNullOrWhiteSpace(closePrompt)
                 ? "Close door"
                 : closePrompt;
+            _accessPolicy = accessPolicy;
+            _ownerId = Normalize(accessIdentity.OwnerId);
+            _villageId = Normalize(accessIdentity.VillageId);
+            _factionId = Normalize(accessIdentity.FactionId);
+            _locked = startsLocked;
+            _startsLocked = startsLocked;
+            _lockpickDifficulty = Mathf.Max(1, lockpickDifficulty);
+            _breakHealth = Mathf.Max(1, breakHealth);
+            _startingBreakHealth = _breakHealth;
 
             ValidateConfiguration();
         }
@@ -97,8 +144,13 @@ namespace Project.Scripts.Gameplay
                 return;
 
             bool nextOpen = !_isOpen;
+            if (nextOpen && _locked)
+                return;
             if (ApplyState(nextOpen))
+            {
                 _isOpen = nextOpen;
+                NotifyPathingChanged();
+            }
         }
 
         public string GetInteractionPrompt(InteractionContext context)
@@ -113,7 +165,10 @@ namespace Project.Scripts.Gameplay
         {
             _persistenceReady = ready;
             if (!ready)
+            {
+                UnregisterPathingHint();
                 return;
+            }
 
             if (!_hasPersistedCell &&
                 _allowLegacyMigration &&
@@ -137,6 +192,18 @@ namespace Project.Scripts.Gameplay
             _hasPersistedCell = true;
             SetTransformToCell(_cell);
             ApplyState(_isOpen);
+            RegisterPathingHint();
+        }
+
+        public void OnRemovedFromWorld()
+        {
+            UnregisterPathingHint();
+            if (_chunk == null)
+                return;
+
+            _cell = PositionToCell(GetPosition());
+            _chunk.TryClearTile(_cell, PersistentTileLayer.Wall);
+            _chunk.TryClearTransientWallTile(_cell);
         }
 
         public void WriteState(BinaryWriter writer)
@@ -148,6 +215,12 @@ namespace Project.Scripts.Gameplay
             writer.Write(cell.x);
             writer.Write(cell.y);
             writer.Write(_isOpen);
+            writer.Write(_locked);
+            writer.Write(_breakHealth);
+            writer.Write(_accessBypassed);
+            writer.Write(_ownerId ?? string.Empty);
+            writer.Write(_villageId ?? string.Empty);
+            writer.Write(_factionId ?? string.Empty);
         }
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
@@ -159,13 +232,25 @@ namespace Project.Scripts.Gameplay
                 _isOpen = reader.ReadBoolean();
                 _hasPersistedCell = false;
             }
-            else if (savedVersion == CurrentVersion)
+            else if (savedVersion >= 2 && savedVersion <= CurrentVersion)
             {
                 _cell = new Vector3Int(
                     reader.ReadInt32(),
                     reader.ReadInt32(),
                     0);
                 _isOpen = reader.ReadBoolean();
+                if (savedVersion >= 3)
+                {
+                    _locked = reader.ReadBoolean();
+                    _breakHealth = Mathf.Max(0, reader.ReadInt32());
+                    _accessBypassed = reader.ReadBoolean();
+                }
+                if (savedVersion >= 4)
+                {
+                    _ownerId = Normalize(reader.ReadString());
+                    _villageId = Normalize(reader.ReadString());
+                    _factionId = Normalize(reader.ReadString());
+                }
                 _hasPersistedCell = true;
                 SetTransformToCell(_cell);
             }
@@ -181,6 +266,9 @@ namespace Project.Scripts.Gameplay
         public bool IsAtBaseline() =>
             _persistenceKind != EntityPersistenceKind.RuntimeSpawned &&
             _isOpen == _startsOpen &&
+            _locked == _startsLocked &&
+            _breakHealth == _startingBreakHealth &&
+            !_accessBypassed &&
             PositionToCell(GetPosition()) == _cell;
 
         private bool ApplyState(bool open)
@@ -195,6 +283,133 @@ namespace Project.Scripts.Gameplay
                 tile,
                 tile.Color);
         }
+
+        public bool AllowsFreeTraversal(PathFindingQuery query)
+        {
+            if (_locked)
+                return false;
+            if (_accessBypassed)
+                return true;
+            DoorAccessPolicy relationship = GetRelationship(query);
+            return relationship <= _accessPolicy;
+        }
+
+        public bool TryOpenFor(PathFindingQuery query)
+        {
+            if (_isOpen)
+                return true;
+            if (_locked || !AllowsFreeTraversal(query))
+                return false;
+            if (!ApplyState(true))
+                return false;
+
+            _isOpen = true;
+            NotifyPathingChanged();
+            return true;
+        }
+
+        public bool TryLockpick(int skill)
+        {
+            if (!_locked)
+                return true;
+            if (skill < _lockpickDifficulty)
+                return false;
+
+            _locked = false;
+            _accessBypassed = true;
+            NotifyPathingChanged();
+            return true;
+        }
+
+        public bool TryBreak(int damage)
+        {
+            if (damage <= 0)
+                return false;
+
+            _breakHealth -= damage;
+            if (_breakHealth > 0)
+                return false;
+
+            _locked = false;
+            _accessBypassed = true;
+            if (!ApplyState(true))
+                return false;
+            _isOpen = true;
+            NotifyPathingChanged();
+            return true;
+        }
+
+        public static bool TryGetAt(
+            Vector2Int worldCell,
+            out DoorComponent door)
+        {
+            return DoorsByCell.TryGetValue(worldCell, out door) &&
+                   door != null &&
+                   door.isActiveAndEnabled;
+        }
+
+        private DoorAccessPolicy GetRelationship(PathFindingQuery query)
+        {
+            if (!string.IsNullOrEmpty(_ownerId) &&
+                string.Equals(
+                    _ownerId,
+                    query.ActorId,
+                    StringComparison.Ordinal))
+                return DoorAccessPolicy.Owner;
+            if (!string.IsNullOrEmpty(_villageId) &&
+                string.Equals(
+                    _villageId,
+                    query.VillageId,
+                    StringComparison.Ordinal))
+                return DoorAccessPolicy.Village;
+            if (!string.IsNullOrEmpty(_factionId) &&
+                string.Equals(
+                    _factionId,
+                    query.FactionId,
+                    StringComparison.Ordinal))
+                return DoorAccessPolicy.Faction;
+            if (string.IsNullOrEmpty(query.FactionId) ||
+                string.IsNullOrEmpty(_factionId))
+                return DoorAccessPolicy.Neutral;
+            return DoorAccessPolicy.Enemy;
+        }
+
+        private void RegisterPathingHint()
+        {
+            DoorsByCell[new Vector2Int(_cell.x, _cell.y)] = this;
+            NotifyPathingChanged();
+        }
+
+        private void UnregisterPathingHint()
+        {
+            Vector2Int cell = new(_cell.x, _cell.y);
+            if (DoorsByCell.TryGetValue(cell, out DoorComponent current) &&
+                current == this)
+            {
+                DoorsByCell.Remove(cell);
+                _mapSignals?.RaiseNavigationCellChanged(cell);
+            }
+        }
+
+        private void NotifyPathingChanged()
+        {
+            _mapSignals?.RaiseNavigationCellChanged(
+                new Vector2Int(_cell.x, _cell.y));
+        }
+
+        private void OnDisable()
+        {
+            UnregisterPathingHint();
+        }
+
+        private void OnEnable()
+        {
+            if (_persistenceReady && _hasPersistedCell)
+                RegisterPathingHint();
+        }
+
+        private static string Normalize(string value) =>
+            string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
 
         private Vector3Int PositionToCell(Vector3 position)
         {

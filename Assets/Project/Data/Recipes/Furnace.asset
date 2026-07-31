@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f6c13df328945b08ed952db1a43e0d6, type: 3}
+  m_Name: Furnace
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.CraftingRecipeData
+  ingredients:
+  - matchType: 1
+    itemData: {fileID: 0}
+    tag: {fileID: 11400000, guid: 6dd4ca9af4e337680cab072a651c8e64, type: 2}
+    count: 8
+  - matchType: 1
+    itemData: {fileID: 0}
+    tag: {fileID: 11400000, guid: 8ea3eee7ae611d852d789877efa23f29, type: 2}
+    count: 32
+  output:
+  - itemData: {fileID: 11400000, guid: 20d1baac347c4503aaef2ec970aaeaf7, type: 2}
+    amount: 1
+    chance: 1
+    rolls: 1
+  workRequired: 1

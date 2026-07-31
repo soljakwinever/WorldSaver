@@ -63,7 +63,29 @@ public class Node : MonoBehaviour, INode
         
         _collider2D.isTrigger = nodeData.isTrigger;
 
-        InstallPersistentComponents(nodeData, chunk, spawnData.persistenceKind);
+        InstallPersistentComponents(
+            nodeData,
+            chunk,
+            spawnData.persistenceKind,
+            spawnData.accessIdentity);
+
+        PersistentHealth health =
+            _persistentComponentHost.GetComponentInChildren<PersistentHealth>(
+                includeInactive: true);
+        EntityDamageReceiver damageReceiver =
+            GetComponent<EntityDamageReceiver>();
+        damageReceiver ??=
+            _container.InstantiateComponent<EntityDamageReceiver>(gameObject);
+        damageReceiver.Initialize(
+            nodeData,
+            _persistentEntity,
+            health);
+
+        EntityDamageVisual damageVisual =
+            GetComponent<EntityDamageVisual>();
+        damageVisual ??=
+            _container.InstantiateComponent<EntityDamageVisual>(gameObject);
+        damageVisual.Initialize(health);
         
         // var persistentTransform = GetComponent<Project.Scripts.Gameplay.PersistentTransform>();
         // if (persistentTransform == null)
@@ -121,7 +143,8 @@ public class Node : MonoBehaviour, INode
     private void InstallPersistentComponents(
         NodeData nodeData,
         Chunk chunk,
-        EntityPersistenceKind  persistenceKind)
+        EntityPersistenceKind persistenceKind,
+        AccessIdentity accessIdentity)
     {
         var hostObject = new GameObject("Persistent Components");
         _persistentComponentHost = hostObject.AddComponent<PersistentComponentHost>();
@@ -133,19 +156,32 @@ public class Node : MonoBehaviour, INode
         var context = new NodeComponentSpawnContext(
             this,
             chunk,
-            persistenceKind);
+            persistenceKind,
+            accessIdentity);
 
         if (nodeData.persistentComponents != null)
         {
-            foreach (var definition in nodeData.persistentComponents)
+            foreach (ComponentDefinitionData data
+                     in nodeData.persistentComponents)
             {
-                if (definition == null)
+                if (data == null)
                     continue;
+
+                NodeComponentDefinition definition =
+                    data.ComponentDefinition;
+                if (definition == null)
+                {
+                    Debug.LogError(
+                        $"{nodeData.name} has component data without a definition.",
+                        nodeData);
+                    continue;
+                }
 
                 definition.Install(
                     _persistentComponentHost.gameObject,
                     _container,
-                    context);
+                    context,
+                    data);
             }
         }
 

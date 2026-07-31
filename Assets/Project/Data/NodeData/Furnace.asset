@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b58f2629b454435a2cddccf0ad09e56, type: 3}
+  m_Name: Furnace
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.NodeData
+  sprite: {fileID: 29822816, guid: e0ed3743aaef6d649a6dbb360cd67395, type: 3}
+  isTrigger: 0
+  sprites: []
+  nodeType: 1
+  toolRequirement: 1
+  overrideMaterial: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  overrideVisual: {fileID: 0}
+  lightness: 1
+  lightnessVariance: 0
+  persistentComponents:
+  - rid: 810000000000000701
+  - rid: 810000000000000702
+  - rid: 810000000000000703
+  droppedItem: {fileID: 11400000, guid: 20d1baac347c4503aaef2ec970aaeaf7, type: 2}
+  dropChance: 1
+  tags:
+  - {fileID: 11400000, guid: 8a87bf959a09eb1fcec8cfa5e8e9629b, type: 2}
+  - {fileID: 11400000, guid: 67a5be0edcb643b84281c3dec55bbafc, type: 2}
+  - {fileID: 11400000, guid: c8df123b1de94a190de8880b70d6beb5, type: 2}
+  - {fileID: 11400000, guid: 2327ab1b2293e6c1682c8eabd8664475, type: 2}
+  - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
+  damageRules: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 810000000000000701
+      type: {class: PersistentTransformData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
+        alwaysPersist: 1
+    - rid: 810000000000000702
+      type: {class: FurnaceComponentData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 78c47a8660ae45739ef3165ce65ebedd, type: 2}
+        windowTitle: Furnace
+        interactionPrompt: Use furnace
+        fuelTag: {fileID: 11400000, guid: 60f82f88a77b4ba09cfc6515e57c0374, type: 2}
+        recipeList: {fileID: 11400000, guid: b51c85efb6824b3684a3d0d1d60f31f1, type: 2}
+        ingredientSlots: 3
+        ticksPerCycle: 200
+        fuelValuePerCycle: 8
+    - rid: 810000000000000703
+      type: {class: SpaceReservationData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: d50bbd4f86d1460ea2680d9ac2f163d4, type: 2}
+        width: 1
+        height: 1
+        xOffset: 0
+        yOffset: 0

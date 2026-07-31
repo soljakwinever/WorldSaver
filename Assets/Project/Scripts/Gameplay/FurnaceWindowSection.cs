@@ -9,6 +9,7 @@ namespace Project.Scripts.Gameplay
         private readonly IFurnaceStation _furnace;
         private readonly IInventory _player;
         private Vector2 _fuelScroll;
+        private Vector2 _ingredientScroll;
 
         public FurnaceWindowSection(
             IFurnaceStation furnace,
@@ -37,6 +38,7 @@ namespace Project.Scripts.Gameplay
 
             GUILayout.BeginHorizontal();
             DrawFuel(context);
+            DrawIngredients(context);
             DrawOutput(context);
             GUILayout.EndHorizontal();
         }
@@ -51,7 +53,8 @@ namespace Project.Scripts.Gameplay
             else
             {
                 IItemStack fuel = _furnace.FuelInventory.Stacks[0];
-                GUILayout.Box($"{fuel.Item.name}\nx{fuel.Count}",
+                GUILayout.Box(
+                    $"{fuel.Item.name} ({fuel.Rarity})\nx{fuel.Count}",
                     GUILayout.Height(44f));
             }
 
@@ -65,9 +68,84 @@ namespace Project.Scripts.Gameplay
 
                 context.StatusMessage = _furnace.TryInsertFuel(
                     _player,
-                    new ItemStack(stack.Item, stack.Count, stack.Rarity))
+                    new ItemStack(
+                        stack.Item,
+                        stack.Count,
+                        stack.Rarity,
+                        stack.Durability))
                     ? "Fuel added."
                     : "That stack cannot be used as fuel here.";
+                break;
+            }
+            GUILayout.EndScrollView();
+            GUILayout.EndVertical();
+        }
+
+        private void DrawIngredients(ComponentWindowContext context)
+        {
+            GUILayout.BeginVertical(GUILayout.Width(220f));
+            GUILayout.Label(
+                $"Ingredients (1x{_furnace.IngredientInventory.Size})",
+                GUI.skin.box);
+
+            int stackIndex = 0;
+            for (int slot = 0;
+                 slot < _furnace.IngredientInventory.Size;
+                 slot++)
+            {
+                if (stackIndex <
+                    _furnace.IngredientInventory.Stacks.Count)
+                {
+                    IItemStack stack =
+                        _furnace.IngredientInventory.Stacks[
+                            stackIndex++];
+                    if (GUILayout.Button(
+                            $"{stack.Item.name} ({stack.Rarity})\n" +
+                            $"x{stack.Count}",
+                            GUILayout.Height(52f)))
+                    {
+                        context.StatusMessage =
+                            _furnace.TryCollectIngredient(
+                                _player,
+                                new ItemStack(
+                                    stack.Item,
+                                    stack.Count,
+                                    stack.Rarity,
+                                    stack.Durability))
+                                ? "Ingredient returned."
+                                : "Player inventory is full.";
+                        break;
+                    }
+                }
+                else
+                {
+                    GUILayout.Box(
+                        "Empty",
+                        GUILayout.Height(52f));
+                }
+            }
+
+            GUILayout.Label("Add ingredients from inventory");
+            _ingredientScroll = GUILayout.BeginScrollView(
+                _ingredientScroll, GUILayout.Height(150f));
+            foreach (IItemStack stack in _player.Stacks)
+            {
+                if (!GUILayout.Button(
+                        $"{stack.Item.name} ({stack.Rarity}) " +
+                        $"x{stack.Count}"))
+                    continue;
+
+                context.StatusMessage =
+                    _furnace.TryInsertIngredient(
+                        _player,
+                        new ItemStack(
+                            stack.Item,
+                            stack.Count,
+                            stack.Rarity,
+                            stack.Durability))
+                        ? "Ingredient added."
+                        : "That stack is not used by this furnace " +
+                          "or the ingredient slots are full.";
                 break;
             }
             GUILayout.EndScrollView();
@@ -99,7 +177,8 @@ namespace Project.Scripts.Gameplay
                         IItemStack stack =
                             _furnace.OutputInventory.Stacks[stackIndex++];
                         if (GUILayout.Button(
-                                $"{stack.Item.name}\nx{stack.Count}",
+                                $"{stack.Item.name} ({stack.Rarity})\n" +
+                                $"x{stack.Count}",
                                 GUILayout.Width(92f),
                                 GUILayout.Height(70f)))
                         {
@@ -109,7 +188,8 @@ namespace Project.Scripts.Gameplay
                                     new ItemStack(
                                         stack.Item,
                                         stack.Count,
-                                        stack.Rarity))
+                                        stack.Rarity,
+                                        stack.Durability))
                                     ? "Output collected."
                                     : "Player inventory is full.";
                         }

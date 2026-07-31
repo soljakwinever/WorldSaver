@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TileData
   TileId: 13
   TileBase: {fileID: 11400000, guid: a378d90c4ad2d394c95fe91e02ac01f2, type: 2}
-  AutoTile: {fileID: 0}
+  AutoTile: {fileID: 11400000, guid: 32c9903fdffb5af46adf4fd004c23f50, type: 2}
   Color: {r: 1, g: 1, b: 1, a: 1}
   Flags: 2
   IsWall: 1

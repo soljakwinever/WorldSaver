@@ -42,6 +42,10 @@ namespace Project.Scripts.DataTypes
         public GameObject visual;
         public BehaviourTreeData behaviourTree;
 
+        [Header("Damage")]
+        [Tooltip("Tags supplied when this enemy damages an entity.")]
+        public EntityTag[] damageTags = Array.Empty<EntityTag>();
+
         [Header("Death Drops")]
         public DropData[] drops = Array.Empty<DropData>();
         [Min(0f)] public float dropExplosionImpulse = 2.5f;
@@ -55,6 +59,7 @@ namespace Project.Scripts.DataTypes
             experienceValue = Mathf.Max(0, experienceValue);
             dropExplosionImpulse = Mathf.Max(0f, dropExplosionImpulse);
             drops ??= Array.Empty<DropData>();
+            damageTags ??= Array.Empty<EntityTag>();
 
             foreach (DropData drop in drops)
             {

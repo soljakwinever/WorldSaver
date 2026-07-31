@@ -22,7 +22,11 @@ namespace Project.Scripts
         public float lightness = 1;
         public float lightnessVariance = 0.0f;
 
-        public NodeComponentDefinition[] persistentComponents;
+        [SerializeReference]
+        [ManagedReferenceSelector(typeof(ComponentDefinitionData))]
+        [Tooltip("Persistent component installers and their per-node configuration.")]
+        public ComponentDefinitionData[] persistentComponents =
+            Array.Empty<ComponentDefinitionData>();
 
         [Header("Destruction Drop")]
         [Tooltip("Item dropped when this node is successfully destroyed.")]
@@ -35,6 +39,11 @@ namespace Project.Scripts
         [SerializeField]
         [Tooltip("Categories used by tools and other node filters.")]
         private EntityTag[] tags = Array.Empty<EntityTag>();
+
+        [Header("Incoming Damage")]
+        [Tooltip("Rules describing which sources can damage this entity. Empty uses tool-requirement compatibility and allows enemy damage.")]
+        public EntityDamageRule[] damageRules =
+            Array.Empty<EntityDamageRule>();
 
         /// <summary>Returns whether this node has the given tag.</summary>
         public bool HasTag(EntityTag tag)
@@ -49,6 +58,13 @@ namespace Project.Scripts
             }
 
             return false;
+        }
+
+        private void OnEnable()
+        {
+            persistentComponents ??=
+                Array.Empty<ComponentDefinitionData>();
+            damageRules ??= Array.Empty<EntityDamageRule>();
         }
 
         //Todo: Resource
@@ -68,5 +84,14 @@ namespace Project.Scripts
             Sword,
             Shovel,
         }
+
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            persistentComponents ??=
+                Array.Empty<ComponentDefinitionData>();
+            damageRules ??= Array.Empty<EntityDamageRule>();
+        }
+#endif
     }
 }

@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Standard
   version: 1
   availableForNewWorlds: 1
-  heightMapDebug: 1
+  heightMapDebug: 0
   previewLayer: 0
   climate: {fileID: 11400000, guid: c1000000000000000000000000000001, type: 2}
   elevation: {fileID: 11400000, guid: c2000000000000000000000000000002, type: 2}

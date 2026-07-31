@@ -14,6 +14,7 @@ namespace Project.Scripts.Gameplay
         [SerializeField, Min(1)] private int count = 1;
         [SerializeField] private bool generateRarity = true;
         [SerializeField] private ItemData.Rarity rarity = ItemData.Rarity.Common;
+        [SerializeField] private byte durability = byte.MaxValue;
 
         private IItemStackPickupPool _pool;
         private Rigidbody2D _body;
@@ -23,11 +24,16 @@ namespace Project.Scripts.Gameplay
             _pool = pool;
         }
 
-        public void Initialize(ItemData item, int count, ItemData.Rarity rarity)
+        public void Initialize(
+            ItemData item,
+            int count,
+            ItemData.Rarity rarity,
+            byte durability = byte.MaxValue)
         {
             this.item = item;
             this.count = count;
             this.rarity = rarity;
+            this.durability = durability;
 
             if (TryGetComponent(out SpriteRenderer renderer))
             {
@@ -91,7 +97,12 @@ namespace Project.Scripts.Gameplay
             if (!CanInteract(context) || !TryGetInventory(context.user, out IInventory inventory))
                 return;
 
-            inventory.TryAdd(item, count, out int remainder, rarity);
+            inventory.TryAdd(
+                item,
+                count,
+                out int remainder,
+                rarity,
+                durability);
             count = remainder;
 
             if (count <= 0)

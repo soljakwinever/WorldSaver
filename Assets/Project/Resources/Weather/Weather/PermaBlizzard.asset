@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53058c402cfd0e649ae635e6d81e17f0, type: 3}
+  m_Name: PermaBlizzard
+  m_EditorClassIdentifier: 
+  weatherId: snow.blizzard.perma
+  displayName: Blizzard
+  selectionWeight: 0
+  seasons: 8
+  temperatureRange: {x: -1, y: -0.2}
+  moistureRange: {x: 0.5, y: 1}
+  waterCoverageRange: {x: 0, y: 1}
+  cooldownTicks: 600
+  phases:
+  - {fileID: 11400000, guid: 94f8d101fc9908a4b97ae85aa2df7911, type: 2}
+  - {fileID: 11400000, guid: e409a3a68fd6e5344a4ade3111219619, type: 2}
+  - {fileID: 11400000, guid: 00ecad0c129a4cd4cb3250390d92484d, type: 2}

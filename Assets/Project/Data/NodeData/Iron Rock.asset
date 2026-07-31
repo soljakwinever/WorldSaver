@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b58f2629b454435a2cddccf0ad09e56, type: 3}
+  m_Name: Iron Rock
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.NodeData
+  sprite: {fileID: 1400122871, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}
+  isTrigger: 0
+  sprites: []
+  nodeType: 0
+  toolRequirement: 0
+  overrideMaterial: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  overrideVisual: {fileID: 0}
+  lightness: 1
+  lightnessVariance: 0
+  persistentComponents:
+  - rid: 810000000000000301
+  droppedItem: {fileID: 11400000, guid: d5ba2827d809c8a44b0b8c464adaf413, type: 2}
+  dropChance: 1
+  tags:
+  - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
+  damageRules: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 810000000000000301
+      type: {class: HarvestableComponentData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 14b14804f4f3f8941b2848620eb57d69, type: 2}
+        interactionType: 1
+        toolType: 2
+        itemData: {fileID: 11400000, guid: d5ba2827d809c8a44b0b8c464adaf413, type: 2}
+        minimumItemsSpawned: 1
+        maximumItemsSpawned: 6
+        useRarity: 1
+        destroyOnPickup: 1

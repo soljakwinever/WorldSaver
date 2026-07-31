@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b319666b71c34b71aaf4935c3ee02487, type: 3}
+  m_Name: Dust Devil
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
+  hp: 20
+  defense: 4
+  experienceValue: 25
+  visual: {fileID: 2119611675089420321, guid: 087113794f8f56047ab3f9edd98caf88, type: 3}
+  behaviourTree: {fileID: -7413323278554932356, guid: 838bea4ca14a7e340822b9bbdf575d01, type: 3}
+  drops:
+  - item: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
+    dropChance: 0.3
+    rolls: 12
+    minimumAmount: 1
+    maximumAmount: 1
+  - item: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
+    dropChance: 0.3
+    rolls: 12
+    minimumAmount: 1
+    maximumAmount: 1
+  dropExplosionImpulse: 32
+  dropExplosionVariation: 0.25

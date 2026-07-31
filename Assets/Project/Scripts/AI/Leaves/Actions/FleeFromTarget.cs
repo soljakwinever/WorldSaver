@@ -36,6 +36,7 @@ namespace Project.Scripts.AI.Leaves.Actions
         [NonSerialized] private Transform self;
         [NonSerialized] private IPathFindingMap map;
         [NonSerialized] private IPathFindingService pathFinder;
+        [NonSerialized] private PathFindingQuery pathQuery;
         [NonSerialized] private int waypointIndex;
         [NonSerialized] private int attemptsRemaining;
         [NonSerialized] private float nextRepathTime;
@@ -57,6 +58,7 @@ namespace Project.Scripts.AI.Leaves.Actions
                 : null;
             Blackboard.TryGet(AiKeys.PathFindingMap, out map);
             Blackboard.TryGet(AiKeys.PathFindingService, out pathFinder);
+            pathQuery = AiPathingUtility.CaptureQuery(owner);
 
             if (self != null && map != null && pathFinder != null &&
                 TryGetThreatPosition(out Vector3 threatPosition))
@@ -129,10 +131,20 @@ namespace Project.Scripts.AI.Leaves.Actions
             Vector3 waypoint = CellCenter(
                 path[waypointIndex],
                 self.position.z);
+            if (!AiPathingUtility.PrepareCell(
+                    map,
+                    path[waypointIndex],
+                    pathQuery))
+                return NodeState.Failure;
             self.position = Vector3.MoveTowards(
                 self.position,
                 waypoint,
-                Mathf.Max(0f, movementSpeed) * Time.deltaTime);
+                Mathf.Max(0f, movementSpeed) *
+                AiPathingUtility.GetSpeedMultiplier(
+                    map,
+                    path[waypointIndex],
+                    pathQuery) *
+                Time.deltaTime);
             SkipReachedWaypoints(toleranceSquared);
             return NodeState.Running;
         }
@@ -180,9 +192,11 @@ namespace Project.Scripts.AI.Leaves.Actions
                     continue;
 
                 pathCancellation = new CancellationTokenSource();
-                pendingPath = pathFinder.FindPathAsync(
+                pendingPath = AiPathingUtility.FindPathAsync(
+                    pathFinder,
                     start,
                     destination,
+                    pathQuery,
                     Mathf.Max(1, maximumVisitedTiles),
                     pathCancellation.Token);
                 return true;

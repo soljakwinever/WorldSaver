@@ -6,22 +6,36 @@ using Zenject;
 
 namespace Project.Scripts.Persistence
 {
+    [Serializable]
+    public sealed class PersistentInventoryData : ComponentDefinitionData
+    {
+        [Min(1)] public int size = 16;
+        public ItemData[] validItems = Array.Empty<ItemData>();
+    }
+
     [CreateAssetMenu(fileName = "New Persistent Inventory Definition", menuName = "World/Components/Persistent Inventory")]
     public sealed class PersistentInventoryDefinition : NodeComponentDefinition
     {
-        [SerializeField, Min(1)] private int size = 16;
-        [SerializeField] private ItemData[] validItems = Array.Empty<ItemData>();
+        public override Type DataType =>
+            typeof(PersistentInventoryData);
         
-        public override void Install(GameObject host, DiContainer container, NodeComponentSpawnContext context)
+        protected override void InstallComponent(
+            GameObject host,
+            DiContainer container,
+            NodeComponentSpawnContext context,
+            ComponentDefinitionData data)
         {
+            var configuration = (PersistentInventoryData)data;
             PersistentInventory component = host.GetComponent<PersistentInventory>();
             if (component == null)
                 component = container.InstantiateComponent<PersistentInventory>(host);
 
-            if (validItems is { Length: > 0 })
-                component.Configure(size, validItems);
+            if (configuration.validItems is { Length: > 0 })
+                component.Configure(
+                    configuration.size,
+                    configuration.validItems);
             else
-                component.Initialize(size);
+                component.Initialize(configuration.size);
         }
     }
 }

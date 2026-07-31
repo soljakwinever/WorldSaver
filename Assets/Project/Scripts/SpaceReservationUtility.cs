@@ -1,0 +1,63 @@
+using Project.Scripts.Core;
+using Project.Scripts.DataTypes;
+using Project.Scripts.Persistence;
+using UnityEngine;
+
+namespace Project.Scripts
+{
+    public static class SpaceReservationUtility
+    {
+        public static bool CanPlace(NodeData nodeData, Vector2 position)
+        {
+            Vector2Int anchor = Vector2Int.FloorToInt(position);
+            if (TileReservationSystem.IsReserved(anchor))
+                return false;
+
+            return !TryGetArea(nodeData, position, out RectInt area) ||
+                   TileReservationSystem.CanReserve(area);
+        }
+
+        public static bool TryGetArea(
+            NodeData nodeData,
+            Vector2 position,
+            out RectInt area)
+        {
+            if (TryGetData(nodeData, out SpaceReservationData data))
+            {
+                Vector2Int origin =
+                    Vector2Int.FloorToInt(position) +
+                    new Vector2Int(data.xOffset, data.yOffset);
+                area = new RectInt(
+                    origin,
+                    new Vector2Int(
+                        Mathf.Max(1, data.width),
+                        Mathf.Max(1, data.height)));
+                return true;
+            }
+
+            area = default;
+            return false;
+        }
+
+        private static bool TryGetData(
+            NodeData nodeData,
+            out SpaceReservationData reservation)
+        {
+            reservation = null;
+            if (nodeData?.persistentComponents == null)
+                return false;
+
+            foreach (ComponentDefinitionData data
+                     in nodeData.persistentComponents)
+            {
+                if (data is SpaceReservationData candidate)
+                {
+                    reservation = candidate;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+}

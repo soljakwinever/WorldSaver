@@ -29,6 +29,7 @@ namespace Project.Scripts.TimeAndWeather
         private readonly IWeatherWorldClock _clock;
         private readonly MapSignalBus _mapSignals;
         private readonly WeatherBus _weatherBus;
+        private readonly IClimateCoreWeatherSource _climateCores;
         private float _globalTemperatureOffset;
         private readonly Dictionary<Vector2Int, ActiveRegion> _active = new();
         private readonly Dictionary<string, WeatherData> _weatherById =
@@ -129,6 +130,9 @@ namespace Project.Scripts.TimeAndWeather
             private readonly long _fromTick;
             private readonly long _toTick;
             private readonly float _meltPerTick;
+            private readonly string _forcedWeatherId;
+            private readonly long _forcedWeatherStartTick;
+            private readonly int _forcedPhaseIndex;
 
             public WeatherSimulationWork(
                 RuntimeRegion region,
@@ -137,7 +141,10 @@ namespace Project.Scripts.TimeAndWeather
                 KernelWeather[] weather,
                 long fromTick,
                 long toTick,
-                float meltPerTick)
+                float meltPerTick,
+                string forcedWeatherId,
+                long forcedWeatherStartTick,
+                int forcedPhaseIndex)
             {
                 _region = region;
                 _state = state;
@@ -146,6 +153,9 @@ namespace Project.Scripts.TimeAndWeather
                 _fromTick = fromTick;
                 _toTick = toTick;
                 _meltPerTick = meltPerTick;
+                _forcedWeatherId = forcedWeatherId ?? string.Empty;
+                _forcedWeatherStartTick = forcedWeatherStartTick;
+                _forcedPhaseIndex = forcedPhaseIndex;
             }
 
             public void Execute()
@@ -163,6 +173,8 @@ namespace Project.Scripts.TimeAndWeather
                 int transitionGuard = 0;
                 while (cursor < _toTick && transitionGuard++ < 1024)
                 {
+                    EnsureForcedWeather(cursor);
+                    bool forced = cursor >= _forcedWeatherStartTick;
                     KernelWeather weather = GetWeather(_state.WeatherId);
                     KernelPhase phase = GetPhase(weather, _state.PhaseIndex);
 
@@ -179,9 +191,22 @@ namespace Project.Scripts.TimeAndWeather
                     }
 
                     long segmentEnd = Math.Min(_toTick, _state.PhaseEndTick);
+                    if (cursor < _forcedWeatherStartTick)
+                    {
+                        segmentEnd = Math.Min(
+                            segmentEnd,
+                            _forcedWeatherStartTick);
+                    }
                     long elapsed = Math.Max(0, segmentEnd - cursor);
-                    ApplyAccumulation(phase, elapsed, segmentEnd);
+                    ApplyAccumulation(
+                        phase,
+                        elapsed,
+                        segmentEnd,
+                        forced);
                     cursor = segmentEnd;
+
+                    if (forced)
+                        break;
 
                     if (cursor < _state.PhaseEndTick)
                         break;
@@ -210,11 +235,19 @@ namespace Project.Scripts.TimeAndWeather
             private void ApplyAccumulation(
                 KernelPhase phase,
                 long elapsedTicks,
-                long atTick)
+                long atTick,
+                bool forced)
             {
                 float puddles = 0f;
                 float snow = 0f;
-                float progress = GetPhaseProgress(_state, atTick);
+                // Sample the middle of the simulated segment. Sampling exactly
+                // at a phase boundary evaluates precipitation curves at their
+                // final zero key and incorrectly melts an entire offline
+                // blizzard segment.
+                long sampleTick = atTick - elapsedTicks / 2;
+                float progress = forced
+                    ? 0.5f
+                    : GetPhaseProgress(_state, sampleTick);
 
                 foreach (KernelEffect effect in phase.Effects)
                 {
@@ -236,6 +269,12 @@ namespace Project.Scripts.TimeAndWeather
 
             private void SelectWeather(long tick, string previousWeatherId)
             {
+                if (tick >= _forcedWeatherStartTick &&
+                    TrySelectForcedWeather(tick))
+                {
+                    return;
+                }
+
                 float total = 0f;
                 foreach (KernelWeather weather in _weather)
                 {
@@ -288,6 +327,39 @@ namespace Project.Scripts.TimeAndWeather
                 BeginPhase(selected, tick);
             }
 
+            private void EnsureForcedWeather(long tick)
+            {
+                if (tick < _forcedWeatherStartTick ||
+                    string.Equals(
+                        _state.WeatherId,
+                        _forcedWeatherId,
+                        StringComparison.Ordinal) &&
+                    _state.PhaseIndex == _forcedPhaseIndex)
+                {
+                    return;
+                }
+
+                TrySelectForcedWeather(tick);
+            }
+
+            private bool TrySelectForcedWeather(long tick)
+            {
+                KernelWeather forced = GetWeather(_forcedWeatherId);
+                if (forced == null || forced.Phases.Length == 0)
+                    return false;
+
+                _state.WeatherId = forced.Id;
+                _state.PhaseIndex = Math.Max(
+                    0,
+                    Math.Min(_forcedPhaseIndex, forced.Phases.Length - 1));
+                _state.CooldownEndTick = tick;
+                _state.PhaseStartTick = tick;
+                _state.PhaseEndTick = long.MaxValue;
+                _state.Intensity =
+                    forced.Phases[_state.PhaseIndex].BaseIntensity;
+                return true;
+            }
+
             private void BeginPhase(KernelWeather weather, long tick)
             {
                 KernelPhase phase = GetPhase(weather, _state.PhaseIndex);
@@ -333,7 +405,8 @@ namespace Project.Scripts.TimeAndWeather
             IWeatherWorldClock clock,
             MapSignalBus mapSignals,
             WeatherBus weatherBus,
-            WorldData worldData)
+            WorldData worldData,
+            IClimateCoreWeatherSource climateCores)
         {
             _climate = climate;
             _settings = settings;
@@ -341,6 +414,7 @@ namespace Project.Scripts.TimeAndWeather
             _clock = clock;
             _mapSignals = mapSignals;
             _weatherBus = weatherBus;
+            _climateCores = climateCores;
             _globalTemperatureOffset =
                 Mathf.Clamp(worldData.globalTemperatureOffset, -2f, 2f);
 
@@ -445,6 +519,30 @@ namespace Project.Scripts.TimeAndWeather
                 WeatherRegionUtility.WorldToRegion(worldPosition));
             ClimateSnapshot localClimate =
                 _climate.GetLocalSnapshot(worldPosition, regional.Climate);
+            return ApplyLocalForcedWeather(
+                worldPosition,
+                BuildLocalSample(regional, localClimate));
+        }
+
+        public WeatherSample Sample(
+            Vector2 worldPosition,
+            float normalizedTerrainTemperature)
+        {
+            WeatherSample regional = GetRegionSample(
+                WeatherRegionUtility.WorldToRegion(worldPosition));
+            ClimateSnapshot localClimate = _climate.GetLocalSnapshot(
+                worldPosition,
+                normalizedTerrainTemperature,
+                regional.Climate);
+            return ApplyLocalForcedWeather(
+                worldPosition,
+                BuildLocalSample(regional, localClimate));
+        }
+
+        private static WeatherSample BuildLocalSample(
+            WeatherSample regional,
+            ClimateSnapshot localClimate)
+        {
             float localAmbient =
                 regional.AmbientTemperature +
                 localClimate.Temperature -
@@ -460,7 +558,118 @@ namespace Project.Scripts.TimeAndWeather
                 regional.AmbientColorTint,
                 regional.PuddleAccumulation,
                 regional.SnowAccumulation,
-                regional.ActiveEffects);
+                regional.ActiveEffects,
+                regional.HasWeatherOverride,
+                regional.WeatherOverrideInfluence);
+        }
+
+        private WeatherSample ApplyLocalForcedWeather(
+            Vector2 worldPosition,
+            WeatherSample sample)
+        {
+            if (!_climateCores.TryGetPermanentWeather(
+                    worldPosition,
+                    _clock.CurrentTick,
+                    out string weatherId,
+                    out float influence))
+            {
+                if (_climateCores.TryGetPermanentWeather(
+                        sample.Region,
+                        _clock.CurrentTick,
+                        out string touchingWeatherId,
+                        out _))
+                {
+                    // The core touches this region but not this exact point.
+                    // Remove its region-level presentation so particle
+                    // emission reaches zero at the radial outer boundary.
+                    return new WeatherSample(
+                        sample.Region,
+                        sample.Climate,
+                        touchingWeatherId,
+                        string.Empty,
+                        0f,
+                        sample.Climate.Temperature,
+                        Color.white,
+                        sample.PuddleAccumulation,
+                        sample.SnowAccumulation,
+                        Array.Empty<WeatherEffectSample>(),
+                        hasWeatherOverride: true,
+                        weatherOverrideInfluence: 0f);
+                }
+
+                return sample;
+            }
+
+            WeatherData weather = GetWeather(weatherId);
+            if (weather == null || weather.Phases.Count == 0)
+            {
+                // A configured core override remains authoritative even when
+                // its weather definition is missing or invalid. Falling back
+                // to the regional sample here allows regional lifecycle state
+                // to visibly replace permanent core weather.
+                return new WeatherSample(
+                    sample.Region,
+                    sample.Climate,
+                    weatherId,
+                    string.Empty,
+                    influence,
+                    sample.Climate.Temperature,
+                    Color.white,
+                    sample.PuddleAccumulation,
+                    sample.SnowAccumulation,
+                    Array.Empty<WeatherEffectSample>(),
+                    hasWeatherOverride: true,
+                    weatherOverrideInfluence: influence);
+            }
+
+            int phaseIndex = SelectForcedPhaseIndex(
+                influence,
+                weather.Phases.Count);
+            WeatherPhaseData phase = weather.Phases[phaseIndex];
+            if (phase == null)
+                return sample;
+
+            const float sustainedProgress = 0.5f;
+            float spatialIntensity =
+                phase.BaseIntensity * Mathf.Clamp01(influence);
+            float ambient = sample.Climate.Temperature +
+                            phase.TemperatureOffset * influence;
+            WeatherEffectSample[] effects =
+                new WeatherEffectSample[phase.Effects.Count];
+            for (int i = 0; i < phase.Effects.Count; i++)
+            {
+                WeatherEffectData effect = phase.Effects[i];
+                if (effect == null)
+                    continue;
+
+                float intensity = effect.IsFullScreenParticleEffect
+                    // Forced fullscreen precipitation represents spatial
+                    // strength: zero at the outer radius and the prefab's
+                    // full authored emission at the inner radius.
+                    ? influence
+                    : phase.BaseIntensity *
+                      effect.EvaluateIntensity(sustainedProgress) *
+                      influence;
+                ambient += effect.TemperatureOffset * intensity;
+                effects[i] = new WeatherEffectSample(effect, intensity);
+            }
+
+            return new WeatherSample(
+                sample.Region,
+                sample.Climate,
+                weather.WeatherId,
+                phase.PhaseId,
+                spatialIntensity,
+                ambient,
+                Color.Lerp(
+                    Color.white,
+                    phase.AmbientColorTint,
+                    Mathf.Clamp01(influence)),
+                sample.PuddleAccumulation,
+                sample.SnowAccumulation,
+                effects,
+                hasWeatherOverride: true,
+                weatherOverrideInfluence: influence);
         }
 
         public WeatherSample GetRegionSample(Vector2Int region)
@@ -525,6 +734,8 @@ namespace Project.Scripts.TimeAndWeather
             {
                 state = CreateInitialState(region, tick);
             }
+
+            state = GetForcedSampleState(region, state, tick);
 
             WeatherData weather = GetWeather(state.WeatherId);
             WeatherPhaseData phase = GetPhase(weather, state.PhaseIndex);
@@ -692,6 +903,11 @@ namespace Project.Scripts.TimeAndWeather
             if (policy == OfflineSimulationPolicy.None || toTick <= fromTick)
                 return null;
 
+            // Do not depend on chunk-load callback or simulation-list ordering:
+            // this detached region is the authoritative source for influences
+            // that must participate in its offline weather catch-up.
+            _climateCores.HydrateRegion(detachedRegion);
+
             WeatherRegionState state = ReadState(detachedRegion) ??
                                        CreateInitialState(
                                            detachedRegion.Position,
@@ -717,6 +933,26 @@ namespace Project.Scripts.TimeAndWeather
                     weather.Add(kernel);
             }
 
+            string forcedWeatherId = string.Empty;
+            long forcedWeatherStartTick = long.MaxValue;
+            int forcedPhaseIndex = 0;
+            if (_climateCores.TryGetPermanentWeather(
+                    detachedRegion.Position,
+                    toTick,
+                    out string permanentWeatherId,
+                    out float currentInfluence) &&
+                byId.ContainsKey(permanentWeatherId))
+            {
+                forcedWeatherId = permanentWeatherId;
+                forcedWeatherStartTick = FindForcedWeatherStartTick(
+                    detachedRegion.Position,
+                    stateFromTick,
+                    toTick);
+                forcedPhaseIndex = SelectForcedPhaseIndex(
+                    currentInfluence,
+                    byId[permanentWeatherId].Phases.Length);
+            }
+
             return new WeatherSimulationWork(
                 detachedRegion,
                 state,
@@ -724,7 +960,58 @@ namespace Project.Scripts.TimeAndWeather
                 weather.ToArray(),
                 stateFromTick,
                 toTick,
-                _settings.AccumulationMeltPerTick);
+                _settings.AccumulationMeltPerTick,
+                forcedWeatherId,
+                forcedWeatherStartTick,
+                forcedPhaseIndex);
+        }
+
+        public static int SelectForcedPhaseIndex(
+            float influence,
+            int phaseCount)
+        {
+            if (phaseCount <= 1)
+                return 0;
+
+            return Mathf.Clamp(
+                Mathf.FloorToInt(
+                    Mathf.Clamp01(influence) * phaseCount),
+                0,
+                phaseCount - 1);
+        }
+
+        private long FindForcedWeatherStartTick(
+            Vector2Int region,
+            long fromTick,
+            long toTick)
+        {
+            if (_climateCores.TryGetPermanentWeather(
+                    region,
+                    fromTick,
+                    out _))
+            {
+                return fromTick;
+            }
+
+            long low = fromTick;
+            long high = toTick;
+            while (low + 1 < high)
+            {
+                long middle = low + (high - low) / 2;
+                if (_climateCores.TryGetPermanentWeather(
+                        region,
+                        middle,
+                        out _))
+                {
+                    high = middle;
+                }
+                else
+                {
+                    low = middle;
+                }
+            }
+
+            return high;
         }
 
         public void OnRegionSimulationApplied(RuntimeRegion region)
@@ -890,6 +1177,24 @@ namespace Project.Scripts.TimeAndWeather
             int transitionGuard = 0;
             while (cursor < toTick && transitionGuard++ < 1024)
             {
+                WeatherRegionState previousForcedState =
+                    emitEvents ? state.Clone() : null;
+                bool forced = TryApplyForcedWeatherState(
+                    region,
+                    state,
+                    toTick);
+                if (forced &&
+                    emitEvents &&
+                    ForcedStateChanged(previousForcedState, state))
+                {
+                    StopEffects(region, previousForcedState, toTick);
+                    NotifyTransition(
+                        region,
+                        previousForcedState.WeatherId,
+                        state,
+                        toTick);
+                    StartEffects(region, state, toTick);
+                }
                 WeatherData weather = GetWeather(state.WeatherId);
                 WeatherPhaseData phase = GetPhase(weather, state.PhaseIndex);
 
@@ -911,8 +1216,16 @@ namespace Project.Scripts.TimeAndWeather
 
                 long segmentEnd = Math.Min(toTick, state.PhaseEndTick);
                 long elapsed = Math.Max(0, segmentEnd - cursor);
-                ApplyAccumulation(state, phase, elapsed, segmentEnd);
+                ApplyAccumulation(
+                    state,
+                    phase,
+                    elapsed,
+                    segmentEnd,
+                    forced);
                 cursor = segmentEnd;
+
+                if (forced)
+                    break;
 
                 if (cursor < state.PhaseEndTick)
                     break;
@@ -956,15 +1269,30 @@ namespace Project.Scripts.TimeAndWeather
                     state.PhaseIndex)?.BaseIntensity ?? 0f;
         }
 
+        private static bool ForcedStateChanged(
+            WeatherRegionState previous,
+            WeatherRegionState current)
+        {
+            return previous != null &&
+                   (!string.Equals(
+                        previous.WeatherId,
+                        current.WeatherId,
+                        StringComparison.Ordinal) ||
+                    previous.PhaseIndex != current.PhaseIndex);
+        }
+
         private void ApplyAccumulation(
             WeatherRegionState state,
             WeatherPhaseData phase,
             long elapsedTicks,
-            long atTick)
+            long atTick,
+            bool forced = false)
         {
             float puddles = 0f;
             float snow = 0f;
-            float progress = GetPhaseProgress(state, atTick);
+            float progress = forced
+                ? 0.5f
+                : GetPhaseProgress(state, atTick);
 
             foreach (WeatherEffectData effect in phase.Effects)
             {
@@ -993,6 +1321,28 @@ namespace Project.Scripts.TimeAndWeather
             long tick,
             string previousWeatherId)
         {
+            if (_climateCores.TryGetPermanentWeather(
+                    region,
+                    tick,
+                    out string forcedWeatherId,
+                    out float influence))
+            {
+                WeatherData forced = GetWeather(forcedWeatherId);
+                if (forced != null && forced.Phases.Count > 0)
+                {
+                    state.WeatherId = forced.WeatherId;
+                    state.PhaseIndex = SelectForcedPhaseIndex(
+                        influence,
+                        forced.Phases.Count);
+                    state.CooldownEndTick = tick;
+                    state.PhaseStartTick = tick - 1;
+                    state.PhaseEndTick = tick + 1;
+                    state.Intensity =
+                        forced.Phases[state.PhaseIndex].BaseIntensity;
+                    return;
+                }
+            }
+
             ClimateSnapshot climate = ApplyGlobalTemperatureOffset(
                 _climate.GetCurrentSnapshot(region));
             float total = 0f;
@@ -1046,6 +1396,68 @@ namespace Project.Scripts.TimeAndWeather
             state.WeatherId = selected.WeatherId;
             state.PhaseIndex = 0;
             BeginPhase(state, selected, tick);
+        }
+
+        private WeatherRegionState GetForcedSampleState(
+            Vector2Int region,
+            WeatherRegionState state,
+            long tick)
+        {
+            if (!_climateCores.TryGetPermanentWeather(
+                    region,
+                    tick,
+                    out string weatherId,
+                    out float influence))
+            {
+                return state;
+            }
+
+            WeatherData weather = GetWeather(weatherId);
+            if (weather == null || weather.Phases.Count == 0)
+                return state;
+            WeatherRegionState forced = state.Clone();
+            forced.WeatherId = weather.WeatherId;
+            forced.PhaseIndex = SelectForcedPhaseIndex(
+                influence,
+                weather.Phases.Count);
+            // A forced phase is spatially stable rather than progressing
+            // through its normal lifecycle. Center it at 50% so phase effect
+            // curves represent their sustained intensity.
+            forced.PhaseStartTick = tick - 1;
+            forced.PhaseEndTick = tick + 1;
+            forced.Intensity =
+                weather.Phases[forced.PhaseIndex]?.BaseIntensity ?? 0f;
+            return forced;
+        }
+
+        private bool TryApplyForcedWeatherState(
+            Vector2Int region,
+            WeatherRegionState state,
+            long tick)
+        {
+            if (!_climateCores.TryGetPermanentWeather(
+                    region,
+                    tick,
+                    out string weatherId,
+                    out float influence))
+            {
+                return false;
+            }
+
+            WeatherData weather = GetWeather(weatherId);
+            if (weather == null || weather.Phases.Count == 0)
+                return false;
+
+            state.WeatherId = weather.WeatherId;
+            state.PhaseIndex = SelectForcedPhaseIndex(
+                influence,
+                weather.Phases.Count);
+            state.PhaseStartTick = tick - 1;
+            state.PhaseEndTick = tick + 1;
+            state.CooldownEndTick = tick;
+            state.Intensity =
+                weather.Phases[state.PhaseIndex]?.BaseIntensity ?? 0f;
+            return true;
         }
 
         private float GetNeighborMultiplier(

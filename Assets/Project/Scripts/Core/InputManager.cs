@@ -24,6 +24,7 @@ namespace Project.Scripts.Core
         private int _pendingHotKey = -1;
         
         public Vector2 MousePosition => _mousePosition.ReadValue<Vector2>();
+        public bool AttackHeld => _attack?.IsPressed() ?? false;
 
         public InputContext Context => CreateContext(out _);
         public event Action<InputContext> InputPerformed;

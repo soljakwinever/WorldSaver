@@ -265,7 +265,8 @@ namespace Project.Scripts
 
             return EntitiesEqual(left.entities, right.entities) &&
                    ComponentsEqual(left.components, right.components) &&
-                   TileOverridesEqual(left.tileOverrides, right.tileOverrides);
+                   TileOverridesEqual(left.tileOverrides, right.tileOverrides) &&
+                   WallHealthEqual(left.wallHealth, right.wallHealth);
         }
 
         private static bool EntitiesEqual(
@@ -357,6 +358,36 @@ namespace Project.Scripts
                     a.kind != b.kind ||
                     a.tileId != b.tileId ||
                     a.tint != b.tint)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool WallHealthEqual(
+            List<WallHealthData> left,
+            List<WallHealthData> right)
+        {
+            int leftCount = left?.Count ?? 0;
+            if (leftCount != (right?.Count ?? 0))
+                return false;
+
+            for (int i = 0; i < leftCount; i++)
+            {
+                WallHealthData a = left[i];
+                WallHealthData b = right[i];
+                if (a == null || b == null)
+                {
+                    if (!ReferenceEquals(a, b))
+                        return false;
+                    continue;
+                }
+
+                if (a.localX != b.localX ||
+                    a.localY != b.localY ||
+                    a.health != b.health)
                 {
                     return false;
                 }

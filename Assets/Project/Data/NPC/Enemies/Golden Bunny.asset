@@ -18,15 +18,10 @@ MonoBehaviour:
   visual: {fileID: 2119611675089420321, guid: 4768edb1c9dd6084582f33b2f20e2f7e, type: 3}
   behaviourTree: {fileID: -7413323278554932356, guid: 81c430f02d381614bbd4a9a8ca5a1f19, type: 3}
   drops:
-  - item: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
+  - item: {fileID: 11400000, guid: 0b909730823da9e4aaa6e1814e949787, type: 2}
     dropChance: 0.3
-    rolls: 23
+    rolls: 1
     minimumAmount: 1
-    maximumAmount: 4
-  - item: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
-    dropChance: 0.3
-    rolls: 23
-    minimumAmount: 1
-    maximumAmount: 4
+    maximumAmount: 2
   dropExplosionImpulse: 32
   dropExplosionVariation: 0.25

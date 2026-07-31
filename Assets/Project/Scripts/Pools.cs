@@ -6,7 +6,12 @@ using Zenject;
 namespace Project.Scripts
 {
     public class ItemStackPickupPool :
-        MonoMemoryPool<ItemData, int, ItemData.Rarity, ItemStackPickup>,
+        MonoMemoryPool<
+            ItemData,
+            int,
+            ItemData.Rarity,
+            byte,
+            ItemStackPickup>,
         IItemStackPickupPool
     {
         void IItemStackPickupPool.Spawn(
@@ -14,9 +19,11 @@ namespace Project.Scripts
             int count,
             ItemData.Rarity rarity,
             UnityEngine.Vector3 position,
-            UnityEngine.Vector2 impulse)
+            UnityEngine.Vector2 impulse,
+            byte durability)
         {
-            ItemStackPickup pickup = Spawn(itemData, count, rarity);
+            ItemStackPickup pickup =
+                Spawn(itemData, count, rarity, durability);
             pickup.transform.position = position;
             pickup.Launch(impulse);
         }
@@ -27,15 +34,38 @@ namespace Project.Scripts
                 Despawn(itemStackPickup);
         }
 
-        protected override void Reinitialize(ItemData itemData, int count, ItemData.Rarity rarity, ItemStackPickup item)
+        protected override void Reinitialize(
+            ItemData itemData,
+            int count,
+            ItemData.Rarity rarity,
+            byte durability,
+            ItemStackPickup item)
         {
             item.SetPool(this);
-            item.Initialize(itemData, count, rarity);
+            item.Initialize(itemData, count, rarity, durability);
         }
 
         protected override void OnDespawned(ItemStackPickup item)
         {
             item.SetPool(null);
+            base.OnDespawned(item);
+        }
+    }
+
+    public sealed class WallDamageVisualPool :
+        MonoMemoryPool<int, int, WallDamageVisual>
+    {
+        protected override void Reinitialize(
+            int tileHealth,
+            int maximumHealth,
+            WallDamageVisual item)
+        {
+            item.SetHealth(tileHealth, maximumHealth);
+        }
+
+        protected override void OnDespawned(WallDamageVisual item)
+        {
+            item.Clear();
             base.OnDespawned(item);
         }
     }

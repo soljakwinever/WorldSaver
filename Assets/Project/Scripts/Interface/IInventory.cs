@@ -11,7 +11,8 @@ namespace Project.Scripts.Interface
 
         bool TryAdd(IItemStack stack, out int remainder);
         bool TryAdd(ItemData item, int count, out int remainder,
-            ItemData.Rarity rarity = ItemData.Rarity.Common);
+            ItemData.Rarity rarity = ItemData.Rarity.Common,
+            byte durability = byte.MaxValue);
         bool TryRemove(IItemStack stack);
         bool TryRemove(ItemData item, int count, ItemData.Rarity rarity = ItemData.Rarity.Common);
         bool TryRemove(EntityTag tag, int count);

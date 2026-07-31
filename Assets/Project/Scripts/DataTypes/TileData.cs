@@ -7,6 +7,13 @@ namespace Project.Scripts.DataTypes
     [CreateAssetMenu(fileName = "New Tile Data", menuName = "World/Tile Data")]
     public sealed class TileData : ScriptableObject
     {
+        public enum AiPathingTerrain : byte
+        {
+            Normal,
+            Difficult,
+            Hazard
+        }
+
         [Flags]
         public enum TileFlags : byte
         {
@@ -27,6 +34,25 @@ namespace Project.Scripts.DataTypes
         public bool IsWall;
         [Tooltip("Optional tile placed on the ceiling layer while this wall exists.")]
         public TileData ceilingTile;
+
+        [Header("AI Pathing")]
+        [Tooltip("Additional traversal hint used by AI path searches.")]
+        public AiPathingTerrain pathingTerrain;
+        [Min(1f)]
+        [Tooltip("Movement/path cost multiplier. Difficult terrain should use a value above 1.")]
+        public float pathingCost = 1f;
+        [Tooltip("Stable immunity ID required to safely cross a hazard. Non-immune AI treats the tile as blocked.")]
+        public string hazardImmunityId;
+
+        [Header("Wall Durability")]
+        [Tooltip("Baseline hit points for this wall. Runtime HP is persisted only after it changes.")]
+        public byte wallHealth = 100;
+        [Tooltip("Damage reduction applied when this wall is hit. A successful mining hit always deals at least 1 damage.")]
+        public byte hardness;
+        [Tooltip("Optional replacement used when this wall is destroyed by direct damage.")]
+        public TileData destroyedTile;
+        [Tooltip("Optional replacement used when this wall burns down.")]
+        public TileData burnedTile;
 
         public bool HasVisual => AutoTile != null || TileBase != null;
         public bool IsGrass => (Flags & TileFlags.Grass) != 0;

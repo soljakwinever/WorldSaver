@@ -13,7 +13,6 @@ namespace Project.Scripts
         private readonly IRegionalWeatherService _weather;
         private readonly IWorldClock _clock;
         private readonly List<Chunk> _loadedChunks = new();
-        private readonly Dictionary<Vector2Int, WeatherSample> _samples = new();
         private readonly Queue<CoverageWork> _pendingWork = new();
         private long _lastTick = -1;
 
@@ -25,18 +24,15 @@ namespace Project.Scripts
             public readonly Chunk Chunk;
             public readonly Vector2Int Position;
             public readonly int Generation;
-            public readonly WeatherSample Weather;
             public readonly long ElapsedTicks;
 
             public CoverageWork(
                 Chunk chunk,
-                WeatherSample weather,
                 long elapsedTicks)
             {
                 Chunk = chunk;
                 Position = chunk.Position;
                 Generation = chunk.CoverageGeneration;
-                Weather = weather;
                 ElapsedTicks = elapsedTicks;
             }
         }
@@ -64,23 +60,11 @@ namespace Project.Scripts
                 _lastTick = currentTick;
                 if (elapsed > 0)
                 {
-                    _samples.Clear();
                     _chunkloader.CopyLoadedChunks(_loadedChunks);
                     foreach (Chunk chunk in _loadedChunks)
                     {
-                        Vector2Int region =
-                            DataTypes.SaveData.WorldPartition.ChunkToRegion(
-                                chunk.Position);
-                        if (!_samples.TryGetValue(
-                                region,
-                                out WeatherSample sample))
-                        {
-                            sample = _weather.GetRegionSample(region);
-                            _samples.Add(region, sample);
-                        }
-
                         _pendingWork.Enqueue(
-                            new CoverageWork(chunk, sample, elapsed));
+                            new CoverageWork(chunk, elapsed));
                     }
                 }
             }
@@ -97,7 +81,7 @@ namespace Project.Scripts
                 }
 
                 work.Chunk.AdvanceCoverage(
-                    work.Weather,
+                    _weather,
                     work.ElapsedTicks);
             }
         }

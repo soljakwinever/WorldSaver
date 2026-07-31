@@ -1,5 +1,6 @@
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.Core;
 using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using UnityEngine;
@@ -10,8 +11,18 @@ namespace Project.Scripts.Actions
     /// Places the tile described by <see cref="PlaceTileItemActionData"/>.
     /// </summary>
     [CreateAssetMenu(fileName = "New Place Tile Item Action", menuName = "Data/Item Actions/Place Tile")]
-    public sealed class PlaceTileItemAction : ItemAction
+    public sealed class PlaceTileItemAction :
+        ItemAction,
+        IUsesCursor,
+        IRepeatsWhileHeld
     {
+        private const float CursorOpacity = 0.65f;
+        private const float PlacementInterval = 0.1f;
+
+        [SerializeField]
+        [Tooltip("World-grid cursor shown while this action is selected.")]
+        private Sprite placementCursorSprite;
+
         private PersistentInventory _playerInventory;
 
         public override string GetPersistentId(ItemData item) =>
@@ -27,7 +38,8 @@ namespace Project.Scripts.Actions
         public override string GetTooltip(ItemData item) =>
             GetDisplayName(item);
         public override int GetCount(ItemData item) => GetItemCount(item);
-        public override float Refresh => 0.1f;
+        public override float Refresh => PlacementInterval;
+        public float RepeatInterval => PlacementInterval;
         public override bool DisplayCount => true;
 
         public override bool CanPerform(ActionContext context)
@@ -42,8 +54,28 @@ namespace Project.Scripts.Actions
                        out Chunk chunk,
                        out Vector3Int cell,
                        out PlaceTileItemActionData data) &&
-                   !chunk.HasTile(cell, data.layer, data.tile) &&
                    chunk.TryPlaceTile(cell, data.layer, data.tile);
+        }
+
+        public bool TryGetCursor(
+            ActionContext context,
+            out PlacementCursorData cursor)
+        {
+            if (placementCursorSprite == null ||
+                !TryGetData(context.Item, out PlaceTileItemActionData data) ||
+                data.tile == null)
+            {
+                cursor = default;
+                return false;
+            }
+
+            Vector3Int cell = Vector3Int.FloorToInt(context.TargetPosition);
+            cursor = new PlacementCursorData(
+                placementCursorSprite,
+                new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f),
+                CanPerform(context),
+                CursorOpacity);
+            return true;
         }
 
         private bool TryGetTarget(
@@ -63,7 +95,10 @@ namespace Project.Scripts.Actions
 
             Chunkloader chunkloader = FindFirstObjectByType<Chunkloader>();
             return chunkloader != null &&
-                   chunkloader.TryGetLoadedChunk(cell, out chunk);
+                   chunkloader.TryGetLoadedChunk(cell, out chunk) &&
+                   !TileReservationSystem.IsReserved(
+                       new Vector2Int(cell.x, cell.y)) &&
+                   !chunk.HasTile(cell, data.layer, data.tile);
         }
 
         private static bool TryGetData(

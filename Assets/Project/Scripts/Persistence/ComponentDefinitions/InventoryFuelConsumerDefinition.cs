@@ -1,31 +1,41 @@
+using System;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Gameplay;
 using UnityEngine;
-using UnityEngine.Serialization;
 using Zenject;
 
 namespace Project.Scripts.Persistence
 {
+    [Serializable]
+    public sealed class InventoryFuelConsumerData : ComponentDefinitionData
+    {
+        public EntityTag fuelTag;
+        [Min(1)] public int fuelValuePerOperation = 1;
+    }
+
     [CreateAssetMenu(
         fileName = "Inventory Fuel Consumer Definition",
         menuName = "World/Components/Inventory Fuel Consumer")]
     public sealed class InventoryFuelConsumerDefinition : NodeComponentDefinition
     {
-        [SerializeField] private EntityTag fuelTag;
-        [FormerlySerializedAs("itemsPerOperation")]
-        [SerializeField, Min(1)] private int fuelValuePerOperation = 1;
+        public override Type DataType =>
+            typeof(InventoryFuelConsumerData);
 
-        public override void Install(
+        protected override void InstallComponent(
             GameObject host,
             DiContainer container,
-            NodeComponentSpawnContext context)
+            NodeComponentSpawnContext context,
+            ComponentDefinitionData data)
         {
+            var configuration = (InventoryFuelConsumerData)data;
             if (host.GetComponent<PersistentInventory>() == null)
                 container.InstantiateComponent<PersistentInventory>(host);
 
             InventoryFuelConsumer consumer =
                 container.InstantiateComponent<InventoryFuelConsumer>(host);
-            consumer.Initialize(fuelTag, fuelValuePerOperation);
+            consumer.Initialize(
+                configuration.fuelTag,
+                configuration.fuelValuePerOperation);
         }
     }
 }

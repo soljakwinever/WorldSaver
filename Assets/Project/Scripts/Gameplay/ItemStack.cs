@@ -8,12 +8,19 @@ namespace Project.Scripts.Gameplay
     {
         public ItemData Item { get; }
         public ItemData.Rarity Rarity { get; }
+        public byte Durability { get; private set; }
+        public float Durability01 => Durability / (float)byte.MaxValue;
+        public bool IsBroken => Durability == 0;
         public int Count { get; private set; }
         public int Capacity => Item.maxStack;
         public int RemainingCapacity => Capacity - Count;
         public bool IsFull => Count == Capacity;
 
-        public ItemStack(ItemData item, int count, ItemData.Rarity rarity = ItemData.Rarity.Common)
+        public ItemStack(
+            ItemData item,
+            int count,
+            ItemData.Rarity rarity = ItemData.Rarity.Common,
+            byte durability = byte.MaxValue)
         {
             ValidateItem(item);
 
@@ -25,7 +32,20 @@ namespace Project.Scripts.Gameplay
 
             Item = item;
             Rarity = rarity;
+            Durability = durability;
             Count = count;
+        }
+
+        public void SetDurability(byte durability)
+        {
+            Durability = durability;
+        }
+
+        public byte ApplyDurabilityDamage(byte amount)
+        {
+            int applied = Math.Min(amount, Durability);
+            Durability = (byte)(Durability - applied);
+            return (byte)applied;
         }
 
         internal int Add(int count)

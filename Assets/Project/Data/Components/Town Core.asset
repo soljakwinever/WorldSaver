@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed6c4a478bc34bb98ad964d410ea651b, type: 3}
+  m_Name: Town Core
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.Persistence.TownCoreDefinition
+  initialName: New Village
+  maximumHealth: 250
+  offeringInventorySize: 16
+  townRadius: 12
+  resourceRadius: 30
+  maximumPopulation: 10
+  maximumMana: 100
+  passiveManaPerTick: 0.01
+  ticksPerOffering: 10
+  buildingRefreshTicks: 10
+  buildingLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  effects: []
+  upgrades: []

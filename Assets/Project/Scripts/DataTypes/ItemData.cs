@@ -36,6 +36,9 @@ namespace Project.Scripts.DataTypes
         
         public int goldValue;
         [Min(1)] public int fuelValue = 1;
+        [Min(0f)]
+        [Tooltip("Base mana granted when a common item is offered to a Town Core shrine.")]
+        public float magicValue;
 
         [SerializeField]
         private EntityTag[] tags = System.Array.Empty<EntityTag>();
@@ -87,6 +90,22 @@ namespace Project.Scripts.DataTypes
             return checked((long)fuelValue * rarityMultiplier);
         }
 
+        public float GetMagicValue(Rarity rarity)
+        {
+            float rarityMultiplier = rarity switch
+            {
+                Rarity.Common => 1f,
+                Rarity.Uncommon => 1.25f,
+                Rarity.Rare => 1.5f,
+                Rarity.Mythic => 2f,
+                Rarity.Legendary => 3f,
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(rarity), rarity, "Unknown item rarity.")
+            };
+
+            return magicValue * rarityMultiplier;
+        }
+
         private void OnEnable()
         {
             actionData ??= Array.Empty<ItemActionData>();
@@ -105,6 +124,7 @@ namespace Project.Scripts.DataTypes
         private void OnValidate()
         {
             fuelValue = Mathf.Max(1, fuelValue);
+            magicValue = Mathf.Max(0f, magicValue);
             actionData ??= Array.Empty<ItemActionData>();
         }
 #endif

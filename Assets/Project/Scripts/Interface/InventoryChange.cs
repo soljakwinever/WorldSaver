@@ -7,12 +7,15 @@ namespace Project.Scripts.Interface
     {
         public ItemData Item { get; }
         public ItemData.Rarity Rarity { get; }
+        public byte Durability { get; }
+        public bool MatchesAnyDurability { get; }
         public int CountDelta { get; }
 
         public InventoryChange(
             ItemData item,
             int countDelta,
-            ItemData.Rarity rarity = ItemData.Rarity.Common)
+            ItemData.Rarity rarity = ItemData.Rarity.Common,
+            byte? durability = null)
         {
             Item = item != null ? item : throw new ArgumentNullException(nameof(item));
             if (countDelta == 0)
@@ -23,6 +26,8 @@ namespace Project.Scripts.Interface
 
             CountDelta = countDelta;
             Rarity = rarity;
+            Durability = durability ?? byte.MaxValue;
+            MatchesAnyDurability = !durability.HasValue;
         }
     }
 }

@@ -64,6 +64,16 @@ namespace Project.Scripts.DataTypes
         [Header("GroundTile.mat")]
         [SerializeField] private Vector2 coverageTiling = Vector2.one;
 
+        [Header("AI Pathing")]
+        [SerializeField]
+        [Tooltip("Optional traversal hint applied while this coverage is visible.")]
+        private TileData.AiPathingTerrain pathingTerrain;
+        [SerializeField, Min(1f)]
+        private float pathingCost = 1f;
+        [SerializeField]
+        [Tooltip("Stable immunity ID required to cross hazardous coverage.")]
+        private string hazardImmunityId;
+
         public string CoverageId => string.IsNullOrWhiteSpace(coverageId)
             ? name
             : coverageId.Trim();
@@ -85,6 +95,9 @@ namespace Project.Scripts.DataTypes
         public Vector2 CoverageTiling => coverageTiling;
         public Vector2 AmbientTemperatureRange =>
             ambientTemperatureRange;
+        public TileData.AiPathingTerrain PathingTerrain => pathingTerrain;
+        public float PathingCost => Mathf.Max(1f, pathingCost);
+        public string HazardImmunityId => hazardImmunityId;
         public string[] AllowedWeatherIds =>
             allowedWeatherIds ?? Array.Empty<string>();
         public string[] AllowedPhaseIds =>
@@ -120,6 +133,8 @@ namespace Project.Scripts.DataTypes
         private void OnValidate()
         {
             coverageId = coverageId?.Trim();
+            hazardImmunityId = hazardImmunityId?.Trim();
+            pathingCost = Mathf.Max(1f, pathingCost);
             NormalizeIds(allowedWeatherIds);
             NormalizeIds(allowedPhaseIds);
             NormalizeIds(requiredActiveEffectIds);

@@ -13,7 +13,9 @@ namespace Project.Scripts.Pathfinding
     /// an octree). World coordinates are used throughout, so chunk boundaries
     /// and negative chunk coordinates need no special cases.
     /// </summary>
-    public sealed class PathFindingService : IPathFindingService
+    public sealed class PathFindingService :
+        IPathFindingService,
+        IContextualPathFindingService
     {
         private const float DiagonalCost = 1.41421356f;
         private readonly IPathFindingMap _map;
@@ -63,17 +65,44 @@ namespace Project.Scripts.Pathfinding
             int maxVisitedTiles = 100000,
             CancellationToken cancellationToken = default)
         {
+            return FindPathAsync(
+                start,
+                destination,
+                default,
+                maxVisitedTiles,
+                cancellationToken);
+        }
+
+        public Task<List<Vector2Int>> FindPathAsync(
+            Vector2Int start,
+            Vector2Int destination,
+            PathFindingQuery query,
+            int maxVisitedTiles = 100000,
+            CancellationToken cancellationToken = default)
+        {
             if (maxVisitedTiles <= 0)
                 throw new ArgumentOutOfRangeException(nameof(maxVisitedTiles));
 
             IPathFindingMap searchMap = _map;
             IPathFindingMap snapshot = null;
-            bool localSnapshot =
-                _map is ILocalPathFindingMap localMap &&
-                localMap.TryCreateLocalSnapshot(
+            bool localSnapshot;
+            if (_map is IContextualLocalPathFindingMap contextualMap)
+            {
+                localSnapshot = contextualMap.TryCreateLocalSnapshot(
                     start,
                     destination,
+                    query,
                     out snapshot);
+            }
+            else
+            {
+                localSnapshot =
+                    _map is ILocalPathFindingMap localMap &&
+                    localMap.TryCreateLocalSnapshot(
+                        start,
+                        destination,
+                        out snapshot);
+            }
             if (localSnapshot)
                 searchMap = snapshot;
 

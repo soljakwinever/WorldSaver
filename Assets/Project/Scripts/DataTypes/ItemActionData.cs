@@ -28,6 +28,34 @@ namespace Project.Scripts.DataTypes
         public ToolData tool;
     }
 
+    /// <summary>Needs restored by <c>IncreaseNeedsItemAction</c>.</summary>
+    [Serializable]
+    public sealed class IncreaseNeedsActionData : ItemActionData
+    {
+        [Min(0f)]
+        [Tooltip("Normalized Hunger restored per use, where 1 fills the bar.")]
+        public float hunger;
+
+        [Min(0f)]
+        [Tooltip("Normalized Energy restored per use, where 1 fills the bar.")]
+        public float energy;
+    }
+
+    /// <summary>
+    /// Health and mana restored by <c>IncreaseHealthManaItemAction</c>.
+    /// </summary>
+    [Serializable]
+    public sealed class IncreaseHealthManaActionData : ItemActionData
+    {
+        [Min(0)]
+        [Tooltip("Health points restored per use.")]
+        public int health;
+
+        [Min(0)]
+        [Tooltip("Mana points restored per use.")]
+        public int mana;
+    }
+
     /// <summary>Per-item mining rules used by <c>MineTileToolAction</c>.</summary>
     [Serializable]
     public sealed class MineTileToolActionData : ItemActionData

@@ -141,7 +141,8 @@ namespace Project.Scripts
                         out result.biomeData[index],
                         out result.heights[index],
                         out result.moisture[index],
-                        out result.temperature[index]);
+                        out result.temperature[index],
+                        out result.floorTiles[index]);
                     
                     result.tileIndexes[index] = tileIndex;
                     
@@ -169,8 +170,54 @@ namespace Project.Scripts
             
             HashSet<Vector2Int> propPositions = new HashSet<Vector2Int>();
             result.props = GeneratePropsForChunk(position, propSpawnRules, propPositions);
+            AddFeatureBuildings(result);
+            RemoveSpawnPlatformConflicts(result);
+            AddSpawnPlatform(result);
             
             return result;
+
+            void AddFeatureBuildings(ChunkBuildResult chunkResult)
+            {
+                foreach (PropSpawnData building in
+                         worldGeneration.GetFeatureBuildingSpawns(position))
+                {
+                    chunkResult.props.RemoveAll(candidate =>
+                        candidate.worldPosition == building.worldPosition);
+                    chunkResult.props.Add(building);
+                }
+            }
+
+            void RemoveSpawnPlatformConflicts(ChunkBuildResult chunkResult)
+            {
+                NodeData platform = worldGeneration.SpawnPlatformNode;
+                if (platform == null ||
+                    !SpaceReservationUtility.TryGetArea(
+                        platform,
+                        worldGeneration.WorldSpawnPosition,
+                        out RectInt area))
+                {
+                    return;
+                }
+
+                chunkResult.props.RemoveAll(candidate =>
+                    area.Contains(candidate.worldPosition));
+            }
+
+            void AddSpawnPlatform(ChunkBuildResult chunkResult)
+            {
+                if (!TryCreateSpawnPlatformData(
+                        worldGeneration,
+                        position,
+                        out PropSpawnData platformData))
+                {
+                    return;
+                }
+
+                chunkResult.props.RemoveAll(candidate =>
+                    candidate.worldPosition ==
+                    platformData.worldPosition);
+                chunkResult.props.Insert(0, platformData);
+            }
 
             List<PropSpawnData> GeneratePropsForChunk(Vector2Int chunkPosition, IEnumerable<PropSpawnRule> rules, HashSet<Vector2Int> propPositions)
             {
@@ -317,6 +364,46 @@ namespace Project.Scripts
                 
                 return allowed;
             }
+        }
+
+        public static bool TryCreateSpawnPlatformData(
+            WorldGeneration worldGeneration,
+            Vector2Int chunkPosition,
+            out PropSpawnData spawnData)
+        {
+            spawnData = default;
+            if (worldGeneration == null ||
+                worldGeneration.SpawnPlatformNode == null)
+            {
+                return false;
+            }
+
+            Vector2Int spawnPosition =
+                worldGeneration.WorldSpawnPosition;
+            if (WorldPartition.WorldToChunk(spawnPosition) != chunkPosition)
+                return false;
+
+            const string generatorName = "World Spawn Platform";
+            ushort generatorType =
+                NodeId.CreateGeneratorType(generatorName);
+            spawnData = new PropSpawnData
+            {
+                NodeId = NodeId.Create(
+                    worldGeneration.Seed,
+                    spawnPosition,
+                    generatorType,
+                    slot: 0),
+                worldPosition = spawnPosition,
+                propName = generatorName,
+                nodeData = worldGeneration.SpawnPlatformNode,
+                position = spawnPosition,
+                scale = 1f,
+                terrainSample = worldGeneration.GetTerrainSample(
+                    spawnPosition.x,
+                    spawnPosition.y),
+                persistenceKind = EntityPersistenceKind.Procedural
+            };
+            return true;
         }
     }
 }

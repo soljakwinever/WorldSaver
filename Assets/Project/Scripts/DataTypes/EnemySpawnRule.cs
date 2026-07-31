@@ -92,6 +92,14 @@ namespace Project.Scripts.DataTypes
         [Tooltip("Any listed active weather allows this rule. Empty allows every weather condition. Requires an INPCSpawnEnvironmentProvider implementation.")]
         public List<WeatherData> requiredWeather = new();
 
+        [Header("Temperature")]
+        [Range(-1f, 1f)]
+        [Tooltip("Minimum normalized ambient temperature at the player.")]
+        public float minimumTemperature = -1f;
+        [Range(-1f, 1f)]
+        [Tooltip("Maximum normalized ambient temperature at the player.")]
+        public float maximumTemperature = 1f;
+
         public bool AllowsSeason(Season season)
         {
             return (seasons & (SeasonMask)(1 << (int)season)) != 0;
@@ -126,6 +134,17 @@ namespace Project.Scripts.DataTypes
             return enemyData;
         }
 
+        public bool AllowsTemperature(float temperature)
+        {
+            float minimum = Mathf.Min(
+                minimumTemperature,
+                maximumTemperature);
+            float maximum = Mathf.Max(
+                minimumTemperature,
+                maximumTemperature);
+            return temperature >= minimum && temperature <= maximum;
+        }
+
         private void OnValidate()
         {
             maximumPerChunk = Mathf.Max(minimumPerChunk, maximumPerChunk);
@@ -133,6 +152,8 @@ namespace Project.Scripts.DataTypes
             spawnIntervalTicks = Mathf.Max(1, spawnIntervalTicks);
             minimumLifetimeTicks = Mathf.Max(0, minimumLifetimeTicks);
             idleTicksBeforeRecycle = Mathf.Max(1, idleTicksBeforeRecycle);
+            minimumTemperature = Mathf.Clamp(minimumTemperature, -1f, 1f);
+            maximumTemperature = Mathf.Clamp(maximumTemperature, -1f, 1f);
         }
     }
 }

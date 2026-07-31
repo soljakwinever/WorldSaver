@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b58f2629b454435a2cddccf0ad09e56, type: 3}
+  m_Name: FrostCore
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.NodeData
+  sprite: {fileID: 116095266705567999, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  isTrigger: 0
+  sprites: []
+  nodeType: 2
+  toolRequirement: 1
+  overrideMaterial: {fileID: 0}
+  tintColor: {r: 0.55, g: 0.85, b: 1, a: 1}
+  overrideVisual: {fileID: 0}
+  lightness: 1
+  lightnessVariance: 0
+  persistentComponents:
+  - rid: 820000000000000001
+  - rid: 820000000000000002
+  - rid: 820000000000000003
+  droppedItem: {fileID: 11400000, guid: 0b909730823da9e4aaa6e1814e949787, type: 2}
+  dropChance: 1
+  tags:
+  - {fileID: 11400000, guid: c8df123b1de94a190de8880b70d6beb5, type: 2}
+  - {fileID: 11400000, guid: 06b35069e8b3d82fa0743939235bd26b, type: 2}
+  - {fileID: 11400000, guid: d56d2320a6e0cbee9317efb07b882372, type: 2}
+  damageRules:
+  - sources: 2
+    sourceTags:
+    - {fileID: 11400000, guid: 16fa4e544f7e7ebecf9d13e47b20aac2, type: 2}
+  - sources: 4
+    sourceTags: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 820000000000000001
+      type: {class: PersistentTransformData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
+        alwaysPersist: 1
+    - rid: 820000000000000002
+      type: {class: AreaOfEffectData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: a1000000000000000000000000000001, type: 2}
+        outerRadius: 768
+        innerRadius: 8
+        spreadRate: 1
+    - rid: 820000000000000003
+      type: {class: ClimateCoreData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: a2000000000000000000000000000002, type: 2}
+        temperatureOffset: -2
+        permanentWeather: {fileID: 11400000, guid: 9992324ba8f740c48a7fdcb4938c98ef, type: 2}
+        maximumHealth: 1000
+        droppedItem: {fileID: 11400000, guid: 0b909730823da9e4aaa6e1814e949787, type: 2}
+        dropCount: 3
+        dropChance: 1

@@ -16,6 +16,7 @@ public class GameDataInstaller : MonoInstaller
     public Chunk chunkPrefab;
     public Node nodePrefab;
     public ItemStackPickup itemStackPrefab;
+    public WallDamageVisual wallDamageVisualPrefab;
 
     public DebugLogManager console;
 
@@ -52,6 +53,12 @@ public class GameDataInstaller : MonoInstaller
             .WithMaxSize(100)
             .FromComponentInNewPrefab(itemStackPrefab)
             .UnderTransformGroup("ItemPickups");
+
+        Container.BindMemoryPool<WallDamageVisual, WallDamageVisualPool>()
+            .WithInitialSize(32)
+            .WithMaxSize(1024)
+            .FromComponentInNewPrefab(wallDamageVisualPrefab)
+            .UnderTransformGroup("WallDamageVisuals");
 
         Container.BindMemoryPool<NPCSpawnInstance, NPCSpawnPool>()
             .WithInitialSize(32)
@@ -95,7 +102,7 @@ public class GameDataInstaller : MonoInstaller
             .AsSingle()
             .NonLazy();
         Container.Bind<INPCSpawnEnvironmentProvider>()
-            .To<NullNPCSpawnEnvironmentProvider>()
+            .To<PlayerNPCSpawnEnvironmentProvider>()
             .AsSingle()
             .IfNotBound();
         Container.BindInterfacesAndSelfTo<NPCSpawnController>()
@@ -126,10 +133,11 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<WeatherSimulationSettings>()
             .FromMethod(_ => LoadWeatherSettings())
             .AsSingle();
-        Container.Bind<IWeatherModifierSource>()
-            .To<NullWeatherModifierSource>()
+        Container.BindInterfacesAndSelfTo<ClimateCoreInfluenceService>()
+            .AsSingle();
+        Container.BindInterfacesAndSelfTo<FeatureBuildingService>()
             .AsSingle()
-            .IfNotBound();
+            .NonLazy();
         Container.Bind<WeatherBus>().AsSingle();
         Container.Bind<IWeatherWorldClock>()
             .FromMethod(context => new WeatherWorldClockAdapter(

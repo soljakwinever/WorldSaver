@@ -117,12 +117,36 @@ namespace Project.Scripts.TimeAndWeather
             int worldY = Mathf.FloorToInt(worldPosition.y);
             TerrainSample terrain =
                 _worldGenerator.GetTerrainSample(worldX, worldY);
+            return GetLocalSnapshot(
+                worldPosition,
+                terrain.temperature,
+                regionalSnapshot);
+        }
 
-            // The regional snapshot already contains seasonal, daily, yearly,
-            // and event offsets. Replace only its regional terrain mean with
-            // the continuous terrain temperature at this world cell.
-            return regionalSnapshot.WithTerrainTemperature(
-                terrain.temperature);
+        public ClimateSnapshot GetLocalSnapshot(
+            Vector2 worldPosition,
+            float normalizedTerrainTemperature,
+            ClimateSnapshot regionalSnapshot)
+        {
+            // The regional snapshot contains non-spatial seasonal, daily,
+            // yearly, and event offsets. Replace its regional terrain mean
+            // with the terrain temperature at this world cell.
+            ClimateSnapshot local = regionalSnapshot.WithTerrainTemperature(
+                normalizedTerrainTemperature);
+            if (_eventModifiers is not IClimateCoreWeatherSource cores)
+                return local;
+
+            // Climate cores are radial tile-local modifiers. They are excluded
+            // from the regional snapshot so a core never cools an entire
+            // region merely because its center is influenced.
+            return new ClimateSnapshot(
+                local.Baseline,
+                local.Context,
+                local.Temperature +
+                cores.GetTemperatureOffset(worldPosition),
+                local.Moisture,
+                local.WaterInfluence,
+                local.WeatherWeightMultiplier);
         }
 
         public void ClearCache() => _cache.Clear();

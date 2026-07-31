@@ -1,4 +1,5 @@
 using System;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using Project.Scripts.Utility;
 using UnityEngine;
@@ -17,10 +18,12 @@ namespace Project.Scripts.Gameplay
         [Header("Display")]
         [SerializeField] private Rect windowRect = new(16f, 96f, 420f, 360f);
         [SerializeField] private Rect otherWindowRect = new(452f, 96f, 420f, 360f);
+        [SerializeField, Min(0f)] private float dropImpulse = 1.5f;
 
         private IInventory _otherInventory;
         private PersistentInventory _playerInventory;
         private IInputManager _inputManager;
+        private IItemStackPickupPool _pickupPool;
         private Vector2 _playerScrollPosition;
         private Vector2 _otherScrollPosition;
         private IItemStack _hoveredPlayerStack;
@@ -45,10 +48,13 @@ namespace Project.Scripts.Gameplay
         }
 
         [Inject]
-        public void Construct(IInputManager inputManager)
+        public void Construct(
+            IInputManager inputManager,
+            IItemStackPickupPool pickupPool)
         {
             UnsubscribeFromInput();
             _inputManager = inputManager;
+            _pickupPool = pickupPool;
 
             if (isActiveAndEnabled)
                 SubscribeToInput();
@@ -267,6 +273,14 @@ namespace Project.Scripts.Gameplay
                 TransferStack(source, destination, stack);
                 GUIUtility.ExitGUI();
             }
+            if (ReferenceEquals(source, _playerInventory) &&
+                GUILayout.Button(
+                    new GUIContent("Drop", "Drop this stack on the ground"),
+                    GUILayout.Width(48f)))
+            {
+                DropStack(stack);
+                GUIUtility.ExitGUI();
+            }
             GUILayout.EndHorizontal();
 
             Rect progressRect = GUILayoutUtility.GetRect(1f, 5f, GUILayout.ExpandWidth(true));
@@ -321,7 +335,7 @@ namespace Project.Scripts.Gameplay
                 return;
 
             int originalCount = stack.Count;
-            if (!source.TryRemove(stack.Item, originalCount, stack.Rarity))
+            if (!source.TryRemove(stack))
             {
                 _transferMessage = "The transfer could not be completed.";
                 return;
@@ -334,17 +348,28 @@ namespace Project.Scripts.Gameplay
                     stack.Item,
                     originalCount,
                     out remainder,
-                    stack.Rarity);
+                    stack.Rarity,
+                    stack.Durability);
             }
             catch (Exception exception)
             {
-                source.TryAdd(stack.Item, originalCount, out _, stack.Rarity);
+                source.TryAdd(
+                    stack.Item,
+                    originalCount,
+                    out _,
+                    stack.Rarity,
+                    stack.Durability);
                 _transferMessage = $"Transfer failed: {exception.Message}";
                 return;
             }
 
             if (remainder > 0)
-                source.TryAdd(stack.Item, remainder, out _, stack.Rarity);
+                source.TryAdd(
+                    stack.Item,
+                    remainder,
+                    out _,
+                    stack.Rarity,
+                    stack.Durability);
 
             int transferred = originalCount - remainder;
             if (transferred == 0)
@@ -356,6 +381,64 @@ namespace Project.Scripts.Gameplay
             _transferMessage = remainder == 0
                 ? $"Transferred {originalCount} {GetDisplayName(stack)}."
                 : $"Transferred {transferred}/{originalCount} {GetDisplayName(stack)}.";
+        }
+
+        private void DropStack(IItemStack stack)
+        {
+            if (_playerInventory == null || _pickupPool == null ||
+                stack?.Item == null || stack.Count <= 0)
+                return;
+
+            // Snapshot every value before removal because the inventory mutates
+            // (and may invalidate) the stack passed in by the UI.
+            ItemData item = stack.Item;
+            ItemData.Rarity rarity = stack.Rarity;
+            byte durability = stack.Durability;
+            int count = stack.Count;
+
+            if (!_playerInventory.TryRemove(stack))
+            {
+                _transferMessage = "The stack could not be dropped.";
+                return;
+            }
+
+            try
+            {
+                _pickupPool.Spawn(
+                    item,
+                    count,
+                    rarity,
+                    _playerInventory.transform.position,
+                    GetDropDirection() * dropImpulse,
+                    durability);
+                _transferMessage =
+                    $"Dropped {count} {GetDisplayName(item)} ({rarity}).";
+            }
+            catch (Exception exception)
+            {
+                _playerInventory.TryAdd(
+                    item,
+                    count,
+                    out _,
+                    rarity,
+                    durability);
+                _transferMessage = $"Drop failed: {exception.Message}";
+            }
+        }
+
+        private Vector2 GetDropDirection()
+        {
+            if (Mouse.current == null || Camera.main == null ||
+                _playerInventory == null)
+                return Vector2.down;
+
+            Vector2 mouseWorld =
+                Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue());
+            Vector2 direction =
+                mouseWorld - (Vector2)_playerInventory.transform.position;
+            return direction.sqrMagnitude > 0.0001f
+                ? direction.normalized
+                : Vector2.down;
         }
 
         private string GetOtherWindowTitle()
@@ -379,9 +462,17 @@ namespace Project.Scripts.Gameplay
             if (stack?.Item == null)
                 return "Missing Item";
 
-            return string.IsNullOrWhiteSpace(stack.Item.name)
-                ? stack.Item.persistentId
-                : stack.Item.name;
+            return GetDisplayName(stack.Item);
+        }
+
+        private static string GetDisplayName(ItemData item)
+        {
+            if (item == null)
+                return "Missing Item";
+
+            return string.IsNullOrWhiteSpace(item.name)
+                ? item.persistentId
+                : item.name;
         }
 
 

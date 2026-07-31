@@ -18,6 +18,7 @@ namespace Project.Scripts
         public float[] moisture;
         public float[] temperature;
         public BiomeBlend[] biomeData;
+        public TileData[] floorTiles;
 
         public IsCliff[] isCliff;
         public bool[] isRoad;
@@ -53,6 +54,7 @@ namespace Project.Scripts
             isRoad = new bool[ChunkSize * ChunkSize];
             isTrail = new bool[ChunkSize * ChunkSize];
             biomeData = new BiomeBlend[ChunkSize * ChunkSize];
+            floorTiles = new TileData[ChunkSize * ChunkSize];
         }
 
         public int GetTileIndex(int x, int y)
@@ -82,10 +84,12 @@ namespace Project.Scripts
         public Project.Scripts.DataTypes.SaveData.NodeId NodeId;
         public Vector2Int worldPosition;
         public string propName;
+        public NodeData nodeData;
         public Vector2 position;
         public float scale;
         public bool flipX;
         public TerrainSample terrainSample;
         public EntityPersistenceKind persistenceKind;
+        public AccessIdentity accessIdentity;
     }
 }

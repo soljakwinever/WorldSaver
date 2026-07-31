@@ -69,7 +69,10 @@ namespace Project.Scripts
                     continue;
                 }
 
-                if (TrySpawnPersistentRules(position, population.Chunk, population))
+                if (TryInitializePopulation(
+                        position,
+                        population.Chunk,
+                        population))
                     _pendingPersistentChunks.RemoveAt(i);
             }
 
@@ -90,11 +93,27 @@ namespace Project.Scripts
 
             ChunkPopulation population = new(chunk);
             _populations.Add(position, population);
-            foreach (EnemySpawnRule rule in EnumerateRules())
-                SpawnTransientRule(position, rule, population);
 
-            if (!TrySpawnPersistentRules(position, chunk, population))
+            if (!TryInitializePopulation(position, chunk, population))
                 _pendingPersistentChunks.Add(position);
+        }
+
+        private bool TryInitializePopulation(
+            Vector2Int position,
+            Chunk chunk,
+            ChunkPopulation population)
+        {
+            if (!chunk.IsPersistenceRestoreCompleted)
+                return false;
+
+            if (!population.IsInitialized)
+            {
+                population.IsInitialized = true;
+                foreach (EnemySpawnRule rule in EnumerateRules())
+                    SpawnTransientRule(position, rule, population);
+            }
+
+            return TrySpawnPersistentRules(position, chunk, population);
         }
 
         private void OnChunkUnloaded(Vector2Int position)
@@ -227,7 +246,13 @@ namespace Project.Scripts
             out Vector2 position)
         {
             var candidates =
-                new List<KeyValuePair<Vector2Int, ChunkPopulation>>(_populations);
+                new List<KeyValuePair<Vector2Int, ChunkPopulation>>();
+            foreach (KeyValuePair<Vector2Int, ChunkPopulation> candidate
+                     in _populations)
+            {
+                if (candidate.Value.IsInitialized)
+                    candidates.Add(candidate);
+            }
             int startIndex = candidates.Count == 0
                 ? 0
                 : (int)((uint)HashCode.Combine(
@@ -324,7 +349,7 @@ namespace Project.Scripts
             return false;
         }
 
-        internal static bool TryResolveTransientVisual(
+        public static bool TryResolveTransientVisual(
             EnemyData enemyData,
             out GameObject visual)
         {
@@ -351,7 +376,7 @@ namespace Project.Scripts
             return count;
         }
 
-        internal static bool IsUnderPopulationCap(
+        public static bool IsUnderPopulationCap(
             int livingCount,
             int maxAllowed)
         {
@@ -452,7 +477,7 @@ namespace Project.Scripts
             }
         }
 
-        internal static bool ShouldPrioritizeTimeDespawn(
+        public static bool ShouldPrioritizeTimeDespawn(
             EnemySpawnRule rule,
             int currentHour,
             bool isOffscreen)
@@ -493,6 +518,7 @@ namespace Project.Scripts
                 TerrainSample sample =
                     _worldGeneration.GetTerrainSample(cell.x, cell.y);
                 if (!IsNavigableSpawn(sample) ||
+                    TileReservationSystem.IsReserved(cell) ||
                     !AllowsBiome(rule, sample.biome) ||
                     !IsOffscreen(camera, candidate, viewportMargin) ||
                     IsTooCloseToPopulation(
@@ -545,7 +571,7 @@ namespace Project.Scripts
                    runner.Blackboard.GetOrDefault(AiKeys.IsIdle);
         }
 
-        internal static bool ShouldRecycleTransient(
+        public static bool ShouldRecycleTransient(
             long currentTick,
             long spawnTick,
             long? idleSinceTick,
@@ -641,7 +667,7 @@ namespace Project.Scripts
             }
         }
 
-        internal static bool IsNavigableSpawn(TerrainSample sample) =>
+        public static bool IsNavigableSpawn(TerrainSample sample) =>
             !sample.isWater && !sample.isCliff;
 
         private bool AllowsCurrentWorldState(EnemySpawnRule rule)
@@ -650,6 +676,8 @@ namespace Project.Scripts
                    rule.AllowsHour(_time.Hour) &&
                    (string.IsNullOrWhiteSpace(rule.requiredEvent) ||
                     _environment.IsEventActive(rule.requiredEvent)) &&
+                   rule.AllowsTemperature(
+                       _environment.GetAmbientTemperature()) &&
                    AllowsWeather(rule);
         }
 
@@ -705,6 +733,7 @@ namespace Project.Scripts
             public readonly Chunk Chunk;
             public readonly List<TransientPopulationEntry> TransientNPCs = new();
             public readonly HashSet<EnemySpawnRule> PersistentRules = new();
+            public bool IsInitialized;
 
             public ChunkPopulation(Chunk chunk) => Chunk = chunk;
         }

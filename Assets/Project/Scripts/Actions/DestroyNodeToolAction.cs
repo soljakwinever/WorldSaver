@@ -36,6 +36,15 @@ namespace Project.Scripts.Actions
 
             NodeData nodeData = node.NodeData;
             Vector3 dropPosition = node.transform.position;
+
+            EntityDamageReceiver receiver =
+                node.GetComponent<EntityDamageReceiver>();
+            if (receiver != null)
+            {
+                return receiver.TakeDamage(
+                    CreateAttackContext(context)) > 0;
+            }
+
             entity.RemoveFromWorld();
             TrySpawnDrop(context, nodeData, dropPosition);
             return true;
@@ -71,12 +80,32 @@ namespace Project.Scripts.Actions
                     continue;
                 }
 
+                EntityDamageReceiver receiver =
+                    candidateNode.GetComponent<EntityDamageReceiver>();
+                if (receiver != null &&
+                    !receiver.CanReceiveDamage(
+                        CreateAttackContext(context)))
+                {
+                    continue;
+                }
+
                 entity = persistentEntity;
                 node = candidateNode;
                 return true;
             }
 
             return false;
+        }
+
+        private static AttackContext CreateAttackContext(
+            ToolActionContext context)
+        {
+            return new AttackContext(
+                context.User,
+                context.Tool,
+                Mathf.Max(0, context.Tool?.Power ?? 0),
+                EntityDamageSource.Tool,
+                context.Tool?.DamageTags);
         }
 
         private static void TrySpawnDrop(

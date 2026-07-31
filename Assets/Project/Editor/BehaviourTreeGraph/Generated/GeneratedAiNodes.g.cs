@@ -151,6 +151,13 @@ namespace Project.Editor.AI.Generated
     }
 
     [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Break Pathing Obstacle")]
+    internal sealed class Project_Scripts_AI_Leaves_Actions_BreakPathingObstacle_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.BreakPathingObstacle);
+    }
+
+    [Serializable]
     [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Fire Projectile At Target")]
     internal sealed class Project_Scripts_AI_Leaves_Actions_FireProjectileAtTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
@@ -162,6 +169,13 @@ namespace Project.Editor.AI.Generated
     internal sealed class Project_Scripts_AI_Leaves_Actions_FleeFromTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
         internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.FleeFromTarget);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Lockpick Door")]
+    internal sealed class Project_Scripts_AI_Leaves_Actions_LockpickDoor_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.LockpickDoor);
     }
 
     [Serializable]
@@ -204,6 +218,27 @@ namespace Project.Editor.AI.Generated
     internal sealed class Project_Scripts_AI_Leaves_Sensors_DetectNearby_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
         internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.DetectNearby);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Find Blocking Obstacle Toward Target")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_FindBlockingObstacleTowardTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.FindBlockingObstacleTowardTarget);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Find Pathing Obstacle")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_FindPathingObstacle_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.FindPathingObstacle);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Find Town Core Target")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_FindTownCoreTarget_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.FindTownCoreTarget);
     }
 
     [Serializable]

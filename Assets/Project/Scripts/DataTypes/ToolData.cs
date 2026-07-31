@@ -57,6 +57,9 @@ namespace Project.Scripts
         [SerializeField]
         [Tooltip("Ordered actions this tool can perform. The first applicable action is used.")]
         private ToolAction[] _actions = Array.Empty<ToolAction>();
+        [SerializeField]
+        [Tooltip("Tags supplied by this tool when entity damage rules are evaluated.")]
+        private EntityTag[] _damageTags = Array.Empty<EntityTag>();
 
         public string ToolName => _toolName;
 
@@ -69,6 +72,8 @@ namespace Project.Scripts
         public float StaminaCost => _staminaCost;
 
         public IReadOnlyList<ToolAction> Actions => _actions;
+        public IReadOnlyList<EntityTag> DamageTags =>
+            _damageTags ?? Array.Empty<EntityTag>();
         public bool HasActions
         {
             get

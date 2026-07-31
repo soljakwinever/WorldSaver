@@ -17,6 +17,13 @@ namespace Project.Scripts.Gameplay
         [SerializeField] private Transform facingPoint;
         [SerializeField, Min(0)] private int attackForce = 1;
 
+        [Header("Placement Cursor")]
+        [SerializeField] private Color validCursorColor =
+            new(0.25f, 1f, 0.25f, 1f);
+        [SerializeField] private Color invalidCursorColor =
+            new(1f, 0.25f, 0.25f, 1f);
+        [SerializeField] private int cursorSortingOrder = 1000;
+
         [Header("Inventory Crafting")]
         [SerializeField] private string craftingWindowTitle =
             "Inventory Crafting";
@@ -37,11 +44,15 @@ namespace Project.Scripts.Gameplay
         private IItemStackPickupPool _pickupPool;
         private IAttackService _attackService;
         private bool _inventoryCraftingOpen;
+        private SpriteRenderer _placementCursorRenderer;
+        private float _nextRepeatedActionTime;
+        private bool _repeatActionBlockedUntilRelease;
 
         private void Awake()
         {
             _toolbarController = GetComponent<PlayerToolbarController>();
             _inventory = GetComponent<PersistentInventory>();
+            CreatePlacementCursor();
         }
 
         [Inject]
@@ -71,6 +82,9 @@ namespace Project.Scripts.Gameplay
         private void OnDisable()
         {
             UnsubscribeFromInput();
+            SetPlacementCursorVisible(false);
+            _nextRepeatedActionTime = 0f;
+            _repeatActionBlockedUntilRelease = false;
             if (_inventoryCraftingOpen)
                 _windowService?.Close();
         }
@@ -78,6 +92,77 @@ namespace Project.Scripts.Gameplay
         private void Update()
         {
             UpdateFocusedInteractable();
+            UpdatePlacementCursor();
+            UpdateRepeatedAction();
+        }
+
+        private void UpdateRepeatedAction()
+        {
+            if (inputManager == null ||
+                !inputManager.AttackHeld)
+            {
+                _nextRepeatedActionTime = 0f;
+                _repeatActionBlockedUntilRelease = false;
+                return;
+            }
+
+            if (_repeatActionBlockedUntilRelease ||
+                _toolbarController?.SelectedItemAction is not
+                    IRepeatsWhileHeld repeatable ||
+                repeatable.RepeatInterval <= 0f)
+            {
+                _nextRepeatedActionTime = 0f;
+                return;
+            }
+
+            if (Time.time < _nextRepeatedActionTime)
+                return;
+
+            _nextRepeatedActionTime =
+                Time.time + repeatable.RepeatInterval;
+            TryPerformSelectedAction();
+        }
+
+        private void CreatePlacementCursor()
+        {
+            var cursorObject = new GameObject("Placement Cursor");
+            cursorObject.transform.SetParent(transform);
+            _placementCursorRenderer =
+                cursorObject.AddComponent<SpriteRenderer>();
+            _placementCursorRenderer.sortingLayerName = "Default";
+            _placementCursorRenderer.sortingOrder = cursorSortingOrder;
+            _placementCursorRenderer.enabled = false;
+        }
+
+        private void UpdatePlacementCursor()
+        {
+            if (_placementCursorRenderer == null ||
+                _toolbarController == null ||
+                _toolbarController.SelectedItemAction is not
+                    IUsesCursor cursorAction ||
+                !cursorAction.TryGetCursor(
+                    CreateItemActionContext(),
+                    out PlacementCursorData cursor) ||
+                cursor.Sprite == null)
+            {
+                SetPlacementCursorVisible(false);
+                return;
+            }
+
+            _placementCursorRenderer.transform.position = cursor.Position;
+            _placementCursorRenderer.sprite = cursor.Sprite;
+            Color color = cursor.IsValid
+                ? validCursorColor
+                : invalidCursorColor;
+            color.a *= cursor.Opacity;
+            _placementCursorRenderer.color = color;
+            _placementCursorRenderer.enabled = true;
+        }
+
+        private void SetPlacementCursorVisible(bool visible)
+        {
+            if (_placementCursorRenderer != null)
+                _placementCursorRenderer.enabled = visible;
         }
 
         private void UpdateFocusedInteractable()
@@ -244,13 +329,13 @@ namespace Project.Scripts.Gameplay
             if (closestTarget == null)
                 return false;
 
-            _attackService.Attack(
+            int delivered = _attackService.Attack(
                 closestTarget,
                 new AttackContext(
                     gameObject,
                     GetSelectedTool(),
                     attackForce));
-            return true;
+            return delivered > 0;
         }
 
         private ToolData GetSelectedTool()
@@ -271,7 +356,7 @@ namespace Project.Scripts.Gameplay
         {
             Vector3 targetPosition;
             Camera mainCamera = Camera.main;
-            if (mainCamera != null)
+            if (mainCamera != null && inputManager != null)
             {
                 Vector2 screenPosition = inputManager.MousePosition;
                 targetPosition = mainCamera.ScreenToWorldPoint(
@@ -320,8 +405,22 @@ namespace Project.Scripts.Gameplay
 
             if (context.AttackPressed)
             {
-                if (!TryAttackDamageable())
+                if (TryAttackDamageable())
+                {
+                    _repeatActionBlockedUntilRelease = true;
+                }
+                else
+                {
                     TryPerformSelectedAction();
+
+                    if (_toolbarController.SelectedItemAction is
+                            IRepeatsWhileHeld repeatable &&
+                        repeatable.RepeatInterval > 0f)
+                    {
+                        _nextRepeatedActionTime =
+                            Time.time + repeatable.RepeatInterval;
+                    }
+                }
             }
 
             if (context.CraftingPressed)

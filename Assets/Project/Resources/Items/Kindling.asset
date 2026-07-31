@@ -15,12 +15,17 @@ MonoBehaviour:
   persistentId: Kindling
   description: Kindling
   maxStack: 32
-  sprite: {fileID: 6980786857748427481, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  sprite: {fileID: 8887255329501761466, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
   action: {fileID: 0}
+  actionData: []
   goldValue: 1
   fuelValue: 1
+  magicValue: 4
   tags:
   - {fileID: 11400000, guid: 60f82f88a77b4ba09cfc6515e57c0374, type: 2}
   - {fileID: 11400000, guid: 8537dabfd3c259c4f94153e0c0031e43, type: 2}
   - {fileID: 11400000, guid: a8384b5e38da94043ab23b67f322ef6f, type: 2}
   - {fileID: 11400000, guid: 8ea3eee7ae611d852d789877efa23f29, type: 2}
+  references:
+    version: 2
+    RefIds: []

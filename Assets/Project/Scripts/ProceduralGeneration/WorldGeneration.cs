@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Project.Scripts;
 using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Enums;
 using Project.Scripts.Interface;
 using UnityEngine;
@@ -49,11 +51,38 @@ public class WorldGeneration : IWorldGenerator
     private readonly BiomeData[] biomeLibrary;
     private readonly Dictionary<long, FeatureInstance> featureInstances = new();
     private readonly object featureInstanceLock = new();
+    private readonly object spawnPositionLock = new();
     private readonly int featureNeighborRange;
+    private volatile bool hasWorldSpawnPosition;
+    private Vector2Int worldSpawnPosition;
 
     private uint seed;
 
     public uint Seed => seed;
+    public Vector2Int WorldSpawnPosition
+    {
+        get
+        {
+            if (hasWorldSpawnPosition)
+                return worldSpawnPosition;
+
+            lock (spawnPositionLock)
+            {
+                if (!hasWorldSpawnPosition)
+                {
+                    worldSpawnPosition = FindSafeSpawnPosition(
+                        minHeight: Mathf.Min(
+                            elevationLayer.beachHeight + 0.1f,
+                            elevationLayer.mountainHeight),
+                        maxHeight: elevationLayer.mountainHeight);
+                    hasWorldSpawnPosition = true;
+                }
+            }
+
+            return worldSpawnPosition;
+        }
+    }
+    public NodeData SpawnPlatformNode => worldData.spawnPlatformNode;
     public WorldGenerationPresetData Preset => preset;
     public ElevationLayerData Elevation => elevationLayer;
     public IReadOnlyList<PropSpawnRule> PropSpawnRules =>
@@ -61,6 +90,17 @@ public class WorldGeneration : IWorldGenerator
         surfaceLayer.propSpawnRules.Length > 0
             ? surfaceLayer.propSpawnRules
             : worldData.propSpawnRules ?? Array.Empty<PropSpawnRule>();
+
+    public IReadOnlyList<FeatureBuildingData> FeatureBuildings =>
+        AllFeatureBuildings
+            .OfType<FeatureBuildingData>()
+            .Where(building => building.IsConfigured)
+            .ToArray() ?? Array.Empty<FeatureBuildingData>();
+    public IReadOnlyList<FeatureBuildingData> AllFeatureBuildings =>
+        featureLayer.features?
+            .OfType<FeatureBuildingData>()
+            .Where(building => building != null)
+            .ToArray() ?? Array.Empty<FeatureBuildingData>();
     
     public WorldGeneration(WorldData worldData)
         : this(
@@ -283,8 +323,34 @@ public class WorldGeneration : IWorldGenerator
     
     public int GetTile(int x, int y, out BiomeBlend biomeData, out float height, out float moisture, out float temperature)
     {
+        return GetTile(
+            x,
+            y,
+            out biomeData,
+            out height,
+            out moisture,
+            out temperature,
+            out _);
+    }
+
+    public int GetTile(
+        int x,
+        int y,
+        out BiomeBlend biomeData,
+        out float height,
+        out float moisture,
+        out float temperature,
+        out TileData floorTile)
+    {
         
-        height = GetHeight(x, y, out biomeData, out float baseHeight, out moisture, out temperature);
+        height = GetHeight(
+            x,
+            y,
+            out biomeData,
+            out float baseHeight,
+            out moisture,
+            out temperature,
+            out floorTile);
 
         if (preset.heightMapDebug)
         {
@@ -294,7 +360,7 @@ public class WorldGeneration : IWorldGenerator
 
         return GetTileIndex(height);
     }
-    
+
     public TerrainSample GetTerrainSample(int x, int y)
     {
         var height = GetHeight(x, y, out BiomeBlend biomeData, out float baseHeight, out float moisture, out float temperature, 8);
@@ -355,6 +421,27 @@ public class WorldGeneration : IWorldGenerator
     /// <returns>Returns the final computed height of the terrain, normalized between 0 and 1.</returns>
     private float GetHeight(int x, int y, out BiomeBlend biomeData, out float baseHeight, out float moisture, out float temperature, int sampleRadius = -1)
     {
+        return GetHeight(
+            x,
+            y,
+            out biomeData,
+            out baseHeight,
+            out moisture,
+            out temperature,
+            out _,
+            sampleRadius);
+    }
+
+    private float GetHeight(
+        int x,
+        int y,
+        out BiomeBlend biomeData,
+        out float baseHeight,
+        out float moisture,
+        out float temperature,
+        out TileData floorTile,
+        int sampleRadius = -1)
+    {
         if (sampleRadius < 0)
             sampleRadius = climateLayer.blendSampleRadius;
 
@@ -408,6 +495,7 @@ public class WorldGeneration : IWorldGenerator
             biomeData = biomeData
         };
         ApplyFeatures(x, y, ref terrain);
+        floorTile = terrain.floorTile;
         height = Mathf.InverseLerp(
             elevationLayer.normalizationMinimum,
             elevationLayer.normalizationMaximum,
@@ -455,14 +543,21 @@ public class WorldGeneration : IWorldGenerator
         float minHeight = 0.075f,
         float maxHeight = 0.7f)
     {
+        searchRadius = Mathf.Clamp(
+            searchRadius,
+            1,
+            int.MaxValue / 2);
+        maxAttempts = Mathf.Max(0, maxAttempts);
+        safetyRadius = Mathf.Max(0, safetyRadius);
+
         Vector2Int bestPosition = Vector2Int.zero;
         float bestScore = float.MinValue;
         bool found = false;
         
         for (int i = 0; i < maxAttempts; i++)
         {
-            int x = UnityEngine.Random.Range(-searchRadius, searchRadius);
-            int y = UnityEngine.Random.Range(-searchRadius, searchRadius);
+            int x = GetSpawnSearchCoordinate(i, 0xA511E9B3u, searchRadius);
+            int y = GetSpawnSearchCoordinate(i, 0x63D83595u, searchRadius);
             
             if(!IsSpawnSafe(x, y, safetyRadius, minHeight, maxHeight))
                 continue;
@@ -483,6 +578,30 @@ public class WorldGeneration : IWorldGenerator
         return FindSpawnPointSpiral(minHeight, maxHeight);
     }
 
+    private int GetSpawnSearchCoordinate(
+        int attempt,
+        uint salt,
+        int radius)
+    {
+        unchecked
+        {
+            uint value =
+                seed ^
+                (uint)attempt * 0x9E3779B9u ^
+                salt;
+            value ^= value >> 16;
+            value *= 0x7FEB352Du;
+            value ^= value >> 15;
+            value *= 0x846CA68Bu;
+            value ^= value >> 16;
+
+            uint diameter = (uint)Math.Min(
+                (long)radius * 2L,
+                uint.MaxValue);
+            return (int)((long)(value % diameter) - radius);
+        }
+    }
+
 
     #region Spawn Point Discovery
 
@@ -492,17 +611,19 @@ public class WorldGeneration : IWorldGenerator
         {
             for (int x = -radius; x <= radius; x++)
             {
-                if(IsValidSpawnHeight(x, 0, minHeight, maxHeight))
+                if(IsValidSpawnHeight(x, radius, minHeight, maxHeight))
                     return new Vector2Int(x, radius);
-                if(IsValidSpawnHeight(x, -radius, minHeight, maxHeight))
-                    return new Vector2Int(-radius, x);
+                if(radius > 0 &&
+                   IsValidSpawnHeight(x, -radius, minHeight, maxHeight))
+                    return new Vector2Int(x, -radius);
             }
 
-            for (int y = -radius; y <= radius; y++)
+            for (int y = -radius + 1; y < radius; y++)
             {
                 if(IsValidSpawnHeight(radius, y, minHeight, maxHeight))
                     return new Vector2Int(radius, y);
-                if(IsValidSpawnHeight(-radius, y, minHeight, maxHeight))
+                if(radius > 0 &&
+                   IsValidSpawnHeight(-radius, y, minHeight, maxHeight))
                     return new Vector2Int(-radius, y);
             }
         }
@@ -950,6 +1071,213 @@ public class WorldGeneration : IWorldGenerator
         }
 
         return lastWeighted;
+    }
+
+    public IReadOnlyList<PropSpawnData> GetFeatureBuildingSpawns(
+        Vector2Int chunkPosition)
+    {
+        Vector2Int region = WorldPartition.ChunkToRegion(chunkPosition);
+        Dictionary<string, FeatureInstance> winners =
+            GetFeatureBuildingWinners(region);
+        List<PropSpawnData> spawns = new();
+
+        foreach (KeyValuePair<string, FeatureInstance> pair in winners)
+        {
+            FeatureInstance instance = pair.Value;
+            var building = instance.feature as FeatureBuildingData;
+            if (building == null || !building.IsConfigured)
+                continue;
+
+            Vector2 position = instance.center + building.placementOffset;
+            if (WorldPartition.WorldToChunk(position) != chunkPosition)
+                continue;
+
+            Vector2Int cell = Vector2Int.FloorToInt(position);
+            ushort generatorType = NodeId.CreateGeneratorType(
+                $"FeatureBuilding:{building.persistentId}");
+            spawns.Add(new PropSpawnData
+            {
+                NodeId = NodeId.Create(
+                    seed,
+                    cell,
+                    generatorType,
+                    0),
+                worldPosition = cell,
+                propName = building.persistentId,
+                nodeData = building.entityArchetype.NodeData,
+                position = position,
+                scale = 1f,
+                terrainSample = GetTerrainSample(cell.x, cell.y),
+                persistenceKind = EntityPersistenceKind.Procedural
+            });
+        }
+
+        return spawns;
+    }
+
+    public bool RegionContainsGeneratedFeatureBuilding(
+        Vector2Int region,
+        string uniqueKey)
+    {
+        if (string.IsNullOrWhiteSpace(uniqueKey))
+            return false;
+
+        return GetFeatureBuildingWinners(region).ContainsKey(uniqueKey.Trim());
+    }
+
+    public bool TryLocateFeatureInRegion(
+        string featureId,
+        Vector2Int region,
+        out Vector2 position)
+    {
+        position = default;
+        string normalizedId = featureId?.Trim();
+        if (string.IsNullOrEmpty(normalizedId))
+            return false;
+
+        FeatureBuildingData requestedBuilding =
+            featureLayer.features?
+                .OfType<FeatureBuildingData>()
+                .FirstOrDefault(building => string.Equals(
+                    building.persistentId,
+                    normalizedId,
+                    StringComparison.OrdinalIgnoreCase));
+        if (requestedBuilding != null)
+        {
+            foreach (FeatureInstance winner in
+                     GetFeatureBuildingWinners(region).Values)
+            {
+                if (winner.feature is not FeatureBuildingData building ||
+                    !string.Equals(
+                        building.persistentId,
+                        normalizedId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                position = winner.center + building.placementOffset;
+                return true;
+            }
+
+            return false;
+        }
+
+        int regionWorldSize =
+            WorldPartition.RegionSizeInChunks * ChunkBuildResult.ChunkSize;
+        int minimumWorldX = region.x * regionWorldSize;
+        int minimumWorldY = region.y * regionWorldSize;
+        int maximumWorldX = minimumWorldX + regionWorldSize - 1;
+        int maximumWorldY = minimumWorldY + regionWorldSize - 1;
+        int cellSize = Mathf.Max(1, featureLayer.cellSize);
+        int minimumCellX = Mathf.FloorToInt((float)minimumWorldX / cellSize) - 1;
+        int minimumCellY = Mathf.FloorToInt((float)minimumWorldY / cellSize) - 1;
+        int maximumCellX = Mathf.FloorToInt((float)maximumWorldX / cellSize) + 1;
+        int maximumCellY = Mathf.FloorToInt((float)maximumWorldY / cellSize) + 1;
+
+        for (int cellY = minimumCellY; cellY <= maximumCellY; cellY++)
+        {
+            for (int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
+            {
+                FeatureInstance instance = GetFeatureInstance(cellX, cellY);
+                if (!instance.exists ||
+                    instance.feature is FeatureBuildingData ||
+                    !string.Equals(
+                        instance.feature.persistentId,
+                        normalizedId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                Vector2 candidate = instance.feature is FeatureBuildingData building
+                    ? instance.center + building.placementOffset
+                    : instance.center;
+                if (WorldPartition.ChunkToRegion(
+                        WorldPartition.WorldToChunk(candidate)) != region)
+                {
+                    continue;
+                }
+
+                position = candidate;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool TryLocateAnyFeatureInRegion(
+        Vector2Int region,
+        out FeatureData feature,
+        out Vector2 position)
+    {
+        foreach (FeatureData candidate in
+                 featureLayer.features ?? Array.Empty<FeatureData>())
+        {
+            if (candidate != null &&
+                TryLocateFeatureInRegion(
+                    candidate.persistentId,
+                    region,
+                    out position))
+            {
+                feature = candidate;
+                return true;
+            }
+        }
+
+        feature = null;
+        position = default;
+        return false;
+    }
+
+    private Dictionary<string, FeatureInstance> GetFeatureBuildingWinners(
+        Vector2Int region)
+    {
+        Dictionary<string, FeatureInstance> winners =
+            new(StringComparer.Ordinal);
+        int regionWorldSize =
+            WorldPartition.RegionSizeInChunks * ChunkBuildResult.ChunkSize;
+        int minimumWorldX = region.x * regionWorldSize;
+        int minimumWorldY = region.y * regionWorldSize;
+        int maximumWorldX = minimumWorldX + regionWorldSize - 1;
+        int maximumWorldY = minimumWorldY + regionWorldSize - 1;
+        int cellSize = Mathf.Max(1, featureLayer.cellSize);
+        int minimumCellX = Mathf.FloorToInt((float)minimumWorldX / cellSize) - 1;
+        int minimumCellY = Mathf.FloorToInt((float)minimumWorldY / cellSize) - 1;
+        int maximumCellX = Mathf.FloorToInt((float)maximumWorldX / cellSize) + 1;
+        int maximumCellY = Mathf.FloorToInt((float)maximumWorldY / cellSize) + 1;
+
+        for (int cellY = minimumCellY; cellY <= maximumCellY; cellY++)
+        {
+            for (int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
+            {
+                FeatureInstance instance = GetFeatureInstance(cellX, cellY);
+                if (!instance.exists ||
+                    instance.feature is not FeatureBuildingData building ||
+                    !building.IsConfigured)
+                {
+                    continue;
+                }
+
+                Vector2 position = instance.center + building.placementOffset;
+                if (WorldPartition.ChunkToRegion(
+                        WorldPartition.WorldToChunk(position)) != region)
+                {
+                    continue;
+                }
+
+                string key = string.IsNullOrWhiteSpace(building.regionUniqueKey)
+                    ? $"{building.persistentId}:{cellX}:{cellY}"
+                    : building.regionUniqueKey.Trim();
+
+                // Iteration is deterministic. Keeping the first candidate gives
+                // every chunk worker the same one-per-region decision.
+                winners.TryAdd(key, instance);
+            }
+        }
+
+        return winners;
     }
 
     private void ApplyFeatureInstance(

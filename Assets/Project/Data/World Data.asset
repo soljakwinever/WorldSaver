@@ -30,6 +30,7 @@ MonoBehaviour:
   roomRoofTile: {fileID: 11400000, guid: 30333333333343338333333333333333, type: 2}
   maximumRoomArea: 4096
   roomFloodFillsPerFrame: 4
+  buildingRoomConnectionDistance: 1
   roomOutsideFadeSeconds: 0.2
   tileSpreadRules:
   - {fileID: 11400000, guid: c5077881638646b5be27072cfec50c92, type: 2}
@@ -647,11 +648,17 @@ MonoBehaviour:
   enemySpawnRules:
   - {fileID: 11400000, guid: 5a0c59a17f84480eb1b9dc64730a3c28, type: 2}
   - {fileID: 11400000, guid: ea0d5b376706de44a97c694e7a1006c7, type: 2}
+  - {fileID: 11400000, guid: 7da5bce4e0632204686460839da1ef9f, type: 2}
   transientRecycleCheckIntervalTicks: 5
   transientOffscreenViewportMargin: 0.1
+  spawnPlatformNode: {fileID: 11400000, guid: d0c00430eef4e2343ac6468f8d0099d1, type: 2}
   runtimeEntityArchetypes:
   - {fileID: 11400000, guid: f54a64c4914aedb45a88fb4adc14ed5d, type: 2}
   - {fileID: 11400000, guid: dec7ab53b1d372a42a9a7eb770fc195b, type: 2}
+  - {fileID: 11400000, guid: d7647cf4681af4d46864792d014b7a61, type: 2}
+  - {fileID: 11400000, guid: 98f20278eb423594a89deaf1aa93e10e, type: 2}
+  - {fileID: 11400000, guid: 7334b6e3869b4526ac3662fec540476b, type: 2}
+  - {fileID: 11400000, guid: a4000000000000000000000000000004, type: 2}
   daysInMonth: 30
   minutesPerDay: 5
   startHour: 8

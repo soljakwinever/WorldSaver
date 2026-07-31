@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b58f2629b454435a2cddccf0ad09e56, type: 3}
+  m_Name: TownCore
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.NodeData
+  sprite: {fileID: 4941530758645526566, guid: e0ed3743aaef6d649a6dbb360cd67395, type: 3}
+  isTrigger: 0
+  sprites: []
+  nodeType: 0
+  toolRequirement: 0
+  overrideMaterial: {fileID: 0}
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  overrideVisual: {fileID: 0}
+  lightness: 1
+  lightnessVariance: 0
+  persistentComponents:
+  - rid: 810000000000000601
+  - rid: 810000000000000602
+  - rid: 1367514975385420049
+  droppedItem: {fileID: 0}
+  dropChance: 1
+  tags: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 810000000000000601
+      type: {class: PersistentTransformData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
+        alwaysPersist: 1
+    - rid: 810000000000000602
+      type: {class: TownCoreData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: bbfd482eea073884bbd369c7c362407a, type: 2}
+        initialName: New Village
+        windowTitle: Town Core
+        interactionPrompt: Visit town shrine
+        spawnPointOffset: 1.25
+        maximumHealth: 250
+        offeringInventorySize: 16
+        townRadius: 32
+        resourceRadius: 48
+        maximumPopulation: 10
+        maximumMana: 100
+        passiveManaPerTick: 0.01
+        ticksPerOffering: 10
+        buildingRefreshTicks: 10
+        buildingLayerMask:
+          serializedVersion: 2
+          m_Bits: 4294967295
+        effects:
+        - {fileID: 11400000, guid: d83ca4f54a374eaa9e419bda904c1787, type: 2}
+        upgrades: []
+    - rid: 1367514975385420049
+      type: {class: SpaceReservationData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: d50bbd4f86d1460ea2680d9ac2f163d4, type: 2}
+        width: 2
+        height: 2
+        xOffset: 0
+        yOffset: 0

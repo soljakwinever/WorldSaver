@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Enums;
 using Project.Scripts.Interface;
@@ -159,6 +160,10 @@ namespace Project.Scripts.TimeAndWeather
         ClimateSnapshot GetLocalSnapshot(
             Vector2 worldPosition,
             ClimateSnapshot regionalSnapshot);
+        ClimateSnapshot GetLocalSnapshot(
+            Vector2 worldPosition,
+            float normalizedTerrainTemperature,
+            ClimateSnapshot regionalSnapshot);
         void ClearCache();
     }
 
@@ -168,6 +173,29 @@ namespace Project.Scripts.TimeAndWeather
             Vector2Int region,
             ClimateContext context,
             ref ClimateModifierAccumulator modifiers);
+    }
+
+    public interface IClimateCoreWeatherSource : IWeatherModifierSource
+    {
+        void HydrateRegion(RuntimeRegion region);
+        float GetTemperatureOffset(Vector2 worldPosition);
+        bool TryGetPermanentWeather(
+            Vector2Int region,
+            out string weatherId);
+        bool TryGetPermanentWeather(
+            Vector2Int region,
+            long tick,
+            out string weatherId);
+        bool TryGetPermanentWeather(
+            Vector2Int region,
+            long tick,
+            out string weatherId,
+            out float influence);
+        bool TryGetPermanentWeather(
+            Vector2 worldPosition,
+            long tick,
+            out string weatherId,
+            out float influence);
     }
 
     public sealed class NullWeatherModifierSource : IWeatherModifierSource
@@ -206,6 +234,8 @@ namespace Project.Scripts.TimeAndWeather
         public readonly float PuddleAccumulation;
         public readonly float SnowAccumulation;
         public readonly WeatherEffectSample[] ActiveEffects;
+        public readonly bool HasWeatherOverride;
+        public readonly float WeatherOverrideInfluence;
 
         public WeatherSample(
             Vector2Int region,
@@ -217,7 +247,9 @@ namespace Project.Scripts.TimeAndWeather
             Color ambientColorTint,
             float puddleAccumulation,
             float snowAccumulation,
-            WeatherEffectSample[] activeEffects = null)
+            WeatherEffectSample[] activeEffects = null,
+            bool hasWeatherOverride = false,
+            float weatherOverrideInfluence = 0f)
         {
             Region = region;
             Climate = climate;
@@ -229,6 +261,10 @@ namespace Project.Scripts.TimeAndWeather
             PuddleAccumulation = Mathf.Clamp01(puddleAccumulation);
             SnowAccumulation = Mathf.Clamp01(snowAccumulation);
             ActiveEffects = activeEffects ?? Array.Empty<WeatherEffectSample>();
+            HasWeatherOverride = hasWeatherOverride;
+            WeatherOverrideInfluence = hasWeatherOverride
+                ? Mathf.Clamp01(weatherOverrideInfluence)
+                : 0f;
         }
 
         public WeatherSample WithTerrainTemperature(
@@ -248,7 +284,9 @@ namespace Project.Scripts.TimeAndWeather
                 AmbientColorTint,
                 PuddleAccumulation,
                 SnowAccumulation,
-                ActiveEffects);
+                ActiveEffects,
+                HasWeatherOverride,
+                WeatherOverrideInfluence);
         }
     }
 
@@ -256,6 +294,9 @@ namespace Project.Scripts.TimeAndWeather
     {
         float GlobalTemperatureOffset { get; }
         WeatherSample Sample(Vector2 worldPosition);
+        WeatherSample Sample(
+            Vector2 worldPosition,
+            float normalizedTerrainTemperature);
         WeatherSample GetRegionSample(Vector2Int region);
         bool TryGetCachedRegionSample(
             Vector2Int region,

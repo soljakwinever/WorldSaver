@@ -6,6 +6,7 @@ namespace Project.Scripts.Interface
     public interface IWorldGenerator
     {
         public uint Seed { get; }
+        public Vector2Int WorldSpawnPosition { get; }
 
         public int GetTile(int x, int y, out BiomeBlend biomeData, out float height, out float moisture,
             out float temperature);

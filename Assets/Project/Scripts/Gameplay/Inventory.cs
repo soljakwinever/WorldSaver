@@ -25,7 +25,8 @@ namespace Project.Scripts.Gameplay
         }
 
         public bool TryAdd(ItemData item, int count, out int remainder,
-            ItemData.Rarity rarity = ItemData.Rarity.Common)
+            ItemData.Rarity rarity = ItemData.Rarity.Common,
+            byte durability = byte.MaxValue)
         {
             ItemStack.ValidateItem(item);
             if (count <= 0)
@@ -36,14 +37,18 @@ namespace Project.Scripts.Gameplay
             for (int i = 0; i < _stacks.Count && remainder > 0; i++)
             {
                 ItemStack stack = _stacks[i];
-                if (stack.Item == item && stack.Rarity == rarity && !stack.IsFull)
+                if (stack.Item == item &&
+                    stack.Rarity == rarity &&
+                    stack.Durability == durability &&
+                    !stack.IsFull)
                     remainder = stack.Add(remainder);
             }
 
             while (remainder > 0 && _stacks.Count < Size)
             {
                 int stackCount = Math.Min(remainder, item.maxStack);
-                AddStack(new ItemStack(item, stackCount, rarity));
+                AddStack(new ItemStack(
+                    item, stackCount, rarity, durability));
                 remainder -= stackCount;
             }
 
@@ -55,7 +60,12 @@ namespace Project.Scripts.Gameplay
             if (stack == null)
                 throw new ArgumentNullException(nameof(stack));
 
-            return TryAdd(stack.Item, stack.Count, out remainder, stack.Rarity);
+            return TryAdd(
+                stack.Item,
+                stack.Count,
+                out remainder,
+                stack.Rarity,
+                stack.Durability);
         }
 
         public bool TryRemove(ItemData item, int count, ItemData.Rarity rarity)
@@ -89,7 +99,31 @@ namespace Project.Scripts.Gameplay
             if (stack == null)
                 throw new ArgumentNullException(nameof(stack));
 
-            return TryRemove(stack.Item, stack.Count, stack.Rarity);
+            if (GetCount(
+                    stack.Item,
+                    stack.Rarity,
+                    stack.Durability) < stack.Count)
+                return false;
+
+            int remaining = stack.Count;
+            for (int i = _stacks.Count - 1;
+                 i >= 0 && remaining > 0;
+                 i--)
+            {
+                ItemStack candidate = _stacks[i];
+                if (candidate.Item != stack.Item ||
+                    candidate.Rarity != stack.Rarity ||
+                    candidate.Durability != stack.Durability)
+                    continue;
+
+                int removed = Math.Min(candidate.Count, remaining);
+                candidate.Remove(removed);
+                remaining -= removed;
+                if (candidate.Count == 0)
+                    RemoveStackAt(i);
+            }
+
+            return true;
         }
 
         public bool TryRemove(EntityTag tag, int count)
@@ -217,7 +251,10 @@ namespace Project.Scripts.Gameplay
             if (stack == null)
                 throw new ArgumentNullException(nameof(stack));
 
-            return Contains(stack.Item, stack.Count, stack.Rarity);
+            return GetCount(
+                stack.Item,
+                stack.Rarity,
+                stack.Durability) >= stack.Count;
         }
 
         public bool CanApplyChanges(IReadOnlyList<InventoryChange> changes)
@@ -254,7 +291,11 @@ namespace Project.Scripts.Gameplay
             for (int i = 0; i < _stacks.Count; i++)
             {
                 ItemStack stack = _stacks[i];
-                changedStacks.Add(new ItemStack(stack.Item, stack.Count, stack.Rarity));
+                changedStacks.Add(new ItemStack(
+                    stack.Item,
+                    stack.Count,
+                    stack.Rarity,
+                    stack.Durability));
             }
 
             for (int changeIndex = 0; changeIndex < changes.Count; changeIndex++)
@@ -269,7 +310,10 @@ namespace Project.Scripts.Gameplay
                     for (int i = changedStacks.Count - 1; i >= 0 && remaining > 0; i--)
                     {
                         ItemStack stack = changedStacks[i];
-                        if (stack.Item != change.Item || stack.Rarity != change.Rarity)
+                        if (stack.Item != change.Item ||
+                            stack.Rarity != change.Rarity ||
+                            (!change.MatchesAnyDurability &&
+                             stack.Durability != change.Durability))
                             continue;
 
                         int removed = Math.Min(stack.Count, remaining);
@@ -289,6 +333,7 @@ namespace Project.Scripts.Gameplay
                     ItemStack stack = changedStacks[i];
                     if (stack.Item == change.Item &&
                         stack.Rarity == change.Rarity &&
+                        stack.Durability == change.Durability &&
                         !stack.IsFull)
                     {
                         remaining = stack.Add(remaining);
@@ -299,7 +344,11 @@ namespace Project.Scripts.Gameplay
                 {
                     int stackCount = Math.Min(remaining, change.Item.maxStack);
                     changedStacks.Add(
-                        new ItemStack(change.Item, stackCount, change.Rarity));
+                        new ItemStack(
+                            change.Item,
+                            stackCount,
+                            change.Rarity,
+                            change.Durability));
                     remaining -= stackCount;
                 }
 
@@ -320,6 +369,24 @@ namespace Project.Scripts.Gameplay
         {
             _stacks.RemoveAt(index);
             _stackView.RemoveAt(index);
+        }
+
+        private int GetCount(
+            ItemData item,
+            ItemData.Rarity rarity,
+            byte durability)
+        {
+            int total = 0;
+            for (int i = 0; i < _stacks.Count; i++)
+            {
+                ItemStack stack = _stacks[i];
+                if (stack.Item == item &&
+                    stack.Rarity == rarity &&
+                    stack.Durability == durability)
+                    total = checked(total + stack.Count);
+            }
+
+            return total;
         }
     }
 }

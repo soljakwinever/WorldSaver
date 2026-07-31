@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1131223ceb0f23844af85be8cc8c7f1d, type: 3}
+  m_Name: Perma Light Snow Phase 1
+  m_EditorClassIdentifier: 
+  phaseId: snow.light.perma
+  minimumDurationTicks: 15
+  maximumDurationTicks: 15
+  baseIntensity: 0.45
+  temperatureOffset: -0.06
+  moistureOffset: 0.05
+  ambientColorTint: {r: 0.9, g: 0.94, b: 1, a: 1}
+  effects:
+  - {fileID: 11400000, guid: 3ce477f1774d485587d54808fb3f24d4, type: 2}

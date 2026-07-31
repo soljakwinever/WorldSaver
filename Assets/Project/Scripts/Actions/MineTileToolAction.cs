@@ -32,13 +32,35 @@ namespace Project.Scripts.Actions
                     out Vector3Int cell,
                     out MineTileToolActionData data,
                     out TileData tile,
-                    out PersistentTileLayer layer) ||
-                !chunk.TryReplaceMinedTile(cell, layer))
+                    out PersistentTileLayer layer))
             {
                 return false;
             }
 
-            TrySpawnDrop(context, tile, cell + new Vector3(0.5f, 0.5f));
+            bool createsDrop;
+            if (layer == PersistentTileLayer.Wall)
+            {
+                if (!chunk.TryDamageWall(
+                        cell,
+                        context.Tool.Power,
+                        WallDestructionType.TornDown,
+                        out bool wallDestroyed))
+                {
+                    return false;
+                }
+
+                createsDrop = wallDestroyed;
+            }
+            else
+            {
+                if (!chunk.TryReplaceMinedTile(cell, layer))
+                    return false;
+
+                createsDrop = true;
+            }
+
+            if (createsDrop)
+                TrySpawnDrop(context, tile, cell + new Vector3(0.5f, 0.5f));
             return true;
         }
 

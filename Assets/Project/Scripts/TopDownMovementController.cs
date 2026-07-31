@@ -41,9 +41,7 @@ namespace Project.Scripts
             
             _rigidbody2D = GetComponent<Rigidbody2D>();
             
-            var position = worldGeneration.FindSafeSpawnPosition(
-                minHeight: worldGeneration.Elevation.beachHeight + 0.1f,
-                maxHeight: worldGeneration.Elevation.mountainHeight);
+            Vector2Int position = worldGeneration.WorldSpawnPosition;
 
             transform.position = grid.CellToWorld(new Vector3Int(position.x, position.y, 0));
         }

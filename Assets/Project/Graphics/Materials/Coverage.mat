@@ -63,6 +63,7 @@ Material:
     - _DetailScale: 1.5
     - _DetailStrength: 0.2
     - _NoiseScale: 0.25
+    - _NoiseType: 1
     - _QueueControl: -1
     - _QueueOffset: 0
     m_Colors:

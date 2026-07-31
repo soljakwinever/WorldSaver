@@ -7,6 +7,7 @@ namespace Project.Scripts.Interface
     {
         InputContext Context { get; }
         Vector2 MousePosition { get; }
+        bool AttackHeld { get; }
         event Action<InputContext> InputPerformed;
     }
 }

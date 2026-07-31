@@ -23,11 +23,35 @@ MonoBehaviour:
   lightness: 1
   lightnessVariance: 0
   persistentComponents:
-  - {fileID: 11400000, guid: 2d1be99f98489404a970377622a873fa, type: 2}
-  - {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
-  - {fileID: 11400000, guid: 55e1abd1172112b45bd1a8caf5d3b0b1, type: 2}
+  - rid: 810000000000000001
+  - rid: 810000000000000002
+  - rid: 810000000000000003
   resourceType: 0
   droppedItem: {fileID: 11400000, guid: 6a8222c88e101ac4bad5be160c204b22, type: 2}
   dropChance: 1
   tags:
   - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
+  references:
+    version: 2
+    RefIds:
+    - rid: 810000000000000001
+      type: {class: PersistentInventoryData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 2d1be99f98489404a970377622a873fa, type: 2}
+        size: 2
+        validItems:
+        - {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
+        - {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
+    - rid: 810000000000000002
+      type: {class: PersistentTransformData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
+        alwaysPersist: 1
+    - rid: 810000000000000003
+      type: {class: CraftingBenchComponentData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 55e1abd1172112b45bd1a8caf5d3b0b1, type: 2}
+        windowTitle: Crafting Bench
+        interactionPrompt: Use crafting bench
+        layout: {fileID: 0}
+        recipeList: {fileID: 11400000, guid: e8bd74f6bb214b6a9b2182f4a97d9051, type: 2}

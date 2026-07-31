@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f6c13df328945b08ed952db1a43e0d6, type: 3}
+  m_Name: TownCore
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.CraftingRecipeData
+  ingredients:
+  - matchType: 1
+    itemData: {fileID: 0}
+    tag: {fileID: 11400000, guid: 6dd4ca9af4e337680cab072a651c8e64, type: 2}
+    count: 16
+  - matchType: 0
+    itemData: {fileID: 11400000, guid: 4a33ca0781cfadd44a352369900e6d3b, type: 2}
+    tag: {fileID: 0}
+    count: 1
+  - matchType: 0
+    itemData: {fileID: 11400000, guid: 0b909730823da9e4aaa6e1814e949787, type: 2}
+    tag: {fileID: 0}
+    count: 4
+  output:
+  - itemData: {fileID: 11400000, guid: 46d21e07fbd78784fa2737fc60febfe1, type: 2}
+    amount: 1
+    chance: 1
+    rolls: 1
+  workRequired: 1

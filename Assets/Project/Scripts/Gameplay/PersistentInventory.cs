@@ -11,7 +11,7 @@ namespace Project.Scripts.Gameplay
     public sealed class PersistentInventory : MonoBehaviour, IInventory, IPersistentComponent
     {
         public const ushort TypeId = 7;
-        private const ushort CurrentVersion = 1;
+        private const ushort CurrentVersion = 2;
 
         [SerializeField, Min(1)] private int size = 16;
 
@@ -65,10 +65,12 @@ namespace Project.Scripts.Gameplay
         }
 
         public bool TryAdd(ItemData item, int count, out int remainder,
-            ItemData.Rarity rarity = ItemData.Rarity.Common)
+            ItemData.Rarity rarity = ItemData.Rarity.Common,
+            byte durability = byte.MaxValue)
         {
             EnsureCatalogContains(item);
-            return GetInventory().TryAdd(item, count, out remainder, rarity);
+            return GetInventory().TryAdd(
+                item, count, out remainder, rarity, durability);
         }
 
         public bool TryAdd(IItemStack stack, out int remainder)
@@ -162,6 +164,7 @@ namespace Project.Scripts.Gameplay
                 writer.Write(stack.Item.persistentId);
                 writer.Write((byte)stack.Rarity);
                 writer.Write(stack.Count);
+                writer.Write(stack.Durability);
             }
         }
 
@@ -169,7 +172,7 @@ namespace Project.Scripts.Gameplay
         {
             if (reader == null)
                 throw new ArgumentNullException(nameof(reader));
-            if (savedVersion != CurrentVersion)
+            if (savedVersion < 1 || savedVersion > CurrentVersion)
                 throw new InvalidDataException($"Unsupported inventory state version {savedVersion}.");
 
             EnsureInitialized();
@@ -183,6 +186,9 @@ namespace Project.Scripts.Gameplay
                 string itemId = reader.ReadString();
                 ItemData.Rarity rarity = (ItemData.Rarity)reader.ReadByte();
                 int count = reader.ReadInt32();
+                byte durability = savedVersion >= 2
+                    ? reader.ReadByte()
+                    : byte.MaxValue;
 
                 if (!TryResolveItem(itemId, out ItemData item))
                     throw new InvalidDataException($"Saved inventory references unknown item '{itemId}'.");
@@ -192,7 +198,7 @@ namespace Project.Scripts.Gameplay
                     throw new InvalidDataException(
                         $"Saved stack count {count} is invalid for item '{itemId}'.");
 
-                ItemStack stack = new(item, count, rarity);
+                ItemStack stack = new(item, count, rarity, durability);
                 if (!restored.TryAdd(stack, out int remainder) || remainder != 0)
                     throw new InvalidDataException("Saved inventory exceeds its configured capacity.");
             }

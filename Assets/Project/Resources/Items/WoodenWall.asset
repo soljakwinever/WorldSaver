@@ -21,9 +21,11 @@ MonoBehaviour:
   - rid: 7218491099281098753
   goldValue: 1
   fuelValue: 1
+  magicValue: 0
   tags:
   - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
   - {fileID: 11400000, guid: 29cce2356af09aef54cc2ac5b85ed98b, type: 2}
+  - {fileID: 11400000, guid: 19ad59f0af9f726201682e002abc64fe, type: 2}
   references:
     version: 2
     RefIds:

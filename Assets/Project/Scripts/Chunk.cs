@@ -5,8 +5,10 @@ using Project.Scripts;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using Project.Scripts.TimeAndWeather;
+using Project.Scripts.Bus;
 using UnityEngine;
 using UnityEngine.Pool;
 using UnityEngine.Rendering.Universal;
@@ -52,12 +54,16 @@ public class Chunk : MonoBehaviour, IChunk
     [Inject] private WorldTilemapRenderer worldTilemapRenderer;
     [Inject] private Chunkloader chunkloader;
     [Inject] private RoomDetectionSystem roomDetectionSystem;
+    [Inject] private WallDamageVisualPool wallDamageVisualPool;
+    [Inject] private MapSignalBus mapSignalBus;
 
     readonly List<Node> props = new();
     private readonly List<RoomChunkSegment> _rooms = new();
     private ChunkPersistenceRoot _persistenceRoot;
     private TileCoverageComponent _coverage;
     private readonly Dictionary<CoverageData, Tile> _coverageTiles = new();
+    private readonly Dictionary<int, WallDamageVisual> _wallDamageVisuals =
+        new();
     private MaterialPropertyBlock _coveragePropertyBlock;
     private static readonly int CoverageTilingId =
         Shader.PropertyToID("_CoverageTiling");
@@ -76,6 +82,7 @@ public class Chunk : MonoBehaviour, IChunk
         new int[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
     private bool _tilemapsConfigured;
     private bool _roomTopologyReady;
+    private bool _reservationsReady;
     private int _biomeColorRefreshIndex = -1;
     private int _biomeColorRefreshCount;
 
@@ -87,7 +94,9 @@ public class Chunk : MonoBehaviour, IChunk
     public IReadOnlyList<RoomChunkSegment> Rooms => _rooms;
     public bool IsRoomTopologyReady => _roomTopologyReady;
     internal bool IsPersistenceRestoreCompleted =>
-        _persistenceRoot != null && _persistenceRoot.RestoreCompleted;
+        _persistenceRoot != null &&
+        _persistenceRoot.RestoreCompleted &&
+        _reservationsReady;
 
     private static T[][] CreateLayerBuffers<T>()
     {
@@ -101,10 +110,12 @@ public class Chunk : MonoBehaviour, IChunk
 
     public void Init(ChunkBuildResult data)
     {
+        ClearWallDamageVisuals();
         EnsureTilemaps();
         ClearBakedTiles();
         _rooms.Clear();
         _roomTopologyReady = false;
+        _reservationsReady = false;
         Position = data.chunkPosition;
         _persistenceRoot.BeginRestore(Position);
         _coverage.Configure(
@@ -148,10 +159,28 @@ public class Chunk : MonoBehaviour, IChunk
                     offsetX + x,
                     offsetY + y);
 
-                var tileData = GetTile(offsetX + x, offsetY + y, biome, height, moisture, temperature, isCliff,
-                    out var color);
+                TileData floorTile = data.floorTiles[tileIndex];
+                TileData tileData;
+                Color color;
+                if (floorTile != null)
+                {
+                    tileData = floorTile;
+                    color = Color.white;
+                }
+                else
+                {
+                    tileData = GetTile(
+                        offsetX + x,
+                        offsetY + y,
+                        biome,
+                        height,
+                        moisture,
+                        temperature,
+                        isCliff,
+                        out color);
+                }
                 color *= tileData.Color;
-                bool isWall = isCliff || tileData.IsWall;
+                bool isWall = tileData.IsWall || (floorTile == null && isCliff);
                 if (isWall)
                 {
                     wallTiles.Add(new WorldTilemapRenderer.CellData(
@@ -204,7 +233,8 @@ public class Chunk : MonoBehaviour, IChunk
                 _baselineTints[(int)PersistentTileLayer.Ceiling][tileIndex] =
                     PersistentTileTint.TileDefault;
 
-                if (isWater && !worldGeneration.Preset.heightMapDebug)
+                if (isWater && floorTile == null &&
+                    !worldGeneration.Preset.heightMapDebug)
                 {
                     tileData = biome.dominantBiome.overrideWaterTile ?? WaterTile;
                     Color waterColor = new(
@@ -241,10 +271,29 @@ public class Chunk : MonoBehaviour, IChunk
 
         foreach (var propSpawnData in data.props)
         {
-            var rule = worldGeneration.PropSpawnRules.First(
-                t => t.name == propSpawnData.propName);
+            NodeData nodeData = propSpawnData.nodeData;
+            if (nodeData == null)
+            {
+                PropSpawnRule rule = worldGeneration.PropSpawnRules.FirstOrDefault(
+                    candidate => candidate.name == propSpawnData.propName);
+                nodeData = rule?.nodeData;
+            }
+            if (nodeData == null)
+            {
+                Debug.LogError(
+                    $"Generated prop '{propSpawnData.propName}' has no NodeData.",
+                    this);
+                continue;
+            }
 
-            var prop = nodePool.Spawn(propSpawnData.NodeId, propSpawnData, rule.nodeData, propSpawnData.terrainSample,
+            if (!SpaceReservationUtility.CanPlace(
+                    nodeData,
+                    propSpawnData.position))
+            {
+                continue;
+            }
+
+            var prop = nodePool.Spawn(propSpawnData.NodeId, propSpawnData, nodeData, propSpawnData.terrainSample,
                 this);
             prop.transform.SetParent(_nodeTransform);
 
@@ -294,6 +343,14 @@ public class Chunk : MonoBehaviour, IChunk
 
     public PersistentEntity SpawnRuntimeEntity(EntityArchetype archetype, Vector2 worldPosition)
     {
+        return SpawnRuntimeEntity(archetype, worldPosition, default);
+    }
+
+    public PersistentEntity SpawnRuntimeEntity(
+        EntityArchetype archetype,
+        Vector2 worldPosition,
+        AccessIdentity accessIdentity)
+    {
         if (archetype == null)
             throw new ArgumentNullException(nameof(archetype));
         if (archetype.NodeData == null)
@@ -308,9 +365,20 @@ public class Chunk : MonoBehaviour, IChunk
             Debug.LogWarning($"Chunk {Position} is not ready for runtime spawns.", this);
             return null;
         }
+        if (!SpaceReservationUtility.CanPlace(
+                archetype.NodeData,
+                worldPosition))
+        {
+            return null;
+        }
 
         NodeId id = NodeId.CreateRuntimeId();
-        PersistentEntity entity = SpawnRuntimeNode(id, archetype.Id, archetype.NodeData, worldPosition);
+        PersistentEntity entity = SpawnRuntimeNode(
+            id,
+            archetype.Id,
+            archetype.NodeData,
+            worldPosition,
+            accessIdentity);
         _persistenceRoot.RegisterRuntimeEntity(entity);
         return entity;
     }
@@ -343,14 +411,31 @@ public class Chunk : MonoBehaviour, IChunk
         Vector2 worldPosition,
         out PersistentEntity entity)
     {
+        return TrySpawnRuntimeEntity(
+            nodeData,
+            worldPosition,
+            default,
+            out entity);
+    }
+
+    public bool TrySpawnRuntimeEntity(
+        NodeData nodeData,
+        Vector2 worldPosition,
+        AccessIdentity accessIdentity,
+        out PersistentEntity entity)
+    {
         entity = null;
         if (!CanSpawnRuntimeEntity(nodeData) ||
-            !TryGetRuntimeArchetype(nodeData, out EntityArchetype archetype))
+            !TryGetRuntimeArchetype(nodeData, out EntityArchetype archetype) ||
+            !SpaceReservationUtility.CanPlace(nodeData, worldPosition))
         {
             return false;
         }
 
-        entity = SpawnRuntimeEntity(archetype, worldPosition);
+        entity = SpawnRuntimeEntity(
+            archetype,
+            worldPosition,
+            accessIdentity);
         return entity != null;
     }
 
@@ -402,7 +487,8 @@ public class Chunk : MonoBehaviour, IChunk
         NodeId id,
         int archetypeId,
         NodeData nodeData,
-        Vector2 worldPosition)
+        Vector2 worldPosition,
+        AccessIdentity accessIdentity = default)
     {
         Vector2Int cell = Vector2Int.FloorToInt(worldPosition);
         TerrainSample sample = worldGeneration.GetTerrainSample(cell.x, cell.y);
@@ -413,7 +499,8 @@ public class Chunk : MonoBehaviour, IChunk
             position = worldPosition,
             scale = 1f,
             terrainSample = sample,
-            persistenceKind = EntityPersistenceKind.RuntimeSpawned
+            persistenceKind = EntityPersistenceKind.RuntimeSpawned,
+            accessIdentity = accessIdentity
         };
 
         Node node = nodePool.Spawn(id, spawnData, nodeData, sample, this);
@@ -430,16 +517,105 @@ public class Chunk : MonoBehaviour, IChunk
         {
             await dataController.RestoreChunkAsync(this);
             ApplyPersistentTileOverrides();
-            WeatherSample weather = weatherService.GetRegionSample(
-                WorldPartition.ChunkToRegion(Position));
-            _coverage.CompleteRestore(weather);
+            _coverage.CompleteRestore(weatherService);
+            ClearSpawnPlatformCoverage();
+            RebuildReservationsAndSuppressConflictingGeneratedProps();
+            _reservationsReady = true;
             _roomTopologyReady = true;
             roomDetectionSystem?.NotifyChunkRestored(this);
+            NotifyNavigationChanged();
         }
         catch (Exception)
         {
             // DataController logs the exception with the chunk as context.
         }
+    }
+
+    private void ClearSpawnPlatformCoverage()
+    {
+        NodeData platform = worldGeneration.SpawnPlatformNode;
+        if (platform == null ||
+            !SpaceReservationUtility.TryGetArea(
+                platform,
+                worldGeneration.WorldSpawnPosition,
+                out RectInt area))
+        {
+            return;
+        }
+
+        _coverage.ClearWorldArea(area);
+    }
+
+    private void RebuildReservationsAndSuppressConflictingGeneratedProps()
+    {
+        List<SpaceReservationComponent> reservations = new();
+        foreach (Node node in props)
+        {
+            if (node == null || !node.gameObject.activeInHierarchy)
+                continue;
+
+            reservations.AddRange(
+                node.GetComponentsInChildren<SpaceReservationComponent>());
+        }
+
+        foreach (SpaceReservationComponent reservation in reservations)
+            reservation.ReleaseReservation();
+
+        reservations.Sort((left, right) =>
+        {
+            PersistentEntity leftEntity =
+                left.GetComponentInParent<PersistentEntity>();
+            PersistentEntity rightEntity =
+                right.GetComponentInParent<PersistentEntity>();
+            int leftPriority = leftEntity != null
+                ? GetReservationPriority(leftEntity.PersistenceKind)
+                : int.MaxValue;
+            int rightPriority = rightEntity != null
+                ? GetReservationPriority(rightEntity.PersistenceKind)
+                : int.MaxValue;
+            return leftPriority.CompareTo(rightPriority);
+        });
+
+        HashSet<PersistentEntity> failedReservations = new();
+        foreach (SpaceReservationComponent reservation in reservations)
+        {
+            if (reservation.RefreshReservation())
+                continue;
+
+            PersistentEntity entity =
+                reservation.GetComponentInParent<PersistentEntity>();
+            if (entity != null)
+                failedReservations.Add(entity);
+        }
+
+        foreach (Node node in props)
+        {
+            if (node == null || !node.gameObject.activeInHierarchy)
+                continue;
+
+            PersistentEntity entity = node.GetComponent<PersistentEntity>();
+            if (entity == null ||
+                entity.PersistenceKind != EntityPersistenceKind.Procedural)
+            {
+                continue;
+            }
+
+            Vector2Int cell = Vector2Int.FloorToInt(node.transform.position);
+            if (failedReservations.Contains(entity) ||
+                TileReservationSystem.IsReserved(cell, entity))
+                node.gameObject.SetActive(false);
+        }
+    }
+
+    private static int GetReservationPriority(EntityPersistenceKind kind)
+    {
+        return kind switch
+        {
+            EntityPersistenceKind.RuntimeSpawned => 0,
+            EntityPersistenceKind.Authored => 1,
+            EntityPersistenceKind.Procedural => 2,
+            _ => 3
+        };
     }
 
     /// <summary>Checks whether a world cell contains the specified tile on the given layer.</summary>
@@ -501,12 +677,36 @@ public class Chunk : MonoBehaviour, IChunk
         }
 
         bool enclosedBefore = IsRoomBoundary(worldCell);
-        worldTilemapRenderer.SetTile(
-            PersistentTileLayer.Wall,
+        if (!worldTilemapRenderer.SetTransientWallTile(
             worldCell,
             tile,
-            color);
+            color))
+        {
+            return false;
+        }
+
         ApplyLinkedCeiling(worldCell, tile);
+        NotifyRoomTopologyIfChanged(
+            worldCell,
+            PersistentTileLayer.Wall,
+            enclosedBefore);
+        return true;
+    }
+
+    internal bool TryClearTransientWallTile(Vector3Int worldCell)
+    {
+        if (!TryGetLocalCell(
+                worldCell,
+                PersistentTileLayer.Wall,
+                out _))
+        {
+            return false;
+        }
+
+        bool enclosedBefore = IsRoomBoundary(worldCell);
+        if (!worldTilemapRenderer.ClearTransientWallTile(worldCell))
+            return false;
+
         NotifyRoomTopologyIfChanged(
             worldCell,
             PersistentTileLayer.Wall,
@@ -639,6 +839,13 @@ public class Chunk : MonoBehaviour, IChunk
             worldCell,
             tile,
             color);
+        if (targetLayer == PersistentTileLayer.Wall)
+        {
+            RemoveWallDamageVisual(localCell);
+            _persistenceRoot.RemoveWallHealth(
+                (byte)localCell.x,
+                (byte)localCell.y);
+        }
         SetPersistentTileOverride(localCell, targetLayer, tile, tint);
 
         if (targetLayer == PersistentTileLayer.Ground)
@@ -691,6 +898,13 @@ public class Chunk : MonoBehaviour, IChunk
         }
 
         worldTilemapRenderer.SetTile(layer, worldCell, null, Color.white);
+        if (layer == PersistentTileLayer.Wall)
+        {
+            RemoveWallDamageVisual(localCell);
+            _persistenceRoot.RemoveWallHealth(
+                (byte)localCell.x,
+                (byte)localCell.y);
+        }
         SetPersistentClearOverride(localCell, layer);
         if (removedWall != null && removedWall.ceilingTile != null)
         {
@@ -740,6 +954,252 @@ public class Chunk : MonoBehaviour, IChunk
             tint);
     }
 
+    /// <summary>
+    /// Returns a wall's current HP. An absent sparse record means the wall is
+    /// still at the baseline configured by its TileData.
+    /// </summary>
+    public bool TryGetWallHealth(Vector3Int worldCell, out byte health)
+    {
+        health = default;
+        if (!TryGetLocalCell(
+                worldCell,
+                PersistentTileLayer.Wall,
+                out Vector3Int localCell) ||
+            !TryGetTileData(
+                worldCell,
+                PersistentTileLayer.Wall,
+                out TileData wall) ||
+            !wall.IsWall)
+        {
+            return false;
+        }
+
+        if (!_persistenceRoot.TryGetWallHealth(
+                (byte)localCell.x,
+                (byte)localCell.y,
+                out health))
+        {
+            health = wall.wallHealth;
+        }
+
+        return true;
+    }
+
+    internal int GetMaximumDamagedWallHealth(
+        Vector2 townCenter,
+        float townRadius)
+    {
+        if (_persistenceRoot == null || townRadius < 0f)
+            return 0;
+
+        int maximumMissingHealth = 0;
+        float radiusSquared = townRadius * townRadius;
+        foreach (WallHealthData record in _persistenceRoot.WallHealth)
+        {
+            Vector3Int worldCell = GetWallWorldCell(record);
+            Vector2 tileCenter = new(
+                worldCell.x + 0.5f,
+                worldCell.y + 0.5f);
+            if ((tileCenter - townCenter).sqrMagnitude > radiusSquared ||
+                !TryGetTileData(
+                    worldCell,
+                    PersistentTileLayer.Wall,
+                    out TileData wall) ||
+                !wall.IsWall)
+            {
+                continue;
+            }
+
+            maximumMissingHealth = Mathf.Max(
+                maximumMissingHealth,
+                wall.wallHealth - record.health);
+        }
+
+        return maximumMissingHealth;
+    }
+
+    internal int RepairDamagedWalls(
+        Vector2 townCenter,
+        float townRadius,
+        int healthPerTile)
+    {
+        if (_persistenceRoot == null ||
+            townRadius < 0f ||
+            healthPerTile <= 0)
+        {
+            return 0;
+        }
+
+        int repairedTiles = 0;
+        float radiusSquared = townRadius * townRadius;
+        // Fully repaired cells remove their sparse records, so enumerate a
+        // snapshot rather than mutating the backing dictionary in place.
+        WallHealthData[] damagedWalls =
+            _persistenceRoot.WallHealth.ToArray();
+        foreach (WallHealthData record in damagedWalls)
+        {
+            Vector3Int worldCell = GetWallWorldCell(record);
+            Vector2 tileCenter = new(
+                worldCell.x + 0.5f,
+                worldCell.y + 0.5f);
+            if ((tileCenter - townCenter).sqrMagnitude > radiusSquared ||
+                !TryGetTileData(
+                    worldCell,
+                    PersistentTileLayer.Wall,
+                    out TileData wall) ||
+                !wall.IsWall ||
+                record.health >= wall.wallHealth)
+            {
+                continue;
+            }
+
+            int repairedHealth = Mathf.Min(
+                wall.wallHealth,
+                record.health + healthPerTile);
+            Vector3Int localCell = new(record.localX, record.localY, 0);
+            if (repairedHealth >= wall.wallHealth)
+            {
+                _persistenceRoot.RemoveWallHealth(
+                    record.localX,
+                    record.localY);
+                RemoveWallDamageVisual(localCell);
+            }
+            else
+            {
+                byte health = (byte)repairedHealth;
+                _persistenceRoot.SetWallHealth(
+                    record.localX,
+                    record.localY,
+                    health);
+                ShowWallDamageVisual(
+                    localCell,
+                    worldCell,
+                    health,
+                    wall.wallHealth);
+            }
+
+            repairedTiles++;
+        }
+
+        return repairedTiles;
+    }
+
+    private Vector3Int GetWallWorldCell(WallHealthData record)
+    {
+        int size = ChunkBuildResult.ChunkSize;
+        return new Vector3Int(
+            Position.x * size + record.localX,
+            Position.y * size + record.localY,
+            0);
+    }
+
+    /// <summary>
+    /// Damages a wall after applying its hardness. Surviving HP is stored as a
+    /// byte only while it differs from the TileData baseline.
+    /// </summary>
+    public bool TryDamageWall(
+        Vector3Int worldCell,
+        int incomingDamage,
+        WallDestructionType destructionType,
+        out bool wallDestroyed)
+    {
+        wallDestroyed = false;
+        if (incomingDamage <= 0 ||
+            !TryGetLocalCell(
+                worldCell,
+                PersistentTileLayer.Wall,
+                out Vector3Int localCell) ||
+            !TryGetTileData(
+                worldCell,
+                PersistentTileLayer.Wall,
+                out TileData wall) ||
+            !wall.IsWall ||
+            !TryGetWallHealth(worldCell, out byte currentHealth))
+        {
+            return false;
+        }
+
+        int damage = Mathf.Max(1, incomingDamage - wall.hardness);
+        int remaining = Mathf.Max(0, currentHealth - damage);
+        if (remaining == 0)
+        {
+            if (!TryResolveWallDestruction(
+                    worldCell,
+                    wall,
+                    destructionType))
+            {
+                return false;
+            }
+
+            wallDestroyed = true;
+            return true;
+        }
+
+        byte remainingHealth = (byte)remaining;
+        if (remainingHealth == wall.wallHealth)
+        {
+            _persistenceRoot.RemoveWallHealth(
+                (byte)localCell.x,
+                (byte)localCell.y);
+        }
+        else
+        {
+            _persistenceRoot.SetWallHealth(
+                (byte)localCell.x,
+                (byte)localCell.y,
+                remainingHealth);
+        }
+
+        ShowWallDamageVisual(
+            localCell,
+            worldCell,
+            remainingHealth,
+            wall.wallHealth);
+        return true;
+    }
+
+    private bool TryResolveWallDestruction(
+        Vector3Int worldCell,
+        TileData wall,
+        WallDestructionType destructionType)
+    {
+        TileData replacement = destructionType switch
+        {
+            WallDestructionType.TornDown => null,
+            WallDestructionType.Burned => wall.burnedTile,
+            WallDestructionType.Destroyed => wall.destroyedTile,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(destructionType),
+                destructionType,
+                null)
+        };
+
+        if (replacement == null)
+        {
+            // Preserve the established mined-wall behavior: remove the wall
+            // and its linked ceiling, then expose the configured mined ground.
+            return TryReplaceMinedTile(
+                worldCell,
+                PersistentTileLayer.Wall);
+        }
+
+        if (replacement.IsWall)
+        {
+            return TryPlaceTile(
+                worldCell,
+                PersistentTileLayer.Wall,
+                replacement);
+        }
+
+        // Validate and persist the replacement before removing the wall so a
+        // misconfigured replacement cannot leave the cell half-destroyed.
+        return TryPlaceTile(
+                   worldCell,
+                   PersistentTileLayer.Ground,
+                   replacement) &&
+               TryClearTile(worldCell, PersistentTileLayer.Wall);
+    }
+
     /// <summary>Removes an override and restores the procedurally generated tile.</summary>
     public bool TryResetTile(Vector3Int worldCell, PersistentTileLayer layer)
     {
@@ -754,6 +1214,10 @@ public class Chunk : MonoBehaviour, IChunk
         ApplyBaseline(localCell, layer);
         if (layer == PersistentTileLayer.Wall)
         {
+            RemoveWallDamageVisual(localCell);
+            _persistenceRoot.RemoveWallHealth(
+                (byte)localCell.x,
+                (byte)localCell.y);
             _persistenceRoot.RemoveTileOverride(
                 (byte)localCell.x,
                 (byte)localCell.y,
@@ -784,6 +1248,8 @@ public class Chunk : MonoBehaviour, IChunk
         PersistentTileLayer layer,
         bool enclosedBefore)
     {
+        mapSignalBus?.RaiseNavigationCellChanged(
+            new Vector2Int(worldCell.x, worldCell.y));
         if (layer == PersistentTileLayer.Wall &&
             enclosedBefore != IsRoomBoundary(worldCell))
         {
@@ -878,6 +1344,84 @@ public class Chunk : MonoBehaviour, IChunk
         }
 
         RebuildLinkedCeilings();
+        RebuildWallDamageVisuals();
+    }
+
+    private void RebuildWallDamageVisuals()
+    {
+        ClearWallDamageVisuals();
+        foreach (WallHealthData record in _persistenceRoot.WallHealth)
+        {
+            Vector3Int localCell = new(record.localX, record.localY);
+            Vector3Int worldCell = LocalToWorldCell(localCell);
+            if (TryGetTileData(
+                    worldCell,
+                    PersistentTileLayer.Wall,
+                    out TileData wall) &&
+                wall.IsWall &&
+                record.health != wall.wallHealth)
+            {
+                ShowWallDamageVisual(
+                    localCell,
+                    worldCell,
+                    record.health,
+                    wall.wallHealth);
+            }
+        }
+    }
+
+    private void ShowWallDamageVisual(
+        Vector3Int localCell,
+        Vector3Int worldCell,
+        byte health,
+        byte maximumHealth)
+    {
+        if (wallDamageVisualPool == null)
+            return;
+
+        int key = localCell.x +
+                  localCell.y * ChunkBuildResult.ChunkSize;
+        if (_wallDamageVisuals.TryGetValue(
+                key,
+                out WallDamageVisual visual))
+        {
+            visual.SetHealth(health, maximumHealth);
+        }
+        else
+        {
+            visual = wallDamageVisualPool.Spawn(
+                health,
+                maximumHealth);
+            _wallDamageVisuals.Add(key, visual);
+        }
+
+        visual.transform.position =
+            worldCell + new Vector3(0.5f, 0.5f, 0f);
+    }
+
+    private void RemoveWallDamageVisual(Vector3Int localCell)
+    {
+        int key = localCell.x +
+                  localCell.y * ChunkBuildResult.ChunkSize;
+        if (!_wallDamageVisuals.Remove(
+                key,
+                out WallDamageVisual visual))
+        {
+            return;
+        }
+
+        wallDamageVisualPool?.Despawn(visual);
+    }
+
+    private void ClearWallDamageVisuals()
+    {
+        if (wallDamageVisualPool != null)
+        {
+            foreach (WallDamageVisual visual in _wallDamageVisuals.Values)
+                wallDamageVisualPool.Despawn(visual);
+        }
+
+        _wallDamageVisuals.Clear();
     }
 
     private void SetPersistentTileOverride(
@@ -954,7 +1498,7 @@ public class Chunk : MonoBehaviour, IChunk
     }
 
     public void AdvanceCoverage(
-        WeatherSample weather,
+        IRegionalWeatherService weather,
         long elapsedTicks) =>
         _coverage.Advance(weather, elapsedTicks);
 
@@ -968,6 +1512,20 @@ public class Chunk : MonoBehaviour, IChunk
         amount = 0f;
         return TryGetCoverageIndex(worldCell, out ushort index) &&
                _coverage.TryGetCoverage(index, coverage, out amount);
+    }
+
+    public bool TryGetPathingCoverage(
+        Vector3Int worldCell,
+        out CoverageData coverage,
+        out float amount)
+    {
+        coverage = null;
+        amount = 0f;
+        return TryGetCoverageIndex(worldCell, out ushort index) &&
+               _coverage.TryGetPathingCoverage(
+                   index,
+                   out coverage,
+                   out amount);
     }
 
     internal bool TryGetNeighborCoverageSeed(
@@ -1037,8 +1595,12 @@ public class Chunk : MonoBehaviour, IChunk
         CoverageData coverage,
         float amount)
     {
-        return TryGetCoverageIndex(worldCell, out ushort index) &&
-               _coverage.TrySetCoverage(index, coverage, amount);
+        bool changed =
+            TryGetCoverageIndex(worldCell, out ushort index) &&
+            _coverage.TrySetCoverage(index, coverage, amount);
+        if (changed)
+            NotifyNavigationChanged();
+        return changed;
     }
 
     public bool HasCoverage(Vector3Int worldCell)
@@ -1051,8 +1613,17 @@ public class Chunk : MonoBehaviour, IChunk
         Vector3Int worldCell,
         float amount)
     {
-        return TryGetCoverageIndex(worldCell, out ushort index) &&
-               _coverage.TryReduceCoverage(index, amount);
+        bool changed =
+            TryGetCoverageIndex(worldCell, out ushort index) &&
+            _coverage.TryReduceCoverage(index, amount);
+        if (changed)
+            NotifyNavigationChanged();
+        return changed;
+    }
+
+    internal void NotifyNavigationChanged()
+    {
+        mapSignalBus?.RaiseNavigationChunkChanged(Position);
     }
 
     internal void ApplyCoverageVisual(
@@ -1093,6 +1664,9 @@ public class Chunk : MonoBehaviour, IChunk
         Color color = GetCoverageColor(coverage, localIndex);
         color.a *= Mathf.Clamp01(amount);
         _coverageTilemap.SetColor(localCell, color);
+        // Mining animates the vertex alpha that drives the coverage threshold.
+        // Force the tile mesh to consume each intermediate value this frame.
+        _coverageTilemap.RefreshTile(localCell);
     }
 
     internal void ApplyCoverageVisuals(
@@ -1155,6 +1729,14 @@ public class Chunk : MonoBehaviour, IChunk
         }
 
         _coverageTilemap.SetTiles(changes, ignoreLockFlags: true);
+        for (int i = 0; i < count; i++)
+        {
+            ushort localIndex = localIndices[i];
+            _coverageTilemap.RefreshTile(
+                new Vector3Int(
+                    localIndex % ChunkBuildResult.ChunkSize,
+                    localIndex / ChunkBuildResult.ChunkSize));
+        }
     }
 
     internal bool TryGetCoverageGroundTile(
@@ -1771,6 +2353,7 @@ public class Chunk : MonoBehaviour, IChunk
             item.dataController.CaptureBeforeUnload(item);
             item.dataController.RequestSave();
             item._coverage.PrepareForPool();
+            item.ClearWallDamageVisuals();
             item.UnloadProps();
             base.OnDespawned(item);
         }

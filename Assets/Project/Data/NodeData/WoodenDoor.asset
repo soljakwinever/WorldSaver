@@ -23,8 +23,28 @@ MonoBehaviour:
   lightness: 1
   lightnessVariance: 0
   persistentComponents:
-  - {fileID: 11400000, guid: 2d9d4c08a5563dc4fa2d4152f6662d91, type: 2}
+  - rid: 810000000000000101
   droppedItem: {fileID: 11400000, guid: 39ad7a1097eb2b344943385207113244, type: 2}
   dropChance: 1
   tags:
   - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
+  - {fileID: 11400000, guid: 19ad59f0af9f726201682e002abc64fe, type: 2}
+  references:
+    version: 2
+    RefIds:
+    - rid: 810000000000000101
+      type: {class: DoorComponentData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 2d9d4c08a5563dc4fa2d4152f6662d91, type: 2}
+        closedTile: {fileID: 11400000, guid: 74cc37697aa078843aeb4361b8c020d9, type: 2}
+        openTile: {fileID: 11400000, guid: 911da63d7fde0f3458dfa6139289a8a4, type: 2}
+        startsOpen: 0
+        openPrompt: Open door
+        closePrompt: Close door
+        hideNodeSprite: 1
+        accessPolicy: 0
+        startsLocked: 0
+        lockpickDifficulty: 1
+        breakHealth: 25
+        legacyClosedTileId: 13
+        legacyOpenTileId: 14

@@ -41,7 +41,10 @@ namespace Project.Scripts.AI.Leaves.Actions
                 new AttackContext(
                     attacker,
                     weapon,
-                    Mathf.Max(0, force)));
+                    Mathf.Max(0, force),
+                    EntityDamageSource.Enemy,
+                    attacker.GetComponentInParent<IEntityDamageSource>()?
+                        .DamageTags));
             return NodeState.Success;
         }
 

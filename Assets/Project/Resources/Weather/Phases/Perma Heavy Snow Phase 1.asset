@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1131223ceb0f23844af85be8cc8c7f1d, type: 3}
+  m_Name: Perma Heavy Snow Phase 1
+  m_EditorClassIdentifier: 
+  phaseId: snow.heavy.perma
+  minimumDurationTicks: 30
+  maximumDurationTicks: 300
+  baseIntensity: 0.85
+  temperatureOffset: -0.12
+  moistureOffset: 0.1
+  ambientColorTint: {r: 0.375, g: 0.42, b: 0.475, a: 1}
+  effects:
+  - {fileID: 11400000, guid: 89997938e2f94a068bdd4005ac179227, type: 2}

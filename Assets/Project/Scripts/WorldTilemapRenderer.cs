@@ -345,6 +345,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             ChunkBuildResult.ChunkSize,
             ChunkBuildResult.ChunkSize);
         renderer.maxChunkCount = 1;
+        renderer.sortingLayerID = SortingLayer.NameToID("Roof");
         if (_groundMaterial != null)
             renderer.sharedMaterial = _groundMaterial;
     }
@@ -677,6 +678,52 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         RebakeCellAndNeighbors(layer, worldCell);
     }
 
+    /// <summary>
+    /// Sets an entity-owned wall without replacing the underlying world tile.
+    /// World refreshes may update that underlying tile while this overlay
+    /// remains authoritative until its owning entity removes it.
+    /// </summary>
+    public bool SetTransientWallTile(
+        Vector3Int worldCell,
+        TileData tile,
+        Color color)
+    {
+        if (tile == null ||
+            !TryGetChunkAndIndex(
+                worldCell,
+                out Vector2Int chunkPosition,
+                out int index) ||
+            !_chunks.TryGetValue(chunkPosition, out ChunkRenderData chunk))
+        {
+            return false;
+        }
+
+        chunk.TransientWalls[index] = new LogicalCell(tile, color);
+        RebakeCellAndNeighbors(PersistentTileLayer.Wall, worldCell);
+        return true;
+    }
+
+    /// <summary>
+    /// Removes an entity-owned wall and reveals the current underlying world
+    /// tile, if any.
+    /// </summary>
+    public bool ClearTransientWallTile(Vector3Int worldCell)
+    {
+        if (!TryGetChunkAndIndex(
+                worldCell,
+                out Vector2Int chunkPosition,
+                out int index) ||
+            !_chunks.TryGetValue(chunkPosition, out ChunkRenderData chunk) ||
+            !chunk.TransientWalls[index].HasValue)
+        {
+            return false;
+        }
+
+        chunk.TransientWalls[index] = null;
+        RebakeCellAndNeighbors(PersistentTileLayer.Wall, worldCell);
+        return true;
+    }
+
     public void SetColor(
         PersistentTileLayer layer,
         Vector3Int worldCell,
@@ -868,7 +915,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                         layerIndex,
                         worldCell,
                         localCell,
-                        chunk.Layers[layerIndex][index],
+                        GetEffectiveCell(chunk, layerIndex, index),
                         neighborMasks[maskOffset + index]);
                 }
             }
@@ -927,7 +974,8 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
                     continue;
                 }
 
-                LogicalCell logical = chunk.Layers[(int)layer][index];
+                LogicalCell logical =
+                    GetEffectiveCell(chunk, (int)layer, index);
                 TileChangeData change = BakeCell(
                     (int)layer,
                     worldCell,
@@ -1211,8 +1259,22 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             return false;
         }
 
-        cell = chunk.Layers[layerIndex][index];
+        cell = GetEffectiveCell(chunk, layerIndex, index);
         return true;
+    }
+
+    private static LogicalCell GetEffectiveCell(
+        ChunkRenderData chunk,
+        int layerIndex,
+        int index)
+    {
+        if (layerIndex == (int)PersistentTileLayer.Wall &&
+            chunk.TransientWalls[index].HasValue)
+        {
+            return chunk.TransientWalls[index].Value;
+        }
+
+        return chunk.Layers[layerIndex][index];
     }
 
     private static bool TryGetChunkAndIndex(
@@ -1307,6 +1369,8 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         public int BakeVersion;
         public bool HasAppliedBake;
         public readonly LogicalCell[][] Layers = CreateLayers();
+        public readonly LogicalCell?[] TransientWalls =
+            new LogicalCell?[CellCount];
         public readonly TileData[] GeneratedLiquidCandidates =
             new TileData[CellCount];
         public readonly TileData[] ResolvedGeneratedLiquids =
@@ -1325,6 +1389,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             HasAppliedBake = false;
             for (int i = 0; i < Layers.Length; i++)
                 Array.Clear(Layers[i], 0, Layers[i].Length);
+            Array.Clear(TransientWalls, 0, TransientWalls.Length);
             Array.Clear(
                 GeneratedLiquidCandidates,
                 0,

@@ -8,10 +8,13 @@ namespace Project.Scripts.Interface
     {
         string WindowTitle { get; }
         IInventory FuelInventory { get; }
+        IInventory IngredientInventory { get; }
         IInventory OutputInventory { get; }
         float Progress01 { get; }
         bool IsBurning { get; }
         bool TryInsertFuel(IInventory source, IItemStack stack);
+        bool TryInsertIngredient(IInventory source, IItemStack stack);
+        bool TryCollectIngredient(IInventory destination, IItemStack stack);
         bool TryCollectOutput(IInventory destination, IItemStack stack);
         int CollectAll(IInventory destination);
     }

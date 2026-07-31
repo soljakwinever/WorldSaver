@@ -58,6 +58,14 @@ namespace Project.Scripts.Core
                 return;
             }
 
+            MonoBehaviour[] behaviours =
+                GetComponentsInChildren<MonoBehaviour>(includeInactive: true);
+            foreach (MonoBehaviour behaviour in behaviours)
+            {
+                if (behaviour is IEntityRemovalHandler removalHandler)
+                    removalHandler.OnRemovedFromWorld();
+            }
+
             _owner.NotifyEntityRemoved(this);
             gameObject.SetActive(false);
         }

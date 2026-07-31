@@ -11,17 +11,20 @@ namespace Project.Scripts.DataTypes.SaveData
         public List<PersistentEntityRecord> entities = new();
         public List<PersistenceComponentRecord> components = new();
         public List<TileOverrideData> tileOverrides = new();
+        public List<WallHealthData> wallHealth = new();
 
         public bool HasChanges =>
             (entities != null && entities.Count > 0) ||
             (components != null && components.Count > 0) ||
-            (tileOverrides != null && tileOverrides.Count > 0);
+            (tileOverrides != null && tileOverrides.Count > 0) ||
+            (wallHealth != null && wallHealth.Count > 0);
 
         public void Compact()
         {
             entities ??= new List<PersistentEntityRecord>();
             components ??= new List<PersistenceComponentRecord>();
             tileOverrides ??= new List<TileOverrideData>();
+            wallHealth ??= new List<WallHealthData>();
 
             for (int i = entities.Count - 1; i >= 0; i--)
             {
@@ -80,6 +83,23 @@ namespace Project.Scripts.DataTypes.SaveData
                 int y = left.localY.CompareTo(right.localY);
                 return y != 0 ? y : left.localX.CompareTo(right.localX);
             });
+
+            HashSet<int> wallHealthKeys = new();
+            for (int i = wallHealth.Count - 1; i >= 0; i--)
+            {
+                WallHealthData record = wallHealth[i];
+                if (record == null ||
+                    !wallHealthKeys.Add((record.localY << 8) | record.localX))
+                {
+                    wallHealth.RemoveAt(i);
+                }
+            }
+
+            wallHealth.Sort(static (left, right) =>
+            {
+                int y = left.localY.CompareTo(right.localY);
+                return y != 0 ? y : left.localX.CompareTo(right.localX);
+            });
         }
 
         public ChunkState CreateSnapshot()
@@ -114,6 +134,15 @@ namespace Project.Scripts.DataTypes.SaveData
                 {
                     if (tileOverride != null)
                         snapshot.tileOverrides.Add(tileOverride.CreateSnapshot());
+                }
+            }
+
+            if (wallHealth != null)
+            {
+                foreach (WallHealthData record in wallHealth)
+                {
+                    if (record != null)
+                        snapshot.wallHealth.Add(record.CreateSnapshot());
                 }
             }
 

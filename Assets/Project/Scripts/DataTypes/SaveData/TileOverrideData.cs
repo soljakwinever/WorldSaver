@@ -50,4 +50,29 @@ namespace Project.Scripts.DataTypes.SaveData
             };
         }
     }
+
+    [Serializable]
+    public sealed class WallHealthData
+    {
+        public byte localX;
+        public byte localY;
+        public byte health;
+
+        public WallHealthData CreateSnapshot()
+        {
+            return new WallHealthData
+            {
+                localX = localX,
+                localY = localY,
+                health = health
+            };
+        }
+    }
+
+    public enum WallDestructionType : byte
+    {
+        TornDown = 0,
+        Burned = 1,
+        Destroyed = 2
+    }
 }

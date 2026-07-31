@@ -48,6 +48,7 @@ namespace Project.Scripts.AI.Leaves.Actions
         [NonSerialized] private Task<List<Vector2Int>> pendingPath;
         [NonSerialized] private CancellationTokenSource pathCancellation;
         [NonSerialized] private Vector2Int pendingDestination;
+        [NonSerialized] private PathFindingQuery pathQuery;
 
         protected override void OnEnter()
         {
@@ -70,6 +71,7 @@ namespace Project.Scripts.AI.Leaves.Actions
             }
 
             self = owner.transform;
+            pathQuery = AiPathingUtility.CaptureQuery(owner);
             StartNextPathRequest();
         }
 
@@ -101,10 +103,20 @@ namespace Project.Scripts.AI.Leaves.Actions
 
             Vector3 waypoint =
                 CellCenter(path[waypointIndex], self.position.z);
+            if (!AiPathingUtility.PrepareCell(
+                    map,
+                    path[waypointIndex],
+                    pathQuery))
+                return NodeState.Failure;
             self.position = Vector3.MoveTowards(
                 self.position,
                 waypoint,
-                Mathf.Max(0f, movementSpeed) * Time.deltaTime);
+                Mathf.Max(0f, movementSpeed) *
+                AiPathingUtility.GetSpeedMultiplier(
+                    map,
+                    path[waypointIndex],
+                    pathQuery) *
+                Time.deltaTime);
 
             SkipReachedWaypoints(toleranceSquared);
             return waypointIndex >= path.Count
@@ -174,9 +186,11 @@ namespace Project.Scripts.AI.Leaves.Actions
 
                 pathCancellation = new CancellationTokenSource();
                 pendingDestination = destination;
-                pendingPath = pathFinder.FindPathAsync(
+                pendingPath = AiPathingUtility.FindPathAsync(
+                    pathFinder,
                     start,
                     destination,
+                    pathQuery,
                     Mathf.Max(1, maximumVisitedTiles),
                     pathCancellation.Token);
                 return true;

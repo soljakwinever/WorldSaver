@@ -39,7 +39,9 @@ namespace Project.Scripts.Gameplay
             AttackContext resolvedContext = new(
                 context.Attacker,
                 context.Weapon,
-                calculatedDamage);
+                calculatedDamage,
+                context.Source,
+                context.SourceTags);
 
             int damageDelivered = target.TakeDamage(resolvedContext);
             if (damageDelivered < 0 || damageDelivered > calculatedDamage)

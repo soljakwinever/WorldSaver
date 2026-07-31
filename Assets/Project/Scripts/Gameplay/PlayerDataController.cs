@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Project.Scripts.Bus;
+using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using UnityEngine;
@@ -24,11 +26,12 @@ namespace Project.Scripts.Gameplay
     [RequireComponent(typeof(PersistentHealth))]
     [RequireComponent(typeof(PersistentTransform))]
     [RequireComponent(typeof(PlayerToolbarController))]
-    public sealed class PlayerDataController : MonoBehaviour, IHasHealth, IHasNeeds, IHasStats,
+    [RequireComponent(typeof(PlayerEquipmentController))]
+    public sealed class PlayerDataController : MonoBehaviour, IHasHealth, IHasNeeds, IHasMana, IHasStats,
         IPersistentComponent
     {
         public const ushort TypeId = 10;
-        private const ushort CurrentComponentVersion = 2;
+        private const ushort CurrentComponentVersion = 4;
         private const ushort CurrentFileVersion = 1;
         private const uint FileMagic = 0x43535750; // PWSC
         private const int BaseStat = 5;
@@ -63,16 +66,32 @@ namespace Project.Scripts.Gameplay
         [SerializeField, Min(1)] private int luck = BaseStat;
         [SerializeField, Range(0f, 1f)] private float mana = 1f;
 
-        [Inject] private WorldData _worldData;
+        [Header("Respawn")]
+        [SerializeField] private bool hasSpawnPoint;
+        [SerializeField] private Vector3 spawnPoint;
+        [SerializeField] private bool hasSpawnTown;
+        [SerializeField] private ulong spawnTownId;
+
+        [Header("Death")]
+        [SerializeField] private bool resolveDeathInstantly = true;
+        [SerializeField, Min(1)] private long deathDropLifetimeTicks = 1800;
+
+        [InjectOptional] private IWorldClock _worldClock;
+        [InjectOptional] private IComponentWindowService _windowService;
+        [InjectOptional] private IWorldGenerator _worldGenerator;
 
         private PersistentHealth _health;
         private PlayerBus _playerBus;
         private EntityBus _entityBus;
-        private float _energyDrainMultiplier = 1f;
+        private PlayerNeedsController _needsController;
+        private PlayerEquipmentController _equipment;
         private float _nextAutoSaveTime;
         private bool _loaded;
         private bool _subscribedToEnemyDefeats;
+        private bool _deathInProgress;
 
+        public event Action<PlayerDataController> DeathStarted;
+        public event Action<PlayerDataController> Respawned;
         public int Health => _health.Health;
         public int MaxHealth => _health.MaxHealth;
         public float Hunger { get => hunger; set => hunger = Mathf.Clamp01(value); }
@@ -82,15 +101,31 @@ namespace Project.Scripts.Gameplay
         public int Experience => experience;
         public int ExperienceToNextLevel => GetExperienceRequired(level);
         public int UnspentStatPoints => unspentStatPoints;
-        public int Strength => strength;
-        public int Constitution => constitution;
-        public int Dexterity => dexterity;
-        public int Wisdom => wisdom;
-        public int Intelligence => intelligence;
-        public int Luck => luck;
-        public int MaxEnergy => BaseEnergy + (constitution - BaseStat) * 10;
+        public int Strength => Mathf.Max(
+            1, strength + GetEquipmentModifier(EquipmentStat.Strength));
+        public int Constitution => Mathf.Max(
+            1, constitution +
+               GetEquipmentModifier(EquipmentStat.Constitution));
+        public int Dexterity => Mathf.Max(
+            1, dexterity + GetEquipmentModifier(EquipmentStat.Dexterity));
+        public int Wisdom => Mathf.Max(
+            1, wisdom + GetEquipmentModifier(EquipmentStat.Wisdom));
+        public int Intelligence => Mathf.Max(
+            1, intelligence +
+               GetEquipmentModifier(EquipmentStat.Intelligence));
+        public int Luck => Mathf.Max(
+            1, luck + GetEquipmentModifier(EquipmentStat.Luck));
+        public int Defense => Mathf.Max(
+            0, GetEquipmentModifier(EquipmentStat.Defense));
+        public int MaxEnergy => Mathf.Max(
+            1,
+            BaseEnergy + (Constitution - BaseStat) * 10 +
+            GetEquipmentModifier(EquipmentStat.MaximumEnergy));
         public int CurrentEnergy => Mathf.RoundToInt(energy * MaxEnergy);
-        public int MaxMana => BaseMana + (wisdom - BaseStat) * 10;
+        public int MaxMana => Mathf.Max(
+            1,
+            BaseMana + (Wisdom - BaseStat) * 10 +
+            GetEquipmentModifier(EquipmentStat.MaximumMana));
         public int CurrentMana => Mathf.RoundToInt(mana * MaxMana);
         public float EnergyDrainRate { get => energyDrainRate; set => energyDrainRate = Mathf.Max(0f, value); }
         public float HungerEnergyRegenerationRate
@@ -102,6 +137,23 @@ namespace Project.Scripts.Gameplay
         public ushort PersistentTypeId => TypeId;
         public ushort PersistentVersion => CurrentComponentVersion;
         public string CharacterFilePath => GetCharacterFilePath();
+        public string PlayerId =>
+            SanitizePathSegment(characterId, "player");
+        public bool HasSpawnPoint => hasSpawnPoint;
+        public Vector3 SpawnPoint => spawnPoint;
+        public bool IsDeathInProgress => _deathInProgress;
+        public DeathDropContainer LastDeathDrop { get; private set; }
+
+        public void RestoreMana(int amount)
+        {
+            if (amount < 0)
+                throw new ArgumentOutOfRangeException(nameof(amount));
+
+            if (amount == 0 || MaxMana <= 0)
+                return;
+
+            Mana += (float)amount / MaxMana;
+        }
 
         [Inject]
         public void Construct(PlayerBus playerBus, EntityBus entityBus)
@@ -120,7 +172,20 @@ namespace Project.Scripts.Gameplay
                 _health = gameObject.AddComponent<PersistentHealth>();
             if (GetComponent<PersistentTransform>() == null)
                 gameObject.AddComponent<PersistentTransform>();
+            _equipment = GetComponent<PlayerEquipmentController>();
+            if (_equipment == null)
+                _equipment =
+                    gameObject.AddComponent<PlayerEquipmentController>();
             ApplyConstitutionToHealth(healIncrease: false);
+            SubscribeToHealth();
+
+            // Zenject completes scene injection before Awake. Put every player
+            // at the shared world spawn immediately so chunk loading, cameras,
+            // and other Start callbacks all observe the same deterministic
+            // position. A saved PersistentTransform may restore over this in
+            // Start for an existing character.
+            if (_worldGenerator != null)
+                MoveToRespawnPosition(GetWorldSpawnPosition());
         }
 
         private void Start()
@@ -128,7 +193,9 @@ namespace Project.Scripts.Gameplay
             worldId = PlayerPrefs.GetString(
                 "WorldSaver.ActiveWorld",
                 worldId);
-            TryLoad();
+            bool restored = TryLoad();
+            if (!restored && _worldGenerator != null)
+                MoveToRespawnPosition(GetWorldSpawnPosition());
             _loaded = true;
             _nextAutoSaveTime = Time.unscaledTime + autoSaveInterval;
             RaiseProgressionChanged();
@@ -136,22 +203,6 @@ namespace Project.Scripts.Gameplay
 
         private void Update()
         {
-            float deltaTime = Time.deltaTime;
-
-            if (hunger > 0f && energy < 1f)
-            {
-                hunger = Mathf.Clamp01(hunger -
-                    hungerDrainRate * _worldData.playerSettings.hungerRate * deltaTime);
-                energy = Mathf.Clamp01(energy +
-                    hungerEnergyRegenerationRate *
-                    BaseEnergy / (float)MaxEnergy * deltaTime);
-            }
-
-            energy = Mathf.Clamp01(energy -
-                energyDrainRate * _energyDrainMultiplier *
-                BaseEnergy / (float)MaxEnergy *
-                _worldData.playerSettings.energyRate * deltaTime);
-
             if (_loaded && Time.unscaledTime >= _nextAutoSaveTime)
             {
                 TrySave();
@@ -173,6 +224,8 @@ namespace Project.Scripts.Gameplay
 
         private void OnDisable()
         {
+            if (_health != null)
+                _health.Died -= OnHealthDepleted;
             UnsubscribeFromEnemyDefeats();
             if (_loaded)
                 TrySave();
@@ -180,6 +233,7 @@ namespace Project.Scripts.Gameplay
 
         private void OnEnable()
         {
+            SubscribeToHealth();
             SubscribeToEnemyDefeats();
         }
 
@@ -246,26 +300,53 @@ namespace Project.Scripts.Gameplay
         {
             return stat switch
             {
-                PlayerStat.Strength => strength,
-                PlayerStat.Constitution => constitution,
-                PlayerStat.Dexterity => dexterity,
-                PlayerStat.Wisdom => wisdom,
-                PlayerStat.Intelligence => intelligence,
-                PlayerStat.Luck => luck,
+                PlayerStat.Strength => Strength,
+                PlayerStat.Constitution => Constitution,
+                PlayerStat.Dexterity => Dexterity,
+                PlayerStat.Wisdom => Wisdom,
+                PlayerStat.Intelligence => Intelligence,
+                PlayerStat.Luck => Luck,
                 _ => throw new ArgumentOutOfRangeException(nameof(stat), stat, null)
             };
         }
+
+        public int GetEquipmentStat(EquipmentStat stat) =>
+            GetEquipmentModifier(stat);
 
         public int GetAttackDamageBonus(PlayerAttackType attackType)
         {
             int governingStat = attackType switch
             {
-                PlayerAttackType.Melee => strength,
-                PlayerAttackType.Ranged => dexterity,
-                PlayerAttackType.Magic => intelligence,
+                PlayerAttackType.Melee => Strength,
+                PlayerAttackType.Ranged => Dexterity,
+                PlayerAttackType.Magic => Intelligence,
                 _ => BaseStat
             };
-            return Mathf.Max(0, governingStat - BaseStat);
+            EquipmentStat attackStat = attackType switch
+            {
+                PlayerAttackType.Melee => EquipmentStat.MeleeAttack,
+                PlayerAttackType.Ranged => EquipmentStat.RangedAttack,
+                PlayerAttackType.Magic => EquipmentStat.MagicAttack,
+                _ => EquipmentStat.MeleeAttack
+            };
+            return Mathf.Max(
+                0,
+                governingStat - BaseStat +
+                GetEquipmentModifier(attackStat));
+        }
+
+        public int MitigateDamage(int damage)
+        {
+            if (damage < 0)
+                throw new ArgumentOutOfRangeException(nameof(damage));
+
+            return Mathf.Max(0, damage - Defense);
+        }
+
+        internal void NotifyEquipmentChanged()
+        {
+            ApplyConstitutionToHealth(healIncrease: true);
+            _playerBus?.RaiseStatsChanged();
         }
 
         public static int GetExperienceRequired(int currentLevel)
@@ -281,9 +362,95 @@ namespace Project.Scripts.Gameplay
 
         public void SetWalking(bool moving)
         {
-            _energyDrainMultiplier = moving
-                ? _worldData.playerSettings.movementEnergyMulpiplier
-                : 1f;
+            _needsController ??= GetComponent<PlayerNeedsController>();
+            _needsController?.SetMoving(moving);
+        }
+
+        public void SetSpawnPoint(Vector3 worldPosition)
+        {
+            if (!IsFinite(worldPosition))
+                throw new ArgumentOutOfRangeException(
+                    nameof(worldPosition),
+                    "Spawn point coordinates must be finite.");
+
+            spawnPoint = worldPosition;
+            hasSpawnPoint = true;
+            hasSpawnTown = false;
+            spawnTownId = 0;
+        }
+
+        public void SetSpawnTown(TownCore town)
+        {
+            if (town == null)
+                throw new ArgumentNullException(nameof(town));
+
+            SetSpawnPoint(town.SpawnPoint);
+            if (town.PersistentEntity != null)
+            {
+                spawnTownId = town.PersistentEntity.Id.value;
+                hasSpawnTown = true;
+            }
+
+            if (_loaded)
+                TrySave();
+        }
+
+        public bool IsSpawnTown(TownCore town)
+        {
+            if (!hasSpawnPoint || town == null)
+                return false;
+
+            if (hasSpawnTown && town.PersistentEntity != null)
+            {
+                return spawnTownId ==
+                       town.PersistentEntity.Id.value;
+            }
+
+            return (spawnPoint - town.SpawnPoint).sqrMagnitude <
+                   0.0001f;
+        }
+
+        public bool TryGetSpawnPoint(out Vector3 worldPosition)
+        {
+            worldPosition = spawnPoint;
+            return hasSpawnPoint;
+        }
+
+        public bool RespawnAtSpawnPoint()
+        {
+            if (!hasSpawnPoint)
+                return false;
+
+            transform.position = spawnPoint;
+            if (TryGetComponent(out Rigidbody2D body))
+            {
+                body.position = spawnPoint;
+                body.linearVelocity = Vector2.zero;
+            }
+            return true;
+        }
+
+        public void CompleteDeath()
+        {
+            if (!_deathInProgress)
+                return;
+
+            Vector3 deathPosition = transform.position;
+            DropNonToolbarItems(deathPosition);
+            MoveToRespawnPosition(ResolveRespawnPosition());
+            hunger = 0.25f;
+            energy = 1f;
+            _health.SetHealth(Mathf.Min(20, _health.MaxHealth));
+            _deathInProgress = false;
+            Respawned?.Invoke(this);
+        }
+
+        public void ResolveDeathImmediately()
+        {
+            if (_health.Health > 0)
+                _health.SetHealth(0);
+            if (_deathInProgress)
+                CompleteDeath();
         }
 
         public void ConfigureSaveIdentity(string newWorldId, string newCharacterId)
@@ -408,6 +575,16 @@ namespace Project.Scripts.Gameplay
             writer.Write(intelligence);
             writer.Write(luck);
             writer.Write(mana);
+            writer.Write(hasSpawnPoint);
+            if (hasSpawnPoint)
+            {
+                writer.Write(spawnPoint.x);
+                writer.Write(spawnPoint.y);
+                writer.Write(spawnPoint.z);
+            }
+            writer.Write(hasSpawnTown);
+            if (hasSpawnTown)
+                writer.Write(spawnTownId);
         }
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
@@ -471,6 +648,36 @@ namespace Project.Scripts.Gameplay
                 mana = restoredMana;
             }
 
+            hasSpawnPoint = false;
+            spawnPoint = default;
+            hasSpawnTown = false;
+            spawnTownId = 0;
+            if (savedVersion >= 3)
+            {
+                bool restoredHasSpawnPoint = reader.ReadBoolean();
+                if (restoredHasSpawnPoint)
+                {
+                    Vector3 restoredSpawnPoint = new(
+                        reader.ReadSingle(),
+                        reader.ReadSingle(),
+                        reader.ReadSingle());
+                    if (!IsFinite(restoredSpawnPoint))
+                    {
+                        throw new InvalidDataException(
+                            "Saved player spawn point is invalid.");
+                    }
+
+                    spawnPoint = restoredSpawnPoint;
+                    hasSpawnPoint = true;
+                }
+            }
+            if (savedVersion >= 4)
+            {
+                hasSpawnTown = reader.ReadBoolean();
+                if (hasSpawnTown)
+                    spawnTownId = reader.ReadUInt64();
+            }
+
             ApplyConstitutionToHealth(healIncrease: false);
         }
 
@@ -487,7 +694,120 @@ namespace Project.Scripts.Gameplay
                    dexterity == BaseStat &&
                    wisdom == BaseStat &&
                    intelligence == BaseStat &&
-                   luck == BaseStat;
+                   luck == BaseStat &&
+                   !hasSpawnPoint &&
+                   !hasSpawnTown;
+        }
+
+        private void OnHealthDepleted()
+        {
+            if (_deathInProgress)
+                return;
+
+            _deathInProgress = true;
+            DeathStarted?.Invoke(this);
+            if (resolveDeathInstantly)
+                CompleteDeath();
+        }
+
+        private void SubscribeToHealth()
+        {
+            if (_health == null)
+                _health = GetComponent<PersistentHealth>();
+            if (_health == null)
+                return;
+
+            _health.Died -= OnHealthDepleted;
+            _health.Died += OnHealthDepleted;
+        }
+
+        private void DropNonToolbarItems(Vector3 deathPosition)
+        {
+            PersistentInventory inventory = GetComponent<PersistentInventory>();
+            PlayerToolbarController toolbar =
+                GetComponent<PlayerToolbarController>();
+            if (inventory == null || inventory.OccupiedSlots == 0)
+                return;
+
+            var protectedItems = new HashSet<ItemData>();
+            if (toolbar != null)
+            {
+                foreach (IHotbarAction action in toolbar.HotbarActions)
+                {
+                    if (action is ItemActionBinding { ItemData: not null } binding)
+                        protectedItems.Add(binding.ItemData);
+                }
+            }
+
+            var droppedStacks = new List<IItemStack>();
+            var removals = new List<InventoryChange>();
+            foreach (IItemStack stack in inventory.Stacks)
+            {
+                if (protectedItems.Contains(stack.Item))
+                    continue;
+
+                droppedStacks.Add(new ItemStack(
+                    stack.Item,
+                    stack.Count,
+                    stack.Rarity,
+                    stack.Durability));
+                removals.Add(new InventoryChange(
+                    stack.Item,
+                    -stack.Count,
+                    stack.Rarity,
+                    stack.Durability));
+            }
+
+            if (droppedStacks.Count == 0 ||
+                !inventory.TryApplyChanges(removals))
+                return;
+
+            LastDeathDrop = DeathDropContainer.Create(
+                deathPosition,
+                droppedStacks,
+                deathDropLifetimeTicks,
+                _worldClock,
+                _windowService);
+        }
+
+        private Vector3 ResolveRespawnPosition()
+        {
+            if (!hasSpawnPoint)
+                return GetWorldSpawnPosition();
+
+            if (hasSpawnTown &&
+                TownCoreRegistry.TryGetAvailable(
+                    new NodeId(spawnTownId),
+                    out TownCore town))
+            {
+                // Follow the selected core if its configured spawn offset or
+                // transform changed since the player selected it.
+                spawnPoint = town.SpawnPoint;
+            }
+
+            // The saved coordinate remains authoritative when the core's chunk
+            // is not loaded or registry initialization has not completed.
+            return spawnPoint;
+        }
+
+        private Vector3 GetWorldSpawnPosition()
+        {
+            if (_worldGenerator == null)
+                return Vector3.zero;
+
+            Vector2Int cell = _worldGenerator.WorldSpawnPosition;
+            return new Vector3(cell.x, cell.y, transform.position.z);
+        }
+
+        private void MoveToRespawnPosition(Vector3 position)
+        {
+            transform.position = position;
+            if (!TryGetComponent(out Rigidbody2D body))
+                return;
+
+            body.position = position;
+            body.linearVelocity = Vector2.zero;
+            body.angularVelocity = 0f;
         }
 
         private void OnEnemyDefeated(
@@ -523,10 +843,17 @@ namespace Project.Scripts.Gameplay
             if (_health == null)
                 return;
             int maximumHealth =
-                BaseHealth + (constitution - BaseStat) * 10;
+                BaseHealth + (Constitution - BaseStat) * 10 +
+                GetEquipmentModifier(EquipmentStat.MaximumHealth);
             _health.SetMaxHealth(
                 Mathf.Max(1, maximumHealth),
                 healIncrease);
+        }
+
+        private int GetEquipmentModifier(EquipmentStat stat)
+        {
+            _equipment ??= GetComponent<PlayerEquipmentController>();
+            return _equipment?.GetStatModifier(stat) ?? 0;
         }
 
         private void RaiseProgressionChanged()
@@ -571,15 +898,16 @@ namespace Project.Scripts.Gameplay
             }
         }
 
-        private void TryLoad()
+        private bool TryLoad()
         {
             try
             {
-                Load();
+                return Load();
             }
             catch (Exception exception)
             {
                 Debug.LogException(exception, this);
+                return false;
             }
         }
 
@@ -617,6 +945,11 @@ namespace Project.Scripts.Gameplay
         private static bool IsNonNegativeFinite(float value) =>
             !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
 
+        private static bool IsFinite(Vector3 value) =>
+            !float.IsNaN(value.x) && !float.IsInfinity(value.x) &&
+            !float.IsNaN(value.y) && !float.IsInfinity(value.y) &&
+            !float.IsNaN(value.z) && !float.IsInfinity(value.z);
+
         private void OnValidate()
         {
             hunger = Mathf.Clamp01(hunger);
@@ -638,6 +971,12 @@ namespace Project.Scripts.Gameplay
             luck = Mathf.Max(1, luck);
             mana = Mathf.Clamp01(mana);
             autoSaveInterval = Mathf.Max(1f, autoSaveInterval);
+            deathDropLifetimeTicks = Math.Max(1, deathDropLifetimeTicks);
+            if (hasSpawnPoint && !IsFinite(spawnPoint))
+            {
+                hasSpawnPoint = false;
+                spawnPoint = default;
+            }
         }
     }
 }

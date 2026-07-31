@@ -120,6 +120,15 @@ namespace Project.Scripts.Persistence
                 writer.Write(tileCount);
                 for (int tileIndex = 0; tileIndex < tileCount; tileIndex++)
                     WriteTileOverride(writer, chunk.tileOverrides[tileIndex]);
+
+                int wallHealthCount = chunk.wallHealth?.Count ?? 0;
+                writer.Write(wallHealthCount);
+                for (int healthIndex = 0;
+                     healthIndex < wallHealthCount;
+                     healthIndex++)
+                {
+                    WriteWallHealth(writer, chunk.wallHealth[healthIndex]);
+                }
             }
         }
 
@@ -159,8 +168,47 @@ namespace Project.Scripts.Persistence
                             ReadTileOverride(reader, save.version));
                 }
 
+                if (save.version >= 4)
+                {
+                    int wallHealthCount = ReadCount(reader, "wall health");
+                    for (int healthIndex = 0;
+                         healthIndex < wallHealthCount;
+                         healthIndex++)
+                    {
+                        chunk.wallHealth.Add(ReadWallHealth(reader));
+                    }
+                }
+
                 save.changedChunks.Add(chunk);
             }
+        }
+
+        private static void WriteWallHealth(
+            BinaryWriter writer,
+            WallHealthData record)
+        {
+            writer.Write(record.localX);
+            writer.Write(record.localY);
+            writer.Write(record.health);
+        }
+
+        private static WallHealthData ReadWallHealth(BinaryReader reader)
+        {
+            WallHealthData record = new()
+            {
+                localX = reader.ReadByte(),
+                localY = reader.ReadByte(),
+                health = reader.ReadByte()
+            };
+
+            if (record.localX >= ChunkBuildResult.ChunkSize ||
+                record.localY >= ChunkBuildResult.ChunkSize)
+            {
+                throw new InvalidDataException(
+                    "Wall health record is outside its chunk.");
+            }
+
+            return record;
         }
 
         private static void WriteTileOverride(BinaryWriter writer, TileOverrideData tile)

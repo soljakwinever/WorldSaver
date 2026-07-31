@@ -35,6 +35,8 @@ namespace Project.Scripts.AI.Leaves.Actions
 
         [NonSerialized]
         private IPathFindingService pathFinder;
+        [NonSerialized] private IPathFindingMap map;
+        [NonSerialized] private PathFindingQuery pathQuery;
 
         [NonSerialized]
         private int waypointIndex;
@@ -66,6 +68,8 @@ namespace Project.Scripts.AI.Leaves.Actions
                 ? owner.transform
                 : null;
             Blackboard.TryGet(AiKeys.PathFindingService, out pathFinder);
+            Blackboard.TryGet(AiKeys.PathFindingMap, out map);
+            pathQuery = AiPathingUtility.CaptureQuery(owner);
         }
 
         protected override NodeState OnTick()
@@ -120,10 +124,20 @@ namespace Project.Scripts.AI.Leaves.Actions
             Vector3 waypoint = CellCenter(
                 path[waypointIndex],
                 self.position.z);
+            if (!AiPathingUtility.PrepareCell(
+                    map,
+                    path[waypointIndex],
+                    pathQuery))
+                return NodeState.Failure;
             self.position = Vector3.MoveTowards(
                 self.position,
                 waypoint,
-                Mathf.Max(0f, movementSpeed) * Time.deltaTime);
+                Mathf.Max(0f, movementSpeed) *
+                AiPathingUtility.GetSpeedMultiplier(
+                    map,
+                    path[waypointIndex],
+                    pathQuery) *
+                Time.deltaTime);
             SkipReachedWaypoints(tolerance * tolerance);
 
             return NodeState.Running;
@@ -147,9 +161,11 @@ namespace Project.Scripts.AI.Leaves.Actions
             Vector2Int start = Vector2Int.FloorToInt(self.position);
             pathCancellation = new CancellationTokenSource();
             pendingDestination = destination;
-            pendingPath = pathFinder.FindPathAsync(
+            pendingPath = AiPathingUtility.FindPathAsync(
+                pathFinder,
                 start,
                 destination,
+                pathQuery,
                 Mathf.Max(1, maximumVisitedTiles),
                 pathCancellation.Token);
         }

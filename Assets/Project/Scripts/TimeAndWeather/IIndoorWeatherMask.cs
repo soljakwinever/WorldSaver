@@ -9,6 +9,7 @@ namespace Project.Scripts.TimeAndWeather
     public interface IIndoorWeatherMask
     {
         bool IsViewerIndoors { get; }
+        bool TryGetViewerWorldPosition(out Vector2 worldPosition);
         bool IsWorldPositionIndoors(Vector2 worldPosition);
     }
 }

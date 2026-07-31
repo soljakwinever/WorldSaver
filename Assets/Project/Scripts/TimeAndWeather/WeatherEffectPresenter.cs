@@ -17,11 +17,15 @@ namespace Project.Scripts.TimeAndWeather
     {
         private readonly WeatherBus _bus;
         private readonly IIndoorWeatherMask _indoorMask;
+        private readonly IRegionalWeatherService _weather;
         private readonly Dictionary<EffectKey, GameObject> _phaseInstances = new();
         private readonly Dictionary<EffectKey, FullScreenEffect> _fullScreen = new();
         private readonly List<RetiringParticleEffect> _retiring = new();
+        private readonly List<EffectKey> _fullScreenRemovals = new();
         private Camera _camera;
         private float _nextRetiringCheckTime;
+        private Vector2Int _cameraRegion;
+        private bool _cameraHasWeatherOverride;
 
         private sealed class FullScreenEffect
         {
@@ -43,15 +47,15 @@ namespace Project.Scripts.TimeAndWeather
         private readonly struct ParticleEmission
         {
             public readonly ParticleSystem ParticleSystem;
-            public readonly float RateOverTimeMultiplier;
-            public readonly float RateOverDistanceMultiplier;
+            public readonly ParticleSystem.MinMaxCurve RateOverTime;
+            public readonly ParticleSystem.MinMaxCurve RateOverDistance;
 
             public ParticleEmission(ParticleSystem particleSystem)
             {
                 ParticleSystem = particleSystem;
                 ParticleSystem.EmissionModule emission = particleSystem.emission;
-                RateOverTimeMultiplier = emission.rateOverTimeMultiplier;
-                RateOverDistanceMultiplier = emission.rateOverDistanceMultiplier;
+                RateOverTime = emission.rateOverTime;
+                RateOverDistance = emission.rateOverDistance;
             }
         }
 
@@ -80,10 +84,12 @@ namespace Project.Scripts.TimeAndWeather
 
         public WeatherEffectPresenter(
             WeatherBus bus,
-            IIndoorWeatherMask indoorMask)
+            IIndoorWeatherMask indoorMask,
+            IRegionalWeatherService weather)
         {
             _bus = bus;
             _indoorMask = indoorMask;
+            _weather = weather;
         }
 
         public void Initialize()
@@ -105,14 +111,26 @@ namespace Project.Scripts.TimeAndWeather
             Camera camera = _camera;
             if (camera == null)
             {
+                _cameraHasWeatherOverride = false;
                 DisableAllFullScreenEffects();
                 return;
             }
 
-            Vector2 cameraPosition = camera.transform.position;
+            Vector2 viewerPosition =
+                _indoorMask != null &&
+                _indoorMask.TryGetViewerWorldPosition(
+                    out Vector2 playerPosition)
+                    ? playerPosition
+                    : camera.transform.position;
             Vector2Int cameraRegion =
-                WeatherRegionUtility.WorldToRegion(cameraPosition);
+                WeatherRegionUtility.WorldToRegion(viewerPosition);
             bool viewerIndoors = _indoorMask?.IsViewerIndoors ?? false;
+            WeatherSample cameraSample = _weather.Sample(viewerPosition);
+            _cameraRegion = cameraRegion;
+            _cameraHasWeatherOverride = cameraSample.HasWeatherOverride;
+            SyncCameraFullScreenEffects(
+                cameraRegion,
+                cameraSample);
             UpdateWorldEffectMasking();
 
             foreach (KeyValuePair<EffectKey, FullScreenEffect> pair in _fullScreen)
@@ -168,6 +186,80 @@ namespace Project.Scripts.TimeAndWeather
             }
         }
 
+        private void SyncCameraFullScreenEffects(
+            Vector2Int cameraRegion,
+            WeatherSample sample)
+        {
+            _fullScreenRemovals.Clear();
+            foreach (KeyValuePair<EffectKey, FullScreenEffect> pair in
+                     _fullScreen)
+            {
+                if (pair.Key.Region == cameraRegion &&
+                    !ContainsFullScreenEffect(
+                        sample.ActiveEffects,
+                        pair.Key.Effect))
+                {
+                    _fullScreenRemovals.Add(pair.Key);
+                }
+            }
+
+            foreach (EffectKey key in _fullScreenRemovals)
+                StopFullScreenEffect(key);
+
+            foreach (WeatherEffectSample active in sample.ActiveEffects)
+            {
+                WeatherEffectData effect = active.Effect;
+                if (effect == null || !effect.IsFullScreenParticleEffect)
+                    continue;
+
+                EffectKey key = new(cameraRegion, effect);
+                if (_fullScreen.TryGetValue(
+                        key,
+                        out FullScreenEffect existing))
+                {
+                    existing.TargetIntensity = active.Intensity;
+                    if (sample.HasWeatherOverride)
+                    {
+                        // Spatial overrides describe the intensity at the
+                        // camera's exact position. Apply that value directly
+                        // so moving from the outer edge to the inner radius
+                        // maps 0..1 to the authored particle rate without a
+                        // regional weather transition lag.
+                        existing.CurrentIntensity = active.Intensity;
+                        ApplyEmission(existing);
+                    }
+                    continue;
+                }
+
+                _fullScreen.Add(key, new FullScreenEffect
+                {
+                    Effect = effect,
+                    TargetIntensity = active.Intensity,
+                    CurrentIntensity = sample.HasWeatherOverride
+                        ? active.Intensity
+                        : 0f
+                });
+            }
+        }
+
+        private static bool ContainsFullScreenEffect(
+            WeatherEffectSample[] activeEffects,
+            WeatherEffectData effect)
+        {
+            foreach (WeatherEffectSample active in
+                     activeEffects ?? Array.Empty<WeatherEffectSample>())
+            {
+                if (active.Effect == effect &&
+                    active.Effect != null &&
+                    active.Effect.IsFullScreenParticleEffect)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public void Dispose()
         {
             _bus.Effect -= OnEffect;
@@ -199,6 +291,19 @@ namespace Project.Scripts.TimeAndWeather
             EffectKey key = new(message.Region, effect);
             if (effect.IsFullScreenParticleEffect)
             {
+                // A position-specific override is authoritative at the
+                // camera. Regional lifecycle events are emitted independently
+                // and may arrive after this presenter's Tick; accepting them
+                // here would replace the override intensity (often with the
+                // regional phase's zero-at-start value).
+                if (!ShouldApplyRegionalFullScreenEvent(
+                        _cameraHasWeatherOverride,
+                        _cameraRegion,
+                        message.Region))
+                {
+                    return;
+                }
+
                 HandleFullScreenEvent(key, message);
                 return;
             }
@@ -306,6 +411,12 @@ namespace Project.Scripts.TimeAndWeather
             bool isViewerIndoors) =>
             isCameraRegion && !isViewerIndoors;
 
+        public static bool ShouldApplyRegionalFullScreenEvent(
+            bool cameraHasWeatherOverride,
+            Vector2Int cameraRegion,
+            Vector2Int eventRegion) =>
+            !cameraHasWeatherOverride || cameraRegion != eventRegion;
+
         private static void CreateFullScreenInstance(
             FullScreenEffect fullScreen,
             Camera camera)
@@ -381,12 +492,46 @@ namespace Project.Scripts.TimeAndWeather
 
                 ParticleSystem.EmissionModule emission =
                     cached.ParticleSystem.emission;
-                emission.rateOverTimeMultiplier =
-                    cached.RateOverTimeMultiplier * intensity;
-                emission.rateOverDistanceMultiplier =
-                    cached.RateOverDistanceMultiplier * intensity;
+                emission.rateOverTime = ScaleEmissionCurve(
+                    cached.RateOverTime,
+                    intensity);
+                emission.rateOverDistance = ScaleEmissionCurve(
+                    cached.RateOverDistance,
+                    intensity);
             }
         }
+
+        public static ParticleSystem.MinMaxCurve ScaleEmissionCurve(
+            ParticleSystem.MinMaxCurve authored,
+            float intensity)
+        {
+            float scale = Mathf.Clamp01(intensity);
+            return authored.mode switch
+            {
+                ParticleSystemCurveMode.Constant =>
+                    new ParticleSystem.MinMaxCurve(
+                        authored.constant * scale),
+                ParticleSystemCurveMode.TwoConstants =>
+                    new ParticleSystem.MinMaxCurve(
+                        authored.constantMin * scale,
+                        authored.constantMax * scale),
+                ParticleSystemCurveMode.Curve =>
+                    new ParticleSystem.MinMaxCurve(
+                        authored.curveMultiplier * scale,
+                        authored.curve),
+                ParticleSystemCurveMode.TwoCurves =>
+                    new ParticleSystem.MinMaxCurve(
+                        authored.curveMultiplier * scale,
+                        authored.curveMin,
+                        authored.curveMax),
+                _ => authored
+            };
+        }
+
+        public static float ScaleEmissionRate(
+            float authoredRate,
+            float intensity) =>
+            authoredRate * Mathf.Clamp01(intensity);
 
         private static void SuspendFullScreenInstance(
             FullScreenEffect fullScreen)

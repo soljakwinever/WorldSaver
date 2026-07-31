@@ -19,3 +19,5 @@ MonoBehaviour:
   _actions:
   - {fileID: 11400000, guid: d7dd636ed98efc848a84c99f803e278c, type: 2}
   - {fileID: 11400000, guid: f68a33b49cecac541aba9a318ca2f831, type: 2}
+  _damageTags:
+  - {fileID: 11400000, guid: 16fa4e544f7e7ebecf9d13e47b20aac2, type: 2}

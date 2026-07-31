@@ -23,9 +23,23 @@ MonoBehaviour:
   lightness: 1
   lightnessVariance: 0
   persistentComponents:
-  - {fileID: 11400000, guid: 14b14804f4f3f8941b2848620eb57d69, type: 2}
+  - rid: 810000000000000301
   resourceType: 0
   droppedItem: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
   dropChance: 1
   tags:
   - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
+  references:
+    version: 2
+    RefIds:
+    - rid: 810000000000000301
+      type: {class: HarvestableComponentData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 14b14804f4f3f8941b2848620eb57d69, type: 2}
+        interactionType: 1
+        toolType: 2
+        itemData: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
+        minimumItemsSpawned: 3
+        maximumItemsSpawned: 6
+        useRarity: 1
+        destroyOnPickup: 1

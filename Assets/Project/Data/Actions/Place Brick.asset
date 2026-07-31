@@ -13,3 +13,4 @@ MonoBehaviour:
   m_Name: Place Brick
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.Gameplay.PlaceTileItemAction
   <ConsumesItem>k__BackingField: 1
+  placementCursorSprite: {fileID: 1708850901, guid: 89b741ac6241dd5449eee00d46013c3b, type: 3}

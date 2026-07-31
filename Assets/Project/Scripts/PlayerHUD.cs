@@ -24,12 +24,15 @@ namespace Project.Scripts
         [Inject] private Grid gameGrid;
         
         private PlayerToolbarController toolbarController;
+        private PlayerNeedsController needsController;
         private PlayerBus playerBus;
         private Label levelLabel;
         private Label experienceLabel;
         private ProgressBar experienceBar;
         private ProgressBar healthBar;
         private ProgressBar manaBar;
+        private ProgressBar hungerBar;
+        private ProgressBar energyBar;
         private VisualElement levelUpPanel;
         private Label statPointsLabel;
         private readonly System.Collections.Generic.Dictionary<PlayerStat, Label>
@@ -127,6 +130,8 @@ namespace Project.Scripts
             _uiDocument = GetComponent<PanelRenderer>();
             toolbarController =
                 playerDataController.GetComponent<PlayerToolbarController>();
+            needsController =
+                playerDataController.GetComponent<PlayerNeedsController>();
             fps = GetComponent<Fps>();
             mainCamera = Camera.main;
         }
@@ -171,22 +176,12 @@ namespace Project.Scripts
                 debugData.cursorPosition = new Vector2Int(position.x, position.y);
                 debugData.fps = fps.FrameRate;
 
-                Vector2Int weatherRegion = WorldPartition.ChunkToRegion(
-                    new Vector2Int(chunkX, chunkY));
-                if (regionalWeatherService.TryGetCachedRegionSample(
-                        weatherRegion,
-                        out WeatherSample sample))
-                {
-                    debugData.regionalTemperature =
-                        ToCelsius(sample.AmbientTemperature);
-                    debugData.currentWeather =
-                        $"{sample.WeatherId} ({sample.PhaseId}, {sample.Intensity})";
-                }
-                else
-                {
-                    debugData.regionalTemperature = 0f;
-                    debugData.currentWeather = "Region climate not sampled";
-                }
+                WeatherSample sample =
+                    regionalWeatherService.Sample(worldMouse);
+                debugData.regionalTemperature =
+                    ToCelsius(sample.AmbientTemperature);
+                debugData.currentWeather =
+                    $"{sample.WeatherId} ({sample.PhaseId}, {sample.Intensity})";
 
                 poll = pollingRate;
             }
@@ -231,6 +226,8 @@ namespace Project.Scripts
         {
             healthBar = root.Q<ProgressBar>("HealthBar");
             manaBar = root.Q<ProgressBar>("ManaBar");
+            hungerBar = root.Q<ProgressBar>("HungerBar");
+            energyBar = root.Q<ProgressBar>("EnergyBar");
             levelLabel = root.Q<Label>("LevelLabel");
             experienceLabel = root.Q<Label>("ExperienceLabel");
             experienceBar = root.Q<ProgressBar>("ExperienceBar");
@@ -270,6 +267,31 @@ namespace Project.Scripts
                     $"{playerDataController.CurrentMana} / " +
                     $"{playerDataController.MaxMana}";
             }
+
+            RefreshNormalizedBar(
+                hungerBar,
+                needsController != null
+                    ? needsController.Hunger
+                    : playerDataController.Hunger);
+            RefreshNormalizedBar(
+                energyBar,
+                needsController != null
+                    ? needsController.Energy
+                    : playerDataController.Energy);
+        }
+
+        private static void RefreshNormalizedBar(
+            ProgressBar progressBar,
+            float normalizedValue)
+        {
+            if (progressBar == null)
+                return;
+
+            float value = Mathf.Clamp01(normalizedValue);
+            progressBar.lowValue = 0f;
+            progressBar.highValue = 1f;
+            progressBar.value = value;
+            progressBar.title = $"{Mathf.RoundToInt(value * 100f)}%";
         }
 
         private void ConfigureHudPicking(VisualElement root)

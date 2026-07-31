@@ -1,3 +1,4 @@
+using System;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Gameplay;
 using UnityEngine;
@@ -5,25 +6,39 @@ using Zenject;
 
 namespace Project.Scripts.Persistence
 {
+    [Serializable]
+    public sealed class DoorComponentData : ComponentDefinitionData
+    {
+        public TileData closedTile;
+        public TileData openTile;
+        public bool startsOpen;
+        public string openPrompt = "Open door";
+        public string closePrompt = "Close door";
+        public bool hideNodeSprite = true;
+        [Header("AI Access")]
+        [Tooltip("Most distant relationship allowed through freely. Owner is most restrictive; Enemy allows everyone.")]
+        public DoorAccessPolicy accessPolicy = DoorAccessPolicy.Neutral;
+        public bool startsLocked;
+        [Min(1)] public int lockpickDifficulty = 1;
+        [Min(1)] public int breakHealth = 25;
+        [Min(1)] public int legacyClosedTileId = 13;
+        [Min(1)] public int legacyOpenTileId = 14;
+    }
+
     [CreateAssetMenu(
         fileName = "Door Component Definition",
         menuName = "World/Components/Door")]
     public sealed class DoorComponentDefinition : NodeComponentDefinition
     {
-        [SerializeField] private TileData closedTile;
-        [SerializeField] private TileData openTile;
-        [SerializeField] private bool startsOpen;
-        [SerializeField] private string openPrompt = "Open door";
-        [SerializeField] private string closePrompt = "Close door";
-        [SerializeField] private bool hideNodeSprite = true;
-        [SerializeField, Min(1)] private int legacyClosedTileId = 13;
-        [SerializeField, Min(1)] private int legacyOpenTileId = 14;
+        public override Type DataType => typeof(DoorComponentData);
 
-        public override void Install(
+        protected override void InstallComponent(
             GameObject host,
             DiContainer container,
-            NodeComponentSpawnContext context)
+            NodeComponentSpawnContext context,
+            ComponentDefinitionData data)
         {
+            var configuration = (DoorComponentData)data;
             DoorComponent component = host.GetComponent<DoorComponent>();
             if (component == null)
                 component = container.InstantiateComponent<DoorComponent>(host);
@@ -31,7 +46,7 @@ namespace Project.Scripts.Persistence
                 container.Inject(component);
 
             Node node = context.Node as Node;
-            if (hideNodeSprite && node != null &&
+            if (configuration.hideNodeSprite && node != null &&
                 node.TryGetComponent(out SpriteRenderer renderer))
             {
                 renderer.enabled = false;
@@ -40,14 +55,19 @@ namespace Project.Scripts.Persistence
             component.Initialize(
                 context.Chunk as Chunk,
                 node != null ? node.transform : host.transform,
-                closedTile,
-                openTile,
-                legacyClosedTileId,
-                legacyOpenTileId,
+                configuration.closedTile,
+                configuration.openTile,
+                configuration.legacyClosedTileId,
+                configuration.legacyOpenTileId,
                 context.PersistenceKind,
-                startsOpen,
-                openPrompt,
-                closePrompt);
+                configuration.startsOpen,
+                configuration.openPrompt,
+                configuration.closePrompt,
+                configuration.accessPolicy,
+                context.AccessIdentity,
+                configuration.startsLocked,
+                configuration.lockpickDifficulty,
+                configuration.breakHealth);
         }
     }
 }

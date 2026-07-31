@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Project.Scripts.DataTypes
 {
     [CreateAssetMenu(fileName = "Feature", menuName = "World Generation/Feature")]
-    public sealed class FeatureData : ScriptableObject
+    public class FeatureData : ScriptableObject
     {
         [Tooltip("Stable identifier used as part of deterministic feature generation.")]
         public string persistentId = "feature";
@@ -55,7 +55,7 @@ namespace Project.Scripts.DataTypes
             value >= Mathf.Min(range.x, range.y) &&
             value <= Mathf.Max(range.x, range.y);
 
-        private void OnValidate()
+        protected virtual void OnValidate()
         {
             persistentId = persistentId?.Trim();
             maximumRadius = Mathf.Max(minimumRadius, maximumRadius);
@@ -141,6 +141,217 @@ namespace Project.Scripts.DataTypes
         }
     }
 
+    [Serializable]
+    public sealed class FoundationFeatureGenerator : FeatureGenerator
+    {
+        [Min(0f)] public float platformHeight = 0.04f;
+        [Range(0f, 1f)] public float flattenStrength = 0.8f;
+
+        public override void Generate(
+            ref TerrainGenerationState terrain,
+            in FeatureGenerationContext context,
+            float strength)
+        {
+            if (context.mask <= 0f || strength <= 0f)
+                return;
+
+            float blend = Mathf.Clamp01(
+                context.mask * flattenStrength * strength);
+            float foundation = terrain.baseHeight +
+                               platformHeight *
+                               context.mask *
+                               strength;
+            terrain.height = Mathf.Lerp(
+                terrain.height,
+                foundation,
+                blend);
+        }
+    }
+
+    [Serializable]
+    public abstract class FloorGenerator : FeatureGenerator
+    {
+        public TileData tile;
+        public Vector2 offset;
+
+        public sealed override void Generate(
+            ref TerrainGenerationState terrain,
+            in FeatureGenerationContext context,
+            float strength)
+        {
+            if (tile == null || strength <= 0f || context.mask <= 0f)
+                return;
+
+            Vector2 point = new(
+                context.localX - offset.x,
+                context.localY - offset.y);
+            if (Contains(point))
+                terrain.floorTile = tile;
+        }
+
+        protected abstract bool Contains(Vector2 point);
+    }
+
+    [Serializable]
+    public sealed class CrossFloorGenerator : FloorGenerator
+    {
+        [Tooltip("Draw diagonals (X) instead of horizontal and vertical arms (+).")]
+        public bool diagonal;
+        [Min(1f)] public float size = 9f;
+        [Min(1f)] public float width = 1f;
+
+        protected override bool Contains(Vector2 point)
+        {
+            float halfSize = Mathf.Max(0.5f, size * 0.5f);
+            float halfWidth = Mathf.Max(0.5f, width * 0.5f);
+            if (Mathf.Abs(point.x) > halfSize || Mathf.Abs(point.y) > halfSize)
+                return false;
+
+            return diagonal
+                ? Mathf.Min(
+                    Mathf.Abs(point.y - point.x),
+                    Mathf.Abs(point.y + point.x)) <= halfWidth * Mathf.Sqrt(2f)
+                : Mathf.Abs(point.x) <= halfWidth ||
+                  Mathf.Abs(point.y) <= halfWidth;
+        }
+    }
+
+    [Serializable]
+    public sealed class RectangleFloorGenerator : FloorGenerator
+    {
+        [Min(1f)] public float width = 9f;
+        [Min(1f)] public float height = 9f;
+
+        protected override bool Contains(Vector2 point) =>
+            Mathf.Abs(point.x) <= Mathf.Max(0.5f, width * 0.5f) &&
+            Mathf.Abs(point.y) <= Mathf.Max(0.5f, height * 0.5f);
+    }
+
+    [Serializable]
+    public sealed class OutlineRectangleFloorGenerator : FloorGenerator
+    {
+        [Min(1f)] public float width = 9f;
+        [Min(1f)] public float height = 9f;
+        [Min(1f)] public float borderWidth = 1f;
+        [Min(0f), Tooltip("Radius of the rectangle's rounded corners.")]
+        public float borderRadius;
+
+        protected override bool Contains(Vector2 point)
+        {
+            float halfWidth = Mathf.Max(0.5f, width * 0.5f);
+            float halfHeight = Mathf.Max(0.5f, height * 0.5f);
+            float radius = Mathf.Clamp(
+                borderRadius,
+                0f,
+                Mathf.Min(halfWidth, halfHeight));
+            if (RoundedRectangleDistance(
+                    point,
+                    new Vector2(halfWidth, halfHeight),
+                    radius) > 0f)
+            {
+                return false;
+            }
+
+            float thickness = Mathf.Max(1f, borderWidth);
+            Vector2 innerHalfSize = new(
+                halfWidth - thickness,
+                halfHeight - thickness);
+            if (innerHalfSize.x <= 0f || innerHalfSize.y <= 0f)
+                return true;
+
+            float innerRadius = Mathf.Max(0f, radius - thickness);
+            return RoundedRectangleDistance(point, innerHalfSize, innerRadius) >= 0f;
+        }
+
+        private static float RoundedRectangleDistance(
+            Vector2 point,
+            Vector2 halfSize,
+            float radius)
+        {
+            Vector2 q = new(
+                Mathf.Abs(point.x) - halfSize.x + radius,
+                Mathf.Abs(point.y) - halfSize.y + radius);
+            Vector2 outside = new(Mathf.Max(q.x, 0f), Mathf.Max(q.y, 0f));
+            return outside.magnitude +
+                   Mathf.Min(Mathf.Max(q.x, q.y), 0f) -
+                   radius;
+        }
+    }
+
+    [Serializable]
+    public sealed class CircleFloorGenerator : FloorGenerator
+    {
+        [Min(1f)] public float diameter = 9f;
+
+        protected override bool Contains(Vector2 point) =>
+            point.sqrMagnitude <=
+            Mathf.Pow(Mathf.Max(0.5f, diameter * 0.5f), 2f);
+    }
+
+    [Serializable]
+    public sealed class OutlineCircleFloorGenerator : FloorGenerator
+    {
+        [Min(1f)] public float diameter = 9f;
+        [Min(1f)] public float borderWidth = 1f;
+
+        protected override bool Contains(Vector2 point)
+        {
+            float radius = Mathf.Max(0.5f, diameter * 0.5f);
+            float innerRadius = Mathf.Max(0f, radius - Mathf.Max(1f, borderWidth));
+            float distanceSquared = point.sqrMagnitude;
+            return distanceSquared <= radius * radius &&
+                   distanceSquared >= innerRadius * innerRadius;
+        }
+    }
+
+    [Serializable]
+    public sealed class StarFloorGenerator : FloorGenerator
+    {
+        [Min(2f)] public float width = 11f;
+        [Min(2f)] public float height = 11f;
+        [Min(2)] public int points = 5;
+        [Range(0.05f, 0.95f)]
+        public float innerRadius = 0.45f;
+
+        protected override bool Contains(Vector2 point)
+        {
+            float halfWidth = Mathf.Max(1f, width * 0.5f);
+            float halfHeight = Mathf.Max(1f, height * 0.5f);
+            Vector2 normalized = new(point.x / halfWidth, point.y / halfHeight);
+            int pointCount = Mathf.Max(2, points);
+            int vertexCount = pointCount * 2;
+            bool inside = false;
+            Vector2 previous = Vertex(vertexCount - 1, vertexCount);
+
+            for (int i = 0; i < vertexCount; i++)
+            {
+                Vector2 current = Vertex(i, vertexCount);
+                bool crosses =
+                    (current.y > normalized.y) != (previous.y > normalized.y) &&
+                    normalized.x <
+                    (previous.x - current.x) *
+                    (normalized.y - current.y) /
+                    (previous.y - current.y) +
+                    current.x;
+                if (crosses)
+                    inside = !inside;
+                previous = current;
+            }
+
+            return inside;
+        }
+
+        private Vector2 Vertex(int index, int vertexCount)
+        {
+            float angle = -Mathf.PI * 0.5f +
+                          index * Mathf.PI * 2f / vertexCount;
+            float radius = index % 2 == 0
+                ? 1f
+                : Mathf.Clamp(innerRadius, 0.05f, 0.95f);
+            return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+        }
+    }
+
     public struct TerrainGenerationState
     {
         public float height;
@@ -148,6 +359,7 @@ namespace Project.Scripts.DataTypes
         public float moisture;
         public float temperature;
         public BiomeBlend biomeData;
+        public TileData floorTile;
     }
 
     public readonly struct FeatureGenerationContext

@@ -206,6 +206,7 @@ GameObject:
   - component: {fileID: 1952704062557666626}
   - component: {fileID: 1550255494344222716}
   - component: {fileID: 4835351910858323965}
+  - component: {fileID: 9103112176375882134}
   - component: {fileID: 2057483881632290249}
   - component: {fileID: 4275277646728090895}
   - component: {fileID: 8867154566089369081}
@@ -301,6 +302,20 @@ MonoBehaviour:
   intelligence: 5
   luck: 5
   mana: 1
+--- !u!114 &9103112176375882134
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5983356817421055969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43f94f6d0dde49f2bd1b1b84bcdf0d4a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.PlayerNeedsController
+  fullHungerHealthRegenerationPerSecond: 0.25
+  fullHungerThreshold: 0.95
 --- !u!114 &2057483881632290249
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -158,6 +158,8 @@ namespace Project.Scripts
         public float transientOffscreenViewportMargin = 0.1f;
 
         [Header("Runtime Entities")]
+        [Tooltip("Deterministic procedural node generated at the world's shared spawn position.")]
+        public NodeData spawnPlatformNode;
         public DataTypes.EntityArchetype[] runtimeEntityArchetypes;
         
         [Header("Time Data")]

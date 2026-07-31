@@ -26,8 +26,8 @@ MonoBehaviour:
   - enemyData: {fileID: 11400000, guid: 5e6bc61b1c40b5944bb6da9b3428ed69, type: 2}
     chance: 0.24
   recycleOffscreenIdle: 1
-  minimumLifetimeTicks: 30
-  idleTicksBeforeRecycle: 15
+  minimumLifetimeTicks: 60
+  idleTicksBeforeRecycle: 30
   seasons: -1
   firstHour: 8
   lastHour: 17

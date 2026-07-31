@@ -42,7 +42,7 @@ namespace Project.Scripts.DataTypes
     {
         [field: SerializeField]
         [field: Tooltip("Remove one item after a successful action.")]
-        public bool ConsumesItem { get; private set; }
+        public virtual bool ConsumesItem { get; private set; }
 
         // Display methods receive the item because one action asset may be shared.
         public virtual string GetPersistentId(ItemData item) =>

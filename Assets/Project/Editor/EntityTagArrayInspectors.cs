@@ -98,6 +98,23 @@ namespace Project.Editor
         protected override HashSet<string> TagPropertyNames => Properties;
         protected override IReadOnlyDictionary<string, System.Type>
             ManagedReferencePropertyTypes => ManagedReferenceProperties;
+
+        public override Texture2D RenderStaticPreview(
+            string assetPath,
+            Object[] subAssets,
+            int width,
+            int height)
+        {
+            ItemData item = target as ItemData;
+            if (item == null || item.sprite == null)
+                return base.RenderStaticPreview(
+                    assetPath,
+                    subAssets,
+                    width,
+                    height);
+
+            return AssetPreview.GetAssetPreview(item.sprite);
+        }
     }
 
     [CustomEditor(typeof(DestroyNodeToolAction))]

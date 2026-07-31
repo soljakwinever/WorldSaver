@@ -15,12 +15,13 @@ MonoBehaviour:
   persistentId: tools.broom01
   description: 
   maxStack: 1
-  sprite: {fileID: -829898529816221564, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
-  action: {fileID: 11400000, guid: ea839d2b8ce21f4408b5d6265f754658, type: 2}
+  sprite: {fileID: -8897829601616582799, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  action: {fileID: 11400000, guid: 0619bc30c988023488455f7823d55089, type: 2}
   actionData:
   - rid: 1367514954854564681
   goldValue: 0
   fuelValue: 1
+  magicValue: 0
   tags: []
   references:
     version: 2

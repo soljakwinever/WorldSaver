@@ -12,6 +12,7 @@ namespace Project.Scripts.Core
         private readonly Dictionary<NodeId, PersistentEntity> _entities = new();
         private readonly Dictionary<NodeId, PersistentEntityRecord> _tombstones = new();
         private readonly Dictionary<int, TileOverrideData> _tileOverrides = new();
+        private readonly Dictionary<int, WallHealthData> _wallHealth = new();
 
         private Vector2Int _chunkPosition;
         private bool _restoreCompleted;
@@ -20,6 +21,7 @@ namespace Project.Scripts.Core
         public Vector2Int ChunkPosition => _chunkPosition;
         public bool RestoreCompleted => _restoreCompleted;
         public IEnumerable<TileOverrideData> TileOverrides => _tileOverrides.Values;
+        public IEnumerable<WallHealthData> WallHealth => _wallHealth.Values;
 
         public void SetRuntimeEntityFactory(
             Func<PersistentEntityRecord, PersistentEntity> factory)
@@ -35,6 +37,7 @@ namespace Project.Scripts.Core
             _entities.Clear();
             _tombstones.Clear();
             _tileOverrides.Clear();
+            _wallHealth.Clear();
         }
 
         // Registration is explicit because the node pool is not parented under
@@ -74,6 +77,19 @@ namespace Project.Scripts.Core
                             tileOverride.localX,
                             tileOverride.localY,
                             tileOverride.layer)] = tileOverride.CreateSnapshot();
+                }
+            }
+
+            if (state.wallHealth != null)
+            {
+                foreach (WallHealthData record in state.wallHealth)
+                {
+                    if (record != null)
+                    {
+                        _wallHealth[GetWallHealthKey(
+                            record.localX,
+                            record.localY)] = record.CreateSnapshot();
+                    }
                 }
             }
 
@@ -179,6 +195,8 @@ namespace Project.Scripts.Core
 
             foreach (TileOverrideData tileOverride in _tileOverrides.Values)
                 state.tileOverrides.Add(tileOverride.CreateSnapshot());
+            foreach (WallHealthData record in _wallHealth.Values)
+                state.wallHealth.Add(record.CreateSnapshot());
 
             state.Compact();
             return state;
@@ -213,6 +231,48 @@ namespace Project.Scripts.Core
         {
             return _tileOverrides.ContainsKey(
                 GetTileKey(localX, localY, layer));
+        }
+
+        public bool TryGetWallHealth(byte localX, byte localY, out byte health)
+        {
+            if (_wallHealth.TryGetValue(
+                    GetWallHealthKey(localX, localY),
+                    out WallHealthData record))
+            {
+                health = record.health;
+                return true;
+            }
+
+            health = default;
+            return false;
+        }
+
+        public void SetWallHealth(byte localX, byte localY, byte health)
+        {
+            if (!_restoreCompleted)
+            {
+                throw new InvalidOperationException(
+                    "Cannot edit wall health before chunk restore completes.");
+            }
+
+            _wallHealth[GetWallHealthKey(localX, localY)] =
+                new WallHealthData
+                {
+                    localX = localX,
+                    localY = localY,
+                    health = health
+                };
+        }
+
+        public bool RemoveWallHealth(byte localX, byte localY)
+        {
+            if (!_restoreCompleted)
+            {
+                throw new InvalidOperationException(
+                    "Cannot edit wall health before chunk restore completes.");
+            }
+
+            return _wallHealth.Remove(GetWallHealthKey(localX, localY));
         }
 
         public void NotifyEntityRemoved(PersistentEntity entity)
@@ -260,6 +320,7 @@ namespace Project.Scripts.Core
             _entities.Clear();
             _tombstones.Clear();
             _tileOverrides.Clear();
+            _wallHealth.Clear();
             _restoreCompleted = false;
             _chunkPosition = default;
         }
@@ -283,6 +344,9 @@ namespace Project.Scripts.Core
             entity.SetOwner(this);
             entity.SetPersistenceReady(false);
         }
+
+        private static int GetWallHealthKey(byte localX, byte localY) =>
+            (localY << 8) | localX;
 
         private void CaptureChunkComponents(ChunkState state)
         {

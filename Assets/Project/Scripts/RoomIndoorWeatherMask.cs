@@ -50,6 +50,18 @@ namespace Project.Scripts
             }
         }
 
+        public bool TryGetViewerWorldPosition(out Vector2 worldPosition)
+        {
+            if (_player == null)
+            {
+                worldPosition = default;
+                return false;
+            }
+
+            worldPosition = _player.transform.position;
+            return true;
+        }
+
         public bool IsWorldPositionIndoors(Vector2 worldPosition)
         {
             if (_rooms == null || _grid == null)
