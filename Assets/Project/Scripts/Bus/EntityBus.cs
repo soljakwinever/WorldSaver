@@ -14,6 +14,11 @@ namespace Project.Scripts.Bus
         AttackContext context,
         int damageDelivered);
 
+    public delegate void AttackResolvedHandler(
+        IDamageable target,
+        AttackContext context,
+        int damageDelivered);
+
     public delegate void EntityRemovedHandler(
         NodeData nodeData,
         Project.Scripts.DataTypes.SaveData.NodeId entityId,
@@ -22,6 +27,7 @@ namespace Project.Scripts.Bus
     public sealed class EntityBus
     {
         public event DamageDeliveredHandler DamageDelivered;
+        public event AttackResolvedHandler AttackResolved;
         public event EnemyDefeatedHandler EnemyDefeated;
         public event EntityRemovedHandler EntityRemoved;
 
@@ -31,6 +37,14 @@ namespace Project.Scripts.Bus
             int damageDelivered)
         {
             DamageDelivered?.Invoke(target, context, damageDelivered);
+        }
+
+        public void RaiseAttackResolved(
+            IDamageable target,
+            AttackContext context,
+            int damageDelivered)
+        {
+            AttackResolved?.Invoke(target, context, damageDelivered);
         }
 
         public void RaiseEnemyDefeated(

@@ -99,7 +99,8 @@ namespace Project.Scripts
 
             foreach (ToolAction action in _actions)
             {
-                if (action != null && action.CanPerform(context))
+                if (CanUseAction(action, context) &&
+                    action.CanPerform(context))
                     return true;
             }
 
@@ -114,11 +115,21 @@ namespace Project.Scripts
 
             foreach (ToolAction action in _actions)
             {
-                if (action != null && action.CanPerform(context))
+                if (CanUseAction(action, context) &&
+                    action.CanPerform(context))
                     return action.Perform(context);
             }
 
             return false;
+        }
+
+        private static bool CanUseAction(
+            ToolAction action,
+            ToolActionContext context)
+        {
+            return action != null &&
+                   (action is not IRequiresToolProximity proximity ||
+                    proximity.IsWithinToolRange(context));
         }
     }
     

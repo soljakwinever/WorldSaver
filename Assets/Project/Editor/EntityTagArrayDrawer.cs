@@ -198,7 +198,8 @@ namespace Project.Editor
                 IEnumerable<EntityTag> tags = guids
                     .Select(AssetDatabase.GUIDToAssetPath)
                     .Select(AssetDatabase.LoadAssetAtPath<EntityTag>)
-                    .Where(tag => tag != null && !assignedTags.Contains(tag))
+                    .Where(tag => tag != null && tag is not ValueTag &&
+                                  !assignedTags.Contains(tag))
                     .OrderBy(tag => tag.name, StringComparer.OrdinalIgnoreCase);
 
                 foreach (EntityTag tag in tags)

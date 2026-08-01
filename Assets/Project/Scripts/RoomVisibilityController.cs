@@ -88,10 +88,25 @@ namespace Project.Scripts
 
         public bool IsWorldPositionMasked(Vector3 worldPosition)
         {
-            if (_displayRoom == null || _outsideAlpha <= 0f || _grid == null)
+            if (_grid == null)
                 return false;
 
-            return !_visibleCells.Contains(_grid.WorldToCell(worldPosition));
+            Vector3Int targetCell = _grid.WorldToCell(worldPosition);
+
+            // Roofs hide a room's contents while the player is outside. Treat
+            // those interior cells as blocked even though the indoor-only
+            // black mask is not being drawn in that state.
+            if (CurrentRoom == null &&
+                _rooms != null &&
+                _rooms.TryGetRoom(targetCell, out _))
+            {
+                return true;
+            }
+
+            if (_displayRoom == null || _outsideAlpha <= 0f)
+                return false;
+
+            return !_visibleCells.Contains(targetCell);
         }
 
         public event Action<Room> RoomChanged;

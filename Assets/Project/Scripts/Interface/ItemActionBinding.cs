@@ -62,6 +62,7 @@ namespace Project.Scripts.Interface
                 context.User,
                 context.TargetPosition,
                 _item,
-                context.SpawnItemDrop);
+                context.SpawnItemDrop,
+                context.Target);
     }
 }

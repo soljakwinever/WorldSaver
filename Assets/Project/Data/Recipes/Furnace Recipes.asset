@@ -14,3 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.RecipeList
   recipes:
   - {fileID: 11400000, guid: 3ebb1e47273c1c24f85d51303f4ceb56, type: 2}
+  - {fileID: 11400000, guid: e66f84fbce705854a944d6b25570c748, type: 2}

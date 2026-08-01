@@ -152,7 +152,7 @@ namespace Project.Scripts.Gameplay
 
         private static void ValidateFuelItem(ItemData item)
         {
-            if (item.fuelValue < 1)
+            if (item.GetFuelUnits(ItemData.Rarity.Common) < 1)
                 throw new InvalidOperationException(
                     $"Fuel item '{item.name}' must have a positive fuel value.");
         }

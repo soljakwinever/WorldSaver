@@ -12,13 +12,14 @@ namespace Project.Scripts.Gameplay
     public class PlayerToolbarController : MonoBehaviour, IPersistentComponent
     {
         public const ushort TypeId = 12;
-        private const ushort CurrentVersion = 1;
+        private const ushort CurrentVersion = 2;
         public const int SlotCount = 10;
 
         //Injected components
         private IInputManager _inputManager;
         private PlayerBus _playerBus;
         private ItemCatalog _itemCatalog;
+        private SkillCatalog _skillCatalog;
         
         private readonly IHotbarAction[] _hotbarActions = new IHotbarAction[SlotCount];
         private int _hotbarIndex = 0;
@@ -32,14 +33,20 @@ namespace Project.Scripts.Gameplay
         public void Constract(
             IInputManager inputManager,
             PlayerBus playerBus,
-            ItemCatalog itemCatalog)
+            ItemCatalog itemCatalog,
+            SkillCatalog skillCatalog = null)
         {
             _inputManager = inputManager;
             _inputManager.InputPerformed += InputManagerOnInputPerformed;
             
             _playerBus = playerBus;
             _itemCatalog = itemCatalog;
+            _skillCatalog = skillCatalog;
         }
+
+        public void SetSkill(int hotbarIndex, SkillData skill) =>
+            SetHotbarAction(hotbarIndex,
+                skill != null ? new SkillActionBinding(skill) : null);
 
         public void SetHotbarAction(int hotbarIndex, IHotbarAction action)
         {
@@ -61,15 +68,19 @@ namespace Project.Scripts.Gameplay
                 if (action == null)
                     continue;
 
-                if (action is not ItemActionBinding binding ||
-                    binding.ItemData == null)
-                    throw new InvalidOperationException(
-                        "Only item-backed toolbar actions can be persisted.");
-
-                if (string.IsNullOrWhiteSpace(binding.ItemData.persistentId))
-                    throw new InvalidOperationException(
-                        "A toolbar item requires a non-empty persistent ID.");
-                writer.Write(binding.ItemData.persistentId);
+                switch (action)
+                {
+                    case ItemActionBinding { ItemData: not null } item:
+                        writer.Write((byte)1);
+                        writer.Write(item.ItemData.persistentId);
+                        break;
+                    case SkillActionBinding { SkillData: not null } skill:
+                        writer.Write((byte)2);
+                        writer.Write(skill.SkillData.persistentId);
+                        break;
+                    default:
+                        throw new InvalidOperationException("Unsupported toolbar action type.");
+                }
             }
         }
 
@@ -77,7 +88,7 @@ namespace Project.Scripts.Gameplay
         {
             if (reader == null)
                 throw new ArgumentNullException(nameof(reader));
-            if (savedVersion != CurrentVersion)
+            if (savedVersion == 0 || savedVersion > CurrentVersion)
                 throw new InvalidDataException(
                     $"Unsupported toolbar state version {savedVersion}.");
             if (_itemCatalog == null)
@@ -98,14 +109,21 @@ namespace Project.Scripts.Gameplay
             {
                 if (reader.ReadBoolean())
                 {
-                    string itemId = reader.ReadString();
-                    if (!_itemCatalog.TryGet(itemId, out ItemData item))
-                        throw new InvalidDataException(
-                            $"Saved toolbar references unknown item '{itemId}'.");
-                    if (item.action == null)
-                        throw new InvalidDataException(
-                            $"Saved toolbar item '{itemId}' has no action.");
-                    restoredActions[i] = new ItemActionBinding(item);
+                    byte kind = savedVersion >= 2 ? reader.ReadByte() : (byte)1;
+                    string id = reader.ReadString();
+                    if (kind == 1)
+                    {
+                        if (!_itemCatalog.TryGet(id, out ItemData item) || item.action == null)
+                            throw new InvalidDataException($"Saved toolbar references invalid item '{id}'.");
+                        restoredActions[i] = new ItemActionBinding(item);
+                    }
+                    else if (kind == 2)
+                    {
+                        if (_skillCatalog == null || !_skillCatalog.TryGet(id, out SkillData skill))
+                            throw new InvalidDataException($"Saved toolbar references unknown skill '{id}'.");
+                        restoredActions[i] = new SkillActionBinding(skill);
+                    }
+                    else throw new InvalidDataException($"Unknown toolbar action kind {kind}.");
                 }
             }
 

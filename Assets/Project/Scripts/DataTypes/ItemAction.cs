@@ -9,6 +9,7 @@ namespace Project.Scripts.DataTypes
         public GameObject User { get; }
         public Vector3 TargetPosition { get; }
         public ItemData Item { get; }
+        public GameObject Target { get; }
         public Action<ItemData, Vector3> SpawnItemDrop { get; }
 
         /// <param name="item">
@@ -18,11 +19,13 @@ namespace Project.Scripts.DataTypes
             GameObject user,
             Vector3 targetPosition,
             ItemData item = null,
-            Action<ItemData, Vector3> spawnItemDrop = null)
+            Action<ItemData, Vector3> spawnItemDrop = null,
+            GameObject target = null)
         {
             User = user;
             TargetPosition = targetPosition;
             Item = item;
+            Target = target;
             SpawnItemDrop = spawnItemDrop;
         }
     }

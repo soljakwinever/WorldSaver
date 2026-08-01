@@ -69,6 +69,10 @@ namespace Project.Scripts.DataTypes
         [SerializeField]
         private EntityTag[] tags = Array.Empty<EntityTag>();
 
+        [SerializeField]
+        private ValueTagAssignment[] valueTags =
+            Array.Empty<ValueTagAssignment>();
+
         public bool HasTag(EntityTag tag)
         {
             if (tag == null)
@@ -80,7 +84,13 @@ namespace Project.Scripts.DataTypes
                     return true;
             }
 
-            return false;
+            return ValueTagLookup.HasTag(valueTags, tag);
         }
+
+        public bool TryGetValue(ValueTag tag, out int value) =>
+            ValueTagLookup.TryGetInt(valueTags, tag, out value);
+
+        public bool TryGetValue(ValueTag tag, out float value) =>
+            ValueTagLookup.TryGetFloat(valueTags, tag, out value);
     }
 }

@@ -15,6 +15,7 @@ namespace Project.Editor
     public abstract class EntityTagArrayInspector : UnityEditor.Editor
     {
         private readonly EntityTagArrayDrawer tagDrawer = new();
+        private readonly ValueTagArrayDrawer valueTagDrawer = new();
         private readonly ManagedReferenceSelectorDrawer managedReferenceDrawer = new();
 
         protected abstract HashSet<string> TagPropertyNames { get; }
@@ -36,6 +37,8 @@ namespace Project.Editor
                 {
                     if (TagPropertyNames.Contains(property.name) && property.isArray)
                         DrawTagArray(property);
+                    else if (property.name == "valueTags" && property.isArray)
+                        DrawValueTagArray(property);
                     else if (ManagedReferencePropertyTypes.TryGetValue(
                                  property.name,
                                  out System.Type baseType) &&
@@ -56,6 +59,14 @@ namespace Project.Editor
                 true,
                 tagDrawer.GetPropertyHeight(property, label));
             tagDrawer.OnGUI(rect, property, label);
+        }
+
+        private void DrawValueTagArray(SerializedProperty property)
+        {
+            GUIContent label = new("Value Tags", property.tooltip);
+            Rect rect = EditorGUILayout.GetControlRect(true,
+                valueTagDrawer.GetPropertyHeight(property, label));
+            valueTagDrawer.OnGUI(rect, property, label);
         }
 
         private void DrawManagedReferenceArray(

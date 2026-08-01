@@ -25,6 +25,10 @@ MonoBehaviour:
   tags:
   - {fileID: 11400000, guid: ab56150a8a61c0744ba66cfaadc20558, type: 2}
   - {fileID: 11400000, guid: 93d79fb2a00019044466d32255cae878, type: 2}
+  valueTags:
+  - tag: {fileID: 11400000, guid: b26da7e9b22e43b5aa9894c2cb4c4b02, type: 2}
+    intValue: 0
+    floatValue: 15
   references:
     version: 2
     RefIds:

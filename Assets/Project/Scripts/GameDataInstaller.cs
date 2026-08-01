@@ -21,10 +21,12 @@ public class GameDataInstaller : MonoInstaller
     public DebugLogManager console;
 
     public RectTransform worldUi;
+    public PopTextSettings popTextSettings = new();
     
     public override void InstallBindings()
     {
         Container.Bind<ItemCatalog>().FromComponentInHierarchy().AsSingle();
+        Container.Bind<SkillCatalog>().AsSingle();
         Container.Bind<ICraftingRandom>()
             .To<CraftingService.UnityCraftingRandom>()
             .AsSingle();
@@ -73,6 +75,15 @@ public class GameDataInstaller : MonoInstaller
         ).AsSingle();
 
         Container.Bind<RectTransform>().WithId("WorldUI").FromInstance(worldUi);
+        popTextSettings ??= new PopTextSettings();
+        Container.BindInstance(popTextSettings);
+        Container.BindInterfacesAndSelfTo<EffectSpawner>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
+        Container.BindInterfacesAndSelfTo<DamagePopTextPresenter>()
+            .AsSingle()
+            .NonLazy();
 
         Container.BindInterfacesAndSelfTo<ChunkGenerator>().AsSingle().NonLazy();
         Container.Bind<WorldGeneration>().FromNew().AsSingle();

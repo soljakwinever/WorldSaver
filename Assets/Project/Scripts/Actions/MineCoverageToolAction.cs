@@ -9,8 +9,23 @@ namespace Project.Scripts.Actions
     [CreateAssetMenu(
         fileName = "New Mine Coverage Tool Action",
         menuName = "Data/Tool Actions/Mine Coverage")]
-    public sealed class MineCoverageToolAction : ToolAction
+    public sealed class MineCoverageToolAction :
+        ToolAction,
+        IRequiresToolProximity
     {
+        [SerializeField, Min(0f)] private float interactionRange = 1.75f;
+
+        public bool IsWithinToolRange(ToolActionContext context)
+        {
+            if (context.User == null)
+                return false;
+
+            Vector3Int cell = Vector3Int.FloorToInt(context.TargetPosition);
+            Vector2 target = new Vector2(cell.x, cell.y) + new Vector2(0.5f, 0.5f);
+            return ((Vector2)context.User.transform.position - target)
+                   .sqrMagnitude <= interactionRange * interactionRange;
+        }
+
         public override bool CanPerform(ToolActionContext context)
         {
             return TryGetTarget(context, out _, out _, out _);

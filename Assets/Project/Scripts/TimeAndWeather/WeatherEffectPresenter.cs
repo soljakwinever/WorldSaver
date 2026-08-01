@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using Zenject;
 using Object = UnityEngine.Object;
@@ -23,9 +24,11 @@ namespace Project.Scripts.TimeAndWeather
         private readonly List<RetiringParticleEffect> _retiring = new();
         private readonly List<EffectKey> _fullScreenRemovals = new();
         private Camera _camera;
+        private CancellationTokenSource _refreshCancellation;
         private float _nextRetiringCheckTime;
         private Vector2Int _cameraRegion;
         private bool _cameraHasWeatherOverride;
+        private bool _viewerIndoors;
 
         private sealed class FullScreenEffect
         {
@@ -95,6 +98,8 @@ namespace Project.Scripts.TimeAndWeather
         public void Initialize()
         {
             _bus.Effect += OnEffect;
+            _refreshCancellation = new CancellationTokenSource();
+            RefreshEnvironmentAsync(_refreshCancellation.Token).Forget();
         }
 
         public void Tick()
@@ -106,39 +111,16 @@ namespace Project.Scripts.TimeAndWeather
                 ProcessRetiringParticleEffects();
             }
 
-            if (_camera == null)
-                _camera = Camera.main;
             Camera camera = _camera;
             if (camera == null)
-            {
-                _cameraHasWeatherOverride = false;
-                DisableAllFullScreenEffects();
                 return;
-            }
-
-            Vector2 viewerPosition =
-                _indoorMask != null &&
-                _indoorMask.TryGetViewerWorldPosition(
-                    out Vector2 playerPosition)
-                    ? playerPosition
-                    : camera.transform.position;
-            Vector2Int cameraRegion =
-                WeatherRegionUtility.WorldToRegion(viewerPosition);
-            bool viewerIndoors = _indoorMask?.IsViewerIndoors ?? false;
-            WeatherSample cameraSample = _weather.Sample(viewerPosition);
-            _cameraRegion = cameraRegion;
-            _cameraHasWeatherOverride = cameraSample.HasWeatherOverride;
-            SyncCameraFullScreenEffects(
-                cameraRegion,
-                cameraSample);
-            UpdateWorldEffectMasking();
 
             foreach (KeyValuePair<EffectKey, FullScreenEffect> pair in _fullScreen)
             {
-                bool inCameraRegion = pair.Key.Region == cameraRegion;
+                bool inCameraRegion = pair.Key.Region == _cameraRegion;
                 bool shouldBeVisible = ShouldPresentFullScreenEffect(
                     inCameraRegion,
-                    viewerIndoors);
+                    _viewerIndoors);
                 FullScreenEffect fullScreen = pair.Value;
 
                 if (shouldBeVisible && fullScreen.Instance == null)
@@ -151,7 +133,7 @@ namespace Project.Scripts.TimeAndWeather
                     !fullScreen.Instance.activeSelf)
                     continue;
 
-                if (viewerIndoors)
+                if (_viewerIndoors)
                 {
                     // Indoor transitions clear existing precipitation
                     // immediately instead of waiting for particles to expire.
@@ -183,6 +165,57 @@ namespace Project.Scripts.TimeAndWeather
                 {
                     SuspendFullScreenInstance(fullScreen);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Spreads weather sampling, effect synchronization, and world-effect
+        /// masking across separate frames. Awaitable.NextFrameAsync resumes on
+        /// Unity's main thread, which is required by every operation here.
+        /// </summary>
+        private async Awaitable RefreshEnvironmentAsync(
+            CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (_camera == null)
+                    _camera = Camera.main;
+
+                Camera camera = _camera;
+                if (camera == null)
+                {
+                    _cameraHasWeatherOverride = false;
+                    _viewerIndoors = false;
+                    DisableAllFullScreenEffects();
+                    await Awaitable.NextFrameAsync(cancellationToken);
+                    continue;
+                }
+
+                Vector2 viewerPosition =
+                    _indoorMask != null &&
+                    _indoorMask.TryGetViewerWorldPosition(
+                        out Vector2 playerPosition)
+                        ? playerPosition
+                        : camera.transform.position;
+                Vector2Int cameraRegion =
+                    WeatherRegionUtility.WorldToRegion(viewerPosition);
+                bool viewerIndoors =
+                    _indoorMask?.IsViewerIndoors ?? false;
+                WeatherSample cameraSample = _weather.Sample(viewerPosition);
+
+                await Awaitable.NextFrameAsync(cancellationToken);
+
+                _cameraRegion = cameraRegion;
+                _viewerIndoors = viewerIndoors;
+                _cameraHasWeatherOverride =
+                    cameraSample.HasWeatherOverride;
+                SyncCameraFullScreenEffects(cameraRegion, cameraSample);
+
+                await Awaitable.NextFrameAsync(cancellationToken);
+
+                UpdateWorldEffectMasking();
+
+                await Awaitable.NextFrameAsync(cancellationToken);
             }
         }
 
@@ -218,7 +251,10 @@ namespace Project.Scripts.TimeAndWeather
                         out FullScreenEffect existing))
                 {
                     existing.TargetIntensity = active.Intensity;
-                    if (sample.HasWeatherOverride)
+                    if (sample.HasWeatherOverride &&
+                        !Mathf.Approximately(
+                            existing.CurrentIntensity,
+                            active.Intensity))
                     {
                         // Spatial overrides describe the intensity at the
                         // camera's exact position. Apply that value directly
@@ -262,6 +298,9 @@ namespace Project.Scripts.TimeAndWeather
 
         public void Dispose()
         {
+            _refreshCancellation?.Cancel();
+            _refreshCancellation?.Dispose();
+            _refreshCancellation = null;
             _bus.Effect -= OnEffect;
             foreach (GameObject instance in _phaseInstances.Values)
             {

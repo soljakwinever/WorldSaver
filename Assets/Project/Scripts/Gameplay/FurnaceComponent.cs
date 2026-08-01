@@ -723,7 +723,8 @@ namespace Project.Scripts.Gameplay
 
         private bool IsValidFuel(ItemData item) =>
             item != null && fuelTag != null &&
-            item.HasTag(fuelTag) && item.fuelValue > 0;
+            item.HasTag(fuelTag) &&
+            item.GetFuelUnits(ItemData.Rarity.Common) > 0;
 
         private float GetRandomValue()
         {

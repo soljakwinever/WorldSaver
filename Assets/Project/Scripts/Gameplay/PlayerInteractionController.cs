@@ -410,7 +410,21 @@ namespace Project.Scripts.Gameplay
             return new ActionContext(
                 gameObject,
                 targetPosition,
-                spawnItemDrop: SpawnItemDrop);
+                spawnItemDrop: SpawnItemDrop,
+                target: ResolveSkillTarget(targetPosition));
+        }
+
+        private GameObject ResolveSkillTarget(Vector3 position)
+        {
+            Collider2D[] hits = Physics2D.OverlapPointAll(position, interactableMask);
+            foreach (Collider2D hit in hits)
+            {
+                IDamageable damageable = hit.GetComponentInParent<IDamageable>() ??
+                                         hit.GetComponentInChildren<IDamageable>();
+                if (damageable is Component component && component.gameObject != gameObject)
+                    return component.gameObject;
+            }
+            return null;
         }
 
         private bool IsPointerBlockingWorldAction()
@@ -464,11 +478,12 @@ namespace Project.Scripts.Gameplay
 
             if (context.AttackPressed && !IsPointerBlockingWorldAction())
             {
-                if (TryAttackDamageable())
+                bool skillSelected = _toolbarController.SelectedItemAction is SkillActionBinding;
+                if (skillSelected ? TryPerformSelectedAction() : TryAttackDamageable())
                 {
                     _repeatActionBlockedUntilRelease = true;
                 }
-                else
+                else if (!skillSelected)
                 {
                     TryPerformSelectedAction();
 

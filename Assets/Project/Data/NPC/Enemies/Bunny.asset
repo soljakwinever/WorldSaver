@@ -17,15 +17,11 @@ MonoBehaviour:
   experienceValue: 1
   visual: {fileID: 2119611675089420321, guid: 5b82825f26e20cb4f9ea1797a724b824, type: 3}
   behaviourTree: {fileID: -7413323278554932356, guid: 81c430f02d381614bbd4a9a8ca5a1f19, type: 3}
+  damageTags: []
   drops:
-  - item: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
+  - item: {fileID: 11400000, guid: fc691d1ab1b190e45905b143509d9c63, type: 2}
     dropChance: 0.3
-    rolls: 12
-    minimumAmount: 1
-    maximumAmount: 1
-  - item: {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
-    dropChance: 0.3
-    rolls: 12
+    rolls: 4
     minimumAmount: 1
     maximumAmount: 1
   dropExplosionImpulse: 32

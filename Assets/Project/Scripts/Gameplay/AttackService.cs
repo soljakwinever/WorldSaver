@@ -22,7 +22,8 @@ namespace Project.Scripts.Gameplay
         public int CalculateDamage(AttackContext context)
         {
             int baseDamage =
-                checked(context.Force + (context.Weapon?.Power ?? 0));
+                checked(context.Force + (context.Weapon?.Power ?? 0) +
+                        (context.Skill?.power ?? 0));
             PlayerDataController player =
                 context.Attacker.GetComponentInParent<PlayerDataController>();
             int statBonus =
@@ -48,6 +49,11 @@ namespace Project.Scripts.Gameplay
                 throw new InvalidOperationException(
                     $"{target.GetType().Name} reported invalid delivered damage " +
                     $"{damageDelivered} for a {calculatedDamage}-damage attack.");
+
+            _entityBus.RaiseAttackResolved(
+                target,
+                resolvedContext,
+                damageDelivered);
 
             if (damageDelivered > 0)
                 _entityBus.RaiseDamageDelivered(

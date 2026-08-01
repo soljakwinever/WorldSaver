@@ -11,8 +11,12 @@ namespace Project.Scripts.Actions
     [CreateAssetMenu(
         fileName = "New Destroy Node Tool Action",
         menuName = "Data/Tool Actions/Destroy Node")]
-    public sealed class DestroyNodeToolAction : ToolAction
+    public sealed class DestroyNodeToolAction :
+        ToolAction,
+        IRequiresToolProximity
     {
+        [SerializeField, Min(0f)] private float interactionRange = 1.75f;
+
         [SerializeField]
         [Tooltip("Specific node assets this action can destroy.")]
         private NodeData[] targetNodes = Array.Empty<NodeData>();
@@ -24,6 +28,16 @@ namespace Project.Scripts.Actions
         public override bool CanPerform(ToolActionContext context)
         {
             return TryGetTarget(context, out _, out _);
+        }
+
+        public bool IsWithinToolRange(ToolActionContext context)
+        {
+            if (!TryGetTarget(context, out _, out Node node))
+                return false;
+
+            return ((Vector2)context.User.transform.position -
+                    (Vector2)node.transform.position).sqrMagnitude <=
+                   interactionRange * interactionRange;
         }
 
         public override bool Perform(ToolActionContext context)

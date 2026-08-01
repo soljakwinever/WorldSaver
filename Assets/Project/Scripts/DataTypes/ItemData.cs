@@ -12,6 +12,9 @@ namespace Project.Scripts.DataTypes
     public class ItemData : ScriptableObject
     {
         public const int FuelUnitsPerBaseValue = 4;
+        public const string GoldValueTagId = "gold-value";
+        public const string MagicValueTagId = "magic-value";
+        public const string FuelValueTagId = "fuel-value";
 
         [Tooltip("Stable identifier used in save data. Do not change after the item ships.")]
         public string persistentId;
@@ -34,14 +37,19 @@ namespace Project.Scripts.DataTypes
         public IReadOnlyList<ItemActionData> ActionData =>
             actionData ?? Array.Empty<ItemActionData>();
         
-        public int goldValue;
-        [Min(1)] public int fuelValue = 1;
+        [HideInInspector] public int goldValue;
+        [HideInInspector, Min(1)] public int fuelValue = 1;
         [Min(0f)]
+        [HideInInspector]
         [Tooltip("Base mana granted when a common item is offered to a Town Core shrine.")]
         public float magicValue;
 
         [SerializeField]
         private EntityTag[] tags = System.Array.Empty<EntityTag>();
+
+        [SerializeField]
+        private ValueTagAssignment[] valueTags =
+            Array.Empty<ValueTagAssignment>();
 
         public bool HasTag(EntityTag tag)
         {
@@ -54,8 +62,19 @@ namespace Project.Scripts.DataTypes
                     return true;
             }
 
-            return false;
+            return ValueTagLookup.HasTag(valueTags, tag);
         }
+
+        public bool TryGetValue(ValueTag tag, out int value) =>
+            ValueTagLookup.TryGetInt(valueTags, tag, out value);
+
+        public bool TryGetValue(ValueTag tag, out float value) =>
+            ValueTagLookup.TryGetFloat(valueTags, tag, out value);
+
+        public int GetGoldValue() =>
+            ValueTagLookup.TryGetInt(valueTags, GoldValueTagId, out int value)
+                ? value
+                : goldValue;
 
         /// <summary>Finds the first action-data record of the requested type.</summary>
         public bool TryGetActionData<T>(out T data)
@@ -87,7 +106,11 @@ namespace Project.Scripts.DataTypes
                     nameof(rarity), rarity, "Unknown item rarity.")
             };
 
-            return checked((long)fuelValue * rarityMultiplier);
+            int value = ValueTagLookup.TryGetInt(
+                valueTags, FuelValueTagId, out int taggedValue)
+                    ? taggedValue
+                    : fuelValue;
+            return checked((long)value * rarityMultiplier);
         }
 
         public float GetMagicValue(Rarity rarity)
@@ -103,12 +126,17 @@ namespace Project.Scripts.DataTypes
                     nameof(rarity), rarity, "Unknown item rarity.")
             };
 
-            return magicValue * rarityMultiplier;
+            float value = ValueTagLookup.TryGetFloat(
+                valueTags, MagicValueTagId, out float taggedValue)
+                    ? taggedValue
+                    : magicValue;
+            return value * rarityMultiplier;
         }
 
         private void OnEnable()
         {
             actionData ??= Array.Empty<ItemActionData>();
+            valueTags ??= Array.Empty<ValueTagAssignment>();
         }
         
         public enum Rarity
@@ -126,6 +154,7 @@ namespace Project.Scripts.DataTypes
             fuelValue = Mathf.Max(1, fuelValue);
             magicValue = Mathf.Max(0f, magicValue);
             actionData ??= Array.Empty<ItemActionData>();
+            valueTags ??= Array.Empty<ValueTagAssignment>();
         }
 #endif
     }

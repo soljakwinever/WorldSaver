@@ -27,8 +27,9 @@ namespace Project.Scripts.Gameplay
     [RequireComponent(typeof(PersistentTransform))]
     [RequireComponent(typeof(PlayerToolbarController))]
     [RequireComponent(typeof(PlayerEquipmentController))]
+    [RequireComponent(typeof(SkillRuntime))]
     public sealed class PlayerDataController : MonoBehaviour, IHasHealth, IHasNeeds, IHasMana, IHasStats,
-        IPersistentComponent
+        IPersistentComponent, ISkillStamina
     {
         public const ushort TypeId = 10;
         private const ushort CurrentComponentVersion = 5;
@@ -136,6 +137,8 @@ namespace Project.Scripts.Gameplay
             BaseMana + (Wisdom - BaseStat) * 10 +
             GetEquipmentModifier(EquipmentStat.MaximumMana));
         public int CurrentMana => Mathf.RoundToInt(mana * MaxMana);
+        public float CurrentStamina => CurrentEnergy;
+        public float MaximumStamina => MaxEnergy;
         public float EnergyDrainRate { get => energyDrainRate; set => energyDrainRate = Mathf.Max(0f, value); }
         public float HungerEnergyRegenerationRate
         {
@@ -164,12 +167,30 @@ namespace Project.Scripts.Gameplay
             Mana += (float)amount / MaxMana;
         }
 
+        public bool TrySpendStamina(float amount)
+        {
+            if (float.IsNaN(amount) || float.IsInfinity(amount) || amount < 0f)
+                throw new ArgumentOutOfRangeException(nameof(amount));
+            if (CurrentStamina + 0.0001f < amount)
+                return false;
+            if (amount > 0f)
+                Energy -= amount / MaxEnergy;
+            return true;
+        }
+
         [Inject]
-        public void Construct(PlayerBus playerBus, EntityBus entityBus)
+        public void Construct(
+            PlayerBus playerBus,
+            EntityBus entityBus,
+            IAttackService attackService = null)
         {
             UnsubscribeFromEnemyDefeats();
             _playerBus = playerBus;
             _entityBus = entityBus;
+            SkillRuntime skillRuntime = GetComponent<SkillRuntime>() ??
+                                        gameObject.AddComponent<SkillRuntime>();
+            if (attackService != null)
+                skillRuntime.Initialize(attackService);
             if (isActiveAndEnabled)
                 SubscribeToEnemyDefeats();
         }
@@ -910,7 +931,9 @@ namespace Project.Scripts.Gameplay
         private int GetEquipmentModifier(EquipmentStat stat)
         {
             _equipment ??= GetComponent<PlayerEquipmentController>();
-            return _equipment?.GetStatModifier(stat) ?? 0;
+            int equipment = _equipment?.GetStatModifier(stat) ?? 0;
+            SkillRuntime skills = GetComponent<SkillRuntime>();
+            return checked(equipment + (skills?.GetStatModifier(stat) ?? 0));
         }
 
         private void RaiseProgressionChanged()

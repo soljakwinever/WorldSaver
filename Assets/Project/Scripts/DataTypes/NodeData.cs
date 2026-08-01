@@ -40,6 +40,10 @@ namespace Project.Scripts
         [Tooltip("Categories used by tools and other node filters.")]
         private EntityTag[] tags = Array.Empty<EntityTag>();
 
+        [SerializeField]
+        private ValueTagAssignment[] valueTags =
+            Array.Empty<ValueTagAssignment>();
+
         [Header("Incoming Damage")]
         [Tooltip("Rules describing which sources can damage this entity. Empty uses tool-requirement compatibility and allows enemy damage.")]
         public EntityDamageRule[] damageRules =
@@ -57,14 +61,21 @@ namespace Project.Scripts
                     return true;
             }
 
-            return false;
+            return ValueTagLookup.HasTag(valueTags, tag);
         }
+
+        public bool TryGetValue(ValueTag tag, out int value) =>
+            ValueTagLookup.TryGetInt(valueTags, tag, out value);
+
+        public bool TryGetValue(ValueTag tag, out float value) =>
+            ValueTagLookup.TryGetFloat(valueTags, tag, out value);
 
         private void OnEnable()
         {
             persistentComponents ??=
                 Array.Empty<ComponentDefinitionData>();
             damageRules ??= Array.Empty<EntityDamageRule>();
+            valueTags ??= Array.Empty<ValueTagAssignment>();
         }
 
         //Todo: Resource
@@ -91,6 +102,7 @@ namespace Project.Scripts
             persistentComponents ??=
                 Array.Empty<ComponentDefinitionData>();
             damageRules ??= Array.Empty<EntityDamageRule>();
+            valueTags ??= Array.Empty<ValueTagAssignment>();
         }
 #endif
     }

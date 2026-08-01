@@ -654,6 +654,7 @@ MonoBehaviour:
   events:
   - {fileID: 11400000, guid: 17764ad08a997ee44a7ce1efa88fac1a, type: 2}
   - {fileID: 11400000, guid: e1e64f9440a9f7d4ea22c511c36672ee, type: 2}
+  startingEvent: {fileID: 0}
   spawnPlatformNode: {fileID: 11400000, guid: d0c00430eef4e2343ac6468f8d0099d1, type: 2}
   runtimeEntityArchetypes:
   - {fileID: 11400000, guid: f54a64c4914aedb45a88fb4adc14ed5d, type: 2}
@@ -663,7 +664,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7334b6e3869b4526ac3662fec540476b, type: 2}
   - {fileID: 11400000, guid: a4000000000000000000000000000004, type: 2}
   daysInMonth: 30
-  minutesPerDay: 5
+  minutesPerDay: 10
   startHour: 8
   startSeason: 0
   springTint: {r: 0.83775, g: 1, b: 0.823, a: 1}

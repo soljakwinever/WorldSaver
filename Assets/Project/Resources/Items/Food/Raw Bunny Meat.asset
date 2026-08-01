@@ -22,6 +22,10 @@ MonoBehaviour:
   goldValue: 8
   fuelValue: 1
   magicValue: 0
+  valueTags:
+  - tag: {fileID: 11400000, guid: b26da7e9b22e43b5aa9894c2cb4c4b01, type: 2}
+    intValue: 8
+    floatValue: 0
   tags:
   - {fileID: 11400000, guid: bd7cbfe9938263f36b67f619ca319727, type: 2}
   - {fileID: 11400000, guid: a689aa915cfd301ba6229ea15105563f, type: 2}

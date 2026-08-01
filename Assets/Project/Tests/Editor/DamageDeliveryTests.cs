@@ -99,6 +99,31 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void EveryAttackPublishesAnAttackResolution()
+        {
+            int signalCount = 0;
+            int lastDeliveredDamage = -1;
+            _entityBus.AttackResolved += (_, _, damage) =>
+            {
+                signalCount++;
+                lastDeliveredDamage = damage;
+            };
+
+            _attackService.Attack(
+                _health,
+                new AttackContext(_attacker, null, 0));
+            _attackService.Attack(
+                _health,
+                new AttackContext(_attacker, null, 10));
+            _attackService.Attack(
+                _health,
+                new AttackContext(_attacker, null, 1));
+
+            Assert.That(signalCount, Is.EqualTo(3));
+            Assert.That(lastDeliveredDamage, Is.Zero);
+        }
+
+        [Test]
         public void LegacyDamageRemainsAvailableWithoutPublishingAttack()
         {
             int signalCount = 0;

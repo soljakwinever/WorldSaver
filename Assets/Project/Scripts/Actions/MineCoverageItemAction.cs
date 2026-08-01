@@ -27,14 +27,22 @@ namespace Project.Scripts.Actions
 
         public override bool CanPerform(ActionContext context)
         {
-            return _toolAction != null &&
-                   _toolAction.CanPerform(ToToolActionContext(context));
+            if (_toolAction == null)
+                return false;
+
+            ToolActionContext toolContext = ToToolActionContext(context);
+            return _toolAction.IsWithinToolRange(toolContext) &&
+                   _toolAction.CanPerform(toolContext);
         }
 
         public override bool Perform(ActionContext context)
         {
-            return _toolAction != null &&
-                   _toolAction.Perform(ToToolActionContext(context));
+            if (_toolAction == null)
+                return false;
+
+            ToolActionContext toolContext = ToToolActionContext(context);
+            return _toolAction.IsWithinToolRange(toolContext) &&
+                   _toolAction.Perform(toolContext);
         }
 
         public override float Refresh => RepeatDelay;

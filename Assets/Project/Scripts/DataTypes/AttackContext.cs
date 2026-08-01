@@ -20,7 +20,8 @@ namespace Project.Scripts.DataTypes
         Tool = 1 << 1,
         Enemy = 1 << 2,
         Environment = 1 << 3,
-        All = Unspecified | Tool | Enemy | Environment
+        Skill = 1 << 4,
+        All = Unspecified | Tool | Enemy | Environment | Skill
     }
 
     [Serializable]
@@ -55,11 +56,11 @@ namespace Project.Scripts.DataTypes
     {
         public GameObject Attacker { get; }
         public ToolData Weapon { get; }
+        public SkillData Skill { get; }
         public int Force { get; }
         public EntityDamageSource Source { get; }
         public IReadOnlyList<EntityTag> SourceTags { get; }
-        public PlayerAttackType AttackType =>
-            Weapon != null ? Weapon.AttackType : PlayerAttackType.Melee;
+        public PlayerAttackType AttackType { get; }
 
         public AttackContext(GameObject attacker, ToolData weapon, int force)
             : this(
@@ -89,10 +90,29 @@ namespace Project.Scripts.DataTypes
             Weapon = weapon;
             Force = force;
             Source = source;
+            Skill = null;
+            AttackType = weapon != null ? weapon.AttackType : PlayerAttackType.Melee;
             SourceTags = sourceTags?
                 .Where(tag => tag != null)
                 .Distinct()
                 .ToArray() ?? Array.Empty<EntityTag>();
+        }
+
+        public AttackContext(
+            GameObject attacker, ToolData weapon, int force,
+            EntityDamageSource source, IEnumerable<EntityTag> sourceTags,
+            SkillData skill, PlayerAttackType attackType)
+        {
+            if (attacker == null) throw new ArgumentNullException(nameof(attacker));
+            if (force < 0) throw new ArgumentOutOfRangeException(nameof(force));
+            Attacker = attacker;
+            Weapon = weapon;
+            Force = force;
+            Source = source;
+            Skill = skill;
+            AttackType = attackType;
+            SourceTags = sourceTags?.Where(tag => tag != null).Distinct().ToArray()
+                         ?? Array.Empty<EntityTag>();
         }
 
         public bool HasSourceTag(EntityTag tag)
