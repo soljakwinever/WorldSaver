@@ -39,19 +39,29 @@ namespace Project.Scripts
         private readonly IRegionRepository _regions;
         private readonly IWorldClock _clock;
         private readonly IClimateCoreInfluenceRegistry _climateCores;
+        private readonly DataController _dataController;
+        private readonly WorldData _worldData;
+        public IReadOnlyList<FeatureBuildingData> AllBuildings =>
+            EnumerateConfiguredBuildings().Distinct().ToArray();
+        public IReadOnlyList<FeatureBuildingData> NaturallyGeneratedBuildings =>
+            _worldGeneration.AllFeatureBuildings;
 
         public FeatureBuildingService(
             WorldGeneration worldGeneration,
             Chunkloader chunkloader,
             IRegionRepository regions,
             IWorldClock clock,
-            IClimateCoreInfluenceRegistry climateCores)
+            IClimateCoreInfluenceRegistry climateCores,
+            DataController dataController,
+            WorldData worldData)
         {
             _worldGeneration = worldGeneration;
             _chunkloader = chunkloader;
             _regions = regions;
             _clock = clock;
             _climateCores = climateCores;
+            _dataController = dataController;
+            _worldData = worldData;
         }
 
         public void Initialize()
@@ -70,12 +80,128 @@ namespace Project.Scripts
                 "featureId",
                 "regionX",
                 "regionY");
+            DebugLogConsole.AddCommand<string>(
+                "feature.findeventfeature",
+                "Locates features configured by an event in the player's current region.",
+                DebugFindEventFeature,
+                "eventName");
         }
 
         public void Dispose()
         {
             DebugLogConsole.RemoveCommand<string, int, int>(DebugSpawn);
             DebugLogConsole.RemoveCommand<string, int, int>(DebugLocate);
+            DebugLogConsole.RemoveCommand<string>(DebugFindEventFeature);
+        }
+
+        private async void DebugFindEventFeature(string eventName)
+        {
+            try
+            {
+                string normalized = eventName?.Trim();
+                EventData eventData = (_worldData.events ??
+                                       Array.Empty<EventData>())
+                    .FirstOrDefault(candidate =>
+                        candidate != null &&
+                        (string.Equals(
+                             candidate.persistentId,
+                             normalized,
+                             StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(
+                             candidate.name,
+                             normalized,
+                             StringComparison.OrdinalIgnoreCase)));
+                if (eventData == null)
+                {
+                    Debug.LogWarning(
+                        $"No configured event named '{eventName}' was found.");
+                    return;
+                }
+
+                List<FeatureBuildingData> eventBuildings = new();
+                if (eventData.effects?.featureBuildings != null)
+                {
+                    foreach (EventFeatureBuildingEffect feature in
+                             eventData.effects.featureBuildings)
+                    {
+                        if (feature?.building != null &&
+                            !eventBuildings.Contains(feature.building))
+                        {
+                            eventBuildings.Add(feature.building);
+                        }
+                    }
+                }
+                foreach (FeatureBuildingData legacy in
+                         eventData.effects?.buildings ??
+                         Array.Empty<FeatureBuildingData>())
+                {
+                    if (legacy != null && !eventBuildings.Contains(legacy))
+                        eventBuildings.Add(legacy);
+                }
+                if (eventBuildings.Count == 0)
+                {
+                    Debug.LogWarning(
+                        $"Event '{eventData.name}' does not define any feature buildings.");
+                    return;
+                }
+                if (_chunkloader.track == null)
+                {
+                    Debug.LogWarning(
+                        $"Cannot locate event '{eventData.name}' features because no player transform is being tracked.");
+                    return;
+                }
+
+                Vector2Int region = WorldPartition.ChunkToRegion(
+                    WorldPartition.WorldToChunk(
+                        _chunkloader.track.position));
+                bool foundAny = false;
+                foreach (FeatureBuildingData building in eventBuildings)
+                {
+                    if (building == null)
+                        continue;
+
+                    if (_worldGeneration.TryLocateFeatureInRegion(
+                            building.persistentId,
+                            region,
+                            out Vector2 generatedPosition))
+                    {
+                        LogLocatedEventFeature(
+                            eventData,
+                            building,
+                            region,
+                            generatedPosition,
+                            "generated");
+                        foundAny = true;
+                        continue;
+                    }
+
+                    (bool found, Vector2 position) runtime =
+                        await TryLocateRuntimeBuildingAsync(
+                            building,
+                            region);
+                    if (!runtime.found)
+                        continue;
+
+                    LogLocatedEventFeature(
+                        eventData,
+                        building,
+                        region,
+                        runtime.position,
+                        "runtime");
+                    foundAny = true;
+                }
+
+                if (!foundAny)
+                {
+                    Debug.LogWarning(
+                        $"No feature configured by event '{eventData.name}' " +
+                        $"was found in the player's current region {region}.");
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+            }
         }
 
         private async void DebugLocate(
@@ -221,6 +347,12 @@ namespace Project.Scripts
                 building.placementOffset,
                 _clock.CurrentTick);
             Vector2Int worldCell = Vector2Int.FloorToInt(position);
+            Dictionary<Vector2Int, TileData> floorTiles =
+                BuildFloorTiles(building, position - building.placementOffset);
+            if (!ValidateFloorTiles(floorTiles, out string tileError))
+                return FeatureBuildingSpawnResult.Failed(tileError);
+            if (!AreLoadedFloorChunksReady(floorTiles, out string chunkError))
+                return FeatureBuildingSpawnResult.Failed(chunkError);
 
             if (_chunkloader.TryGetLoadedChunk(
                     new Vector3Int(worldCell.x, worldCell.y),
@@ -251,6 +383,12 @@ namespace Project.Scripts
                 {
                     return FeatureBuildingSpawnResult.Failed(
                         $"chunk {loaded.Position} rejected the runtime entity for an unknown placement error.");
+                }
+
+                if (!await ApplyFloorTilesAsync(floorTiles))
+                {
+                    return FeatureBuildingSpawnResult.Failed(
+                        "the building entity spawned, but its persistent floor could not be applied.");
                 }
 
                 Debug.Log(
@@ -299,7 +437,11 @@ namespace Project.Scripts
             }
             region.SetChunkState(localIndex, chunkState);
             _regions.MarkDirty(region);
-            await _regions.FlushDirtyAsync();
+            if (!await ApplyFloorTilesAsync(floorTiles))
+            {
+                return FeatureBuildingSpawnResult.Failed(
+                    "the building entity was persisted, but its floor could not be applied.");
+            }
 
             Debug.Log(
                 $"Spawned feature building '{building.persistentId}' offline " +
@@ -308,17 +450,351 @@ namespace Project.Scripts
             return FeatureBuildingSpawnResult.Succeeded();
         }
 
+        private Dictionary<Vector2Int, TileData> BuildFloorTiles(
+            FeatureBuildingData building,
+            Vector2 featureCenter)
+        {
+            FloorGenerator[] generators =
+                (building.generators ?? Array.Empty<GeneratorInfo>())
+                .Where(info =>
+                    info?.enabled == true &&
+                    info.strength > 0f &&
+                    info.generator is FloorGenerator)
+                .Select(info => (FloorGenerator)info.generator)
+                .ToArray();
+            Dictionary<Vector2Int, TileData> result = new();
+            if (generators.Length == 0)
+                return result;
+
+            Vector2 minimum = new(float.MaxValue, float.MaxValue);
+            Vector2 maximum = new(float.MinValue, float.MinValue);
+            foreach (FloorGenerator generator in generators)
+            {
+                minimum = Vector2.Min(
+                    minimum,
+                    generator.offset - generator.HalfExtents);
+                maximum = Vector2.Max(
+                    maximum,
+                    generator.offset + generator.HalfExtents);
+            }
+
+            int minimumX = Mathf.FloorToInt(featureCenter.x + minimum.x);
+            int minimumY = Mathf.FloorToInt(featureCenter.y + minimum.y);
+            int maximumX = Mathf.CeilToInt(featureCenter.x + maximum.x);
+            int maximumY = Mathf.CeilToInt(featureCenter.y + maximum.y);
+            for (int y = minimumY; y <= maximumY; y++)
+            {
+                for (int x = minimumX; x <= maximumX; x++)
+                {
+                    Vector2 localPoint =
+                        new Vector2(x, y) - featureCenter;
+                    foreach (FloorGenerator generator in generators)
+                    {
+                        if (generator.TryGetTile(
+                                localPoint,
+                                out TileData tile))
+                        {
+                            result[new Vector2Int(x, y)] = tile;
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private bool ValidateFloorTiles(
+            Dictionary<Vector2Int, TileData> floorTiles,
+            out string error)
+        {
+            foreach (TileData tile in floorTiles.Values.Distinct())
+            {
+                if (!_worldData.TryGetTileData(
+                        tile.TileId,
+                        out TileData registered) ||
+                    registered != tile ||
+                    !tile.HasVisual)
+                {
+                    error =
+                        $"floor tile '{tile.name}' is not a visual tile registered in WorldData.tiles.";
+                    return false;
+                }
+            }
+
+            error = string.Empty;
+            return true;
+        }
+
+        private bool AreLoadedFloorChunksReady(
+            Dictionary<Vector2Int, TileData> floorTiles,
+            out string error)
+        {
+            foreach (Vector2Int chunkPosition in floorTiles.Keys
+                         .Select(cell =>
+                             WorldPartition.WorldToChunk(cell))
+                         .Distinct())
+            {
+                Vector3Int lookupCell = new(
+                    chunkPosition.x * ChunkBuildResult.ChunkSize,
+                    chunkPosition.y * ChunkBuildResult.ChunkSize);
+                if (_chunkloader.TryGetLoadedChunk(
+                        lookupCell,
+                        out Chunk chunk) &&
+                    !chunk.IsPersistenceRestoreCompleted)
+                {
+                    error =
+                        $"floor overlaps chunk {chunkPosition}, which is still restoring persistent state.";
+                    return false;
+                }
+            }
+
+            error = string.Empty;
+            return true;
+        }
+
+        private async Awaitable<bool> ApplyFloorTilesAsync(
+            Dictionary<Vector2Int, TileData> floorTiles)
+        {
+            if (floorTiles.Count == 0)
+            {
+                await _dataController.SaveAsync();
+                return true;
+            }
+
+            Dictionary<Vector2Int, List<KeyValuePair<Vector2Int, TileData>>>
+                byChunk = floorTiles
+                    .GroupBy(pair => WorldPartition.WorldToChunk(pair.Key))
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.ToList());
+
+            foreach (KeyValuePair<
+                         Vector2Int,
+                         List<KeyValuePair<Vector2Int, TileData>>> chunkTiles
+                     in byChunk)
+            {
+                Vector2Int chunkPosition = chunkTiles.Key;
+                Vector3Int lookupCell = new(
+                    chunkPosition.x * ChunkBuildResult.ChunkSize,
+                    chunkPosition.y * ChunkBuildResult.ChunkSize);
+                if (_chunkloader.TryGetLoadedChunk(
+                        lookupCell,
+                        out Chunk loaded))
+                {
+                    if (!loaded.IsPersistenceRestoreCompleted)
+                        return false;
+
+                    foreach (KeyValuePair<Vector2Int, TileData> placement in
+                             chunkTiles.Value)
+                    {
+                        if (!ApplyLoadedFloorTile(
+                                loaded,
+                                placement.Key,
+                                placement.Value))
+                        {
+                            return false;
+                        }
+                    }
+
+                    continue;
+                }
+
+                RuntimeRegion region = await _regions.GetReadyAsync(
+                    WorldPartition.ChunkToRegion(chunkPosition),
+                    _clock.CurrentTick);
+                ushort localIndex =
+                    WorldPartition.GetLocalChunkIndex(chunkPosition);
+                ChunkState state = region.TryGetChunkState(
+                        localIndex,
+                        out ChunkState existing)
+                    ? existing.CreateSnapshot()
+                    : new ChunkState { localChunkIndex = localIndex };
+                foreach (KeyValuePair<Vector2Int, TileData> placement in
+                         chunkTiles.Value)
+                {
+                    ApplyOfflineFloorTile(
+                        state,
+                        chunkPosition,
+                        placement.Key,
+                        placement.Value);
+                }
+
+                state.lastSimulatedTick = _clock.CurrentTick;
+                state.Compact();
+                region.SetChunkState(localIndex, state);
+                _regions.MarkDirty(region);
+            }
+
+            await _dataController.SaveAsync();
+            return true;
+        }
+
+        private static bool ApplyLoadedFloorTile(
+            Chunk chunk,
+            Vector2Int cell,
+            TileData tile)
+        {
+            Vector3Int worldCell = new(cell.x, cell.y);
+            if (tile.IsWall)
+            {
+                return chunk.TryClearTile(
+                           worldCell,
+                           PersistentTileLayer.Ground) &&
+                       chunk.TryClearTile(
+                           worldCell,
+                           PersistentTileLayer.Water) &&
+                       chunk.TryPlaceTile(
+                           worldCell,
+                           PersistentTileLayer.Wall,
+                           tile,
+                           tile.Color);
+            }
+
+            return chunk.TryClearTile(
+                       worldCell,
+                       PersistentTileLayer.Water) &&
+                   chunk.TryClearTile(
+                       worldCell,
+                       PersistentTileLayer.Wall) &&
+                   chunk.TryClearTile(
+                       worldCell,
+                       PersistentTileLayer.Ceiling) &&
+                   chunk.TryPlaceTile(
+                       worldCell,
+                       PersistentTileLayer.Ground,
+                       tile,
+                       tile.Color);
+        }
+
+        private static void ApplyOfflineFloorTile(
+            ChunkState state,
+            Vector2Int chunkPosition,
+            Vector2Int cell,
+            TileData tile)
+        {
+            int originX = chunkPosition.x * ChunkBuildResult.ChunkSize;
+            int originY = chunkPosition.y * ChunkBuildResult.ChunkSize;
+            byte localX = (byte)(cell.x - originX);
+            byte localY = (byte)(cell.y - originY);
+
+            if (tile.IsWall)
+            {
+                SetOverride(
+                    state,
+                    localX,
+                    localY,
+                    PersistentTileLayer.Ground,
+                    TileOverrideKind.Clear);
+                SetOverride(
+                    state,
+                    localX,
+                    localY,
+                    PersistentTileLayer.Water,
+                    TileOverrideKind.Clear);
+                SetOverride(
+                    state,
+                    localX,
+                    localY,
+                    PersistentTileLayer.Wall,
+                    TileOverrideKind.Place,
+                    tile.TileId);
+                return;
+            }
+
+            SetOverride(
+                state,
+                localX,
+                localY,
+                PersistentTileLayer.Water,
+                TileOverrideKind.Clear);
+            SetOverride(
+                state,
+                localX,
+                localY,
+                PersistentTileLayer.Wall,
+                TileOverrideKind.Clear);
+            SetOverride(
+                state,
+                localX,
+                localY,
+                PersistentTileLayer.Ceiling,
+                TileOverrideKind.Clear);
+            SetOverride(
+                state,
+                localX,
+                localY,
+                PersistentTileLayer.Ground,
+                TileOverrideKind.Place,
+                tile.TileId);
+        }
+
+        private static void SetOverride(
+            ChunkState state,
+            byte localX,
+            byte localY,
+            PersistentTileLayer layer,
+            TileOverrideKind kind,
+            int tileId = -1)
+        {
+            state.tileOverrides ??= new List<TileOverrideData>();
+            state.tileOverrides.RemoveAll(tile =>
+                tile != null &&
+                tile.localX == localX &&
+                tile.localY == localY &&
+                tile.layer == layer);
+            state.tileOverrides.Add(new TileOverrideData
+            {
+                localX = localX,
+                localY = localY,
+                layer = layer,
+                kind = kind,
+                tileId = kind == TileOverrideKind.Place ? tileId : -1,
+                tint = PersistentTileTint.TileDefault
+            });
+        }
+
         private FeatureBuildingData FindBuilding(string buildingId)
         {
             string normalized = buildingId?.Trim();
             if (string.IsNullOrEmpty(normalized))
                 return null;
 
-            return _worldGeneration.AllFeatureBuildings.FirstOrDefault(
+            return EnumerateConfiguredBuildings().FirstOrDefault(
                 building => string.Equals(
                     building.persistentId,
                     normalized,
                     StringComparison.OrdinalIgnoreCase));
+        }
+
+        private IEnumerable<FeatureBuildingData> EnumerateConfiguredBuildings()
+        {
+            foreach (FeatureBuildingData building in
+                     _worldGeneration.AllFeatureBuildings)
+            {
+                if (building != null)
+                    yield return building;
+            }
+
+            foreach (EventData eventData in
+                     _worldData.events ?? Array.Empty<EventData>())
+            {
+                if (eventData?.effects == null)
+                    continue;
+                foreach (EventFeatureBuildingEffect feature in
+                         eventData.effects.featureBuildings ??
+                         Array.Empty<EventFeatureBuildingEffect>())
+                {
+                    if (feature?.building != null)
+                        yield return feature.building;
+                }
+                foreach (FeatureBuildingData legacy in
+                         eventData.effects.buildings ??
+                         Array.Empty<FeatureBuildingData>())
+                {
+                    if (legacy != null)
+                        yield return legacy;
+                }
+            }
         }
 
         public static Vector2 GetRuntimeSpawnPosition(
@@ -427,6 +903,20 @@ namespace Project.Scripts
             Debug.Log(
                 $"Located {source} feature '{featureId}' in region {region}, " +
                 $"chunk {chunk}, at {position}.");
+        }
+
+        private static void LogLocatedEventFeature(
+            EventData eventData,
+            FeatureBuildingData building,
+            Vector2Int region,
+            Vector2 position,
+            string source)
+        {
+            Vector2Int chunk = WorldPartition.WorldToChunk(position);
+            Debug.Log(
+                $"Located {source} feature '{building.persistentId}' for " +
+                $"event '{eventData.name}' in region {region}, chunk {chunk}, " +
+                $"at {position}.");
         }
 
         private bool ContainsBuilding(

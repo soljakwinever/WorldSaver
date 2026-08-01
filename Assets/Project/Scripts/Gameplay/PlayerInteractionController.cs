@@ -43,8 +43,11 @@ namespace Project.Scripts.Gameplay
         private ICraftingService _craftingService;
         private IItemStackPickupPool _pickupPool;
         private IAttackService _attackService;
+        private IRoomVisibility _roomVisibility;
+        private IWorldActionUiBlocker _uiBlocker;
         private bool _inventoryCraftingOpen;
         private SpriteRenderer _placementCursorRenderer;
+        private Material _placementCursorMaterial;
         private float _nextRepeatedActionTime;
         private bool _repeatActionBlockedUntilRelease;
 
@@ -61,7 +64,9 @@ namespace Project.Scripts.Gameplay
             IComponentWindowService windowService,
             ICraftingService craftingService,
             IItemStackPickupPool pickupPool,
-            IAttackService attackService)
+            IAttackService attackService,
+            IRoomVisibility roomVisibility,
+            IWorldActionUiBlocker uiBlocker)
         {
             UnsubscribeFromInput();
             this.inputManager = inputManager;
@@ -69,6 +74,8 @@ namespace Project.Scripts.Gameplay
             _craftingService = craftingService;
             _pickupPool = pickupPool;
             _attackService = attackService;
+            _roomVisibility = roomVisibility;
+            _uiBlocker = uiBlocker;
 
             if (isActiveAndEnabled)
                 SubscribeToInput();
@@ -131,7 +138,26 @@ namespace Project.Scripts.Gameplay
                 cursorObject.AddComponent<SpriteRenderer>();
             _placementCursorRenderer.sortingLayerName = "Default";
             _placementCursorRenderer.sortingOrder = cursorSortingOrder;
+            Shader unlitShader = Shader.Find(
+                "Universal Render Pipeline/2D/Sprite-Unlit-Default");
+            unlitShader ??= Shader.Find("Sprites/Default");
+            if (unlitShader != null)
+            {
+                _placementCursorMaterial = new Material(unlitShader)
+                {
+                    name = "Placement Cursor Unlit Material",
+                    hideFlags = HideFlags.HideAndDontSave
+                };
+                _placementCursorRenderer.sharedMaterial =
+                    _placementCursorMaterial;
+            }
             _placementCursorRenderer.enabled = false;
+        }
+
+        private void OnDestroy()
+        {
+            if (_placementCursorMaterial != null)
+                Destroy(_placementCursorMaterial);
         }
 
         private void UpdatePlacementCursor()
@@ -151,7 +177,9 @@ namespace Project.Scripts.Gameplay
 
             _placementCursorRenderer.transform.position = cursor.Position;
             _placementCursorRenderer.sprite = cursor.Sprite;
-            Color color = cursor.IsValid
+            bool isValid = cursor.IsValid &&
+                           !IsPointerBlockingWorldAction();
+            Color color = isValid
                 ? validCursorColor
                 : invalidCursorColor;
             color.a *= cursor.Opacity;
@@ -216,6 +244,9 @@ namespace Project.Scripts.Gameplay
 
         public bool CanPerformSelectedAction()
         {
+            if (IsPointerBlockingWorldAction())
+                return false;
+
             IHotbarAction action = _toolbarController.SelectedItemAction;
             if (action == null ||
                 !action.CanPerform(CreateItemActionContext()))
@@ -228,6 +259,9 @@ namespace Project.Scripts.Gameplay
 
         public bool TryPerformSelectedAction()
         {
+            if (IsPointerBlockingWorldAction())
+                return false;
+
             IHotbarAction action = _toolbarController.SelectedItemAction;
             if (action == null)
                 return false;
@@ -273,7 +307,8 @@ namespace Project.Scripts.Gameplay
 
         public bool CanUseTool(ToolData tool)
         {
-            if (tool == null || focusedInteractable == null)
+            if (IsPointerBlockingWorldAction() ||
+                tool == null || focusedInteractable == null)
                 return false;
 
             return focusedInteractable.CanInteract(
@@ -378,6 +413,30 @@ namespace Project.Scripts.Gameplay
                 spawnItemDrop: SpawnItemDrop);
         }
 
+        private bool IsPointerBlockingWorldAction()
+        {
+            if (inputManager == null)
+                return false;
+
+            Vector2 screenPosition = inputManager.MousePosition;
+            if (_windowService?.IsPointerOverWindow(screenPosition) == true ||
+                _uiBlocker?.IsPointerOverBlockingUi(screenPosition) == true)
+            {
+                return true;
+            }
+
+            Camera mainCamera = Camera.main;
+            if (mainCamera == null || _roomVisibility == null)
+                return false;
+
+            Vector3 worldPosition = mainCamera.ScreenToWorldPoint(
+                new Vector3(
+                    screenPosition.x,
+                    screenPosition.y,
+                    -mainCamera.transform.position.z));
+            return _roomVisibility.IsWorldPositionMasked(worldPosition);
+        }
+
         private void SpawnItemDrop(ItemData item, Vector3 position)
         {
             if (item == null || _pickupPool == null)
@@ -403,7 +462,7 @@ namespace Project.Scripts.Gameplay
                 TryDirectInteract();
             }
 
-            if (context.AttackPressed)
+            if (context.AttackPressed && !IsPointerBlockingWorldAction())
             {
                 if (TryAttackDamageable())
                 {

@@ -157,6 +157,11 @@ namespace Project.Scripts
         [Min(0f), Tooltip("Extra viewport border used before an NPC counts as offscreen.")]
         public float transientOffscreenViewportMargin = 0.1f;
 
+        [Header("Events")]
+        public EventData[] events = Array.Empty<EventData>();
+        [Tooltip("Activated when a new world has no saved event state.")]
+        public EventData startingEvent;
+
         [Header("Runtime Entities")]
         [Tooltip("Deterministic procedural node generated at the world's shared spawn position.")]
         public NodeData spawnPlatformNode;

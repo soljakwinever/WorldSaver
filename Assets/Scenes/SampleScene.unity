@@ -403,9 +403,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 743799761}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa3a838b0cc84b245b148627d5726548, type: 3}
+  m_Script: {fileID: 11500000, guid: 0ab23bfd4210498ba5790455496a72fc, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.ItemCatalog
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.AutoItemCatalog
   items:
   - {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
   - {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
@@ -421,6 +421,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 20d1baac347c4503aaef2ec970aaeaf7, type: 2}
   - {fileID: 11400000, guid: d5ba2827d809c8a44b0b8c464adaf413, type: 2}
   - {fileID: 11400000, guid: f230b3a56e1ac4b4daf4f59be194801c, type: 2}
+  - {fileID: 11400000, guid: c8936dd9353ac5846b218dfc8bfaf1c1, type: 2}
+  blacklist: []
 --- !u!4 &743799763
 Transform:
   m_ObjectHideFlags: 0

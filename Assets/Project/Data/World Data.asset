@@ -651,6 +651,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 7da5bce4e0632204686460839da1ef9f, type: 2}
   transientRecycleCheckIntervalTicks: 5
   transientOffscreenViewportMargin: 0.1
+  events:
+  - {fileID: 11400000, guid: 17764ad08a997ee44a7ce1efa88fac1a, type: 2}
+  - {fileID: 11400000, guid: e1e64f9440a9f7d4ea22c511c36672ee, type: 2}
   spawnPlatformNode: {fileID: 11400000, guid: d0c00430eef4e2343ac6468f8d0099d1, type: 2}
   runtimeEntityArchetypes:
   - {fileID: 11400000, guid: f54a64c4914aedb45a88fb4adc14ed5d, type: 2}

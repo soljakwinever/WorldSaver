@@ -14,10 +14,16 @@ namespace Project.Scripts.Bus
         AttackContext context,
         int damageDelivered);
 
+    public delegate void EntityRemovedHandler(
+        NodeData nodeData,
+        Project.Scripts.DataTypes.SaveData.NodeId entityId,
+        UnityEngine.Vector3 position);
+
     public sealed class EntityBus
     {
         public event DamageDeliveredHandler DamageDelivered;
         public event EnemyDefeatedHandler EnemyDefeated;
+        public event EntityRemovedHandler EntityRemoved;
 
         public void RaiseDamageDelivered(
             IDamageable target,
@@ -38,6 +44,14 @@ namespace Project.Scripts.Bus
                 position,
                 experienceValue,
                 defeatedBy);
+        }
+
+        public void RaiseEntityRemoved(
+            NodeData nodeData,
+            Project.Scripts.DataTypes.SaveData.NodeId entityId,
+            UnityEngine.Vector3 position)
+        {
+            EntityRemoved?.Invoke(nodeData, entityId, position);
         }
     }
 }

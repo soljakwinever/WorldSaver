@@ -27,6 +27,7 @@ namespace Project.Scripts.Interface
     public interface IComponentWindowService
     {
         bool IsOpen { get; }
+        bool IsPointerOverWindow(Vector2 screenPosition);
         void Open(ComponentWindowRequest request);
         void Close();
     }

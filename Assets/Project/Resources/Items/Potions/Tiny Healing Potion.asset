@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
   m_Name: Tiny Healing Potion
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
-  persistentId: 
+  persistentId: items.potions.tinyhppotion
   description: Increases health by {hpValue}.
   maxStack: 24
   sprite: {fileID: 2959826883323455076, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}

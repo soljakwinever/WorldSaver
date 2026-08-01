@@ -31,7 +31,7 @@ namespace Project.Scripts.Gameplay
         IPersistentComponent
     {
         public const ushort TypeId = 10;
-        private const ushort CurrentComponentVersion = 4;
+        private const ushort CurrentComponentVersion = 5;
         private const ushort CurrentFileVersion = 1;
         private const uint FileMagic = 0x43535750; // PWSC
         private const int BaseStat = 5;
@@ -71,6 +71,15 @@ namespace Project.Scripts.Gameplay
         [SerializeField] private Vector3 spawnPoint;
         [SerializeField] private bool hasSpawnTown;
         [SerializeField] private ulong spawnTownId;
+        [SerializeField] private List<VisitedTown> visitedTowns = new();
+
+        [Serializable]
+        public sealed class VisitedTown
+        {
+            public ulong PersistentId;
+            public string Name;
+            public Vector3 SpawnPoint;
+        }
 
         [Header("Death")]
         [SerializeField] private bool resolveDeathInstantly = true;
@@ -416,6 +425,25 @@ namespace Project.Scripts.Gameplay
             return hasSpawnPoint;
         }
 
+        public IReadOnlyList<VisitedTown> VisitedTowns => visitedTowns;
+
+        public void RegisterTownVisit(TownCore town)
+        {
+            if (town == null || town.PersistentEntity == null)
+                return;
+            ulong id = town.PersistentEntity.Id.value;
+            VisitedTown record = visitedTowns.Find(candidate => candidate.PersistentId == id);
+            if (record == null)
+            {
+                record = new VisitedTown { PersistentId = id };
+                visitedTowns.Add(record);
+            }
+            record.Name = town.TownName;
+            record.SpawnPoint = town.SpawnPoint;
+            if (_loaded)
+                TrySave();
+        }
+
         public bool RespawnAtSpawnPoint()
         {
             if (!hasSpawnPoint)
@@ -585,6 +613,15 @@ namespace Project.Scripts.Gameplay
             writer.Write(hasSpawnTown);
             if (hasSpawnTown)
                 writer.Write(spawnTownId);
+            writer.Write(visitedTowns.Count);
+            foreach (VisitedTown town in visitedTowns)
+            {
+                writer.Write(town.PersistentId);
+                writer.Write(town.Name ?? "Town");
+                writer.Write(town.SpawnPoint.x);
+                writer.Write(town.SpawnPoint.y);
+                writer.Write(town.SpawnPoint.z);
+            }
         }
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
@@ -677,6 +714,25 @@ namespace Project.Scripts.Gameplay
                 if (hasSpawnTown)
                     spawnTownId = reader.ReadUInt64();
             }
+            visitedTowns.Clear();
+            if (savedVersion >= 5)
+            {
+                int count = reader.ReadInt32();
+                if (count < 0 || count > 10000)
+                    throw new InvalidDataException("Saved visited-town count is invalid.");
+                for (int i = 0; i < count; i++)
+                {
+                    VisitedTown town = new()
+                    {
+                        PersistentId = reader.ReadUInt64(),
+                        Name = reader.ReadString(),
+                        SpawnPoint = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle())
+                    };
+                    if (!IsFinite(town.SpawnPoint))
+                        throw new InvalidDataException("Saved visited-town position is invalid.");
+                    visitedTowns.Add(town);
+                }
+            }
 
             ApplyConstitutionToHealth(healIncrease: false);
         }
@@ -696,7 +752,8 @@ namespace Project.Scripts.Gameplay
                    intelligence == BaseStat &&
                    luck == BaseStat &&
                    !hasSpawnPoint &&
-                   !hasSpawnTown;
+                   !hasSpawnTown &&
+                   visitedTowns.Count == 0;
         }
 
         private void OnHealthDepleted()

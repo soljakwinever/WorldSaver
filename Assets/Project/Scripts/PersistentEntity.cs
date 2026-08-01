@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using UnityEngine;
 
@@ -7,6 +8,8 @@ namespace Project.Scripts.Core
 {
     public sealed class PersistentEntity : MonoBehaviour, IPersistentEntity
     {
+        public static event System.Action<NodeData, NodeId, Vector3>
+            RemovedFromWorld;
         [SerializeField] private int archetypeId;
 
         private NodeId _id;
@@ -19,6 +22,12 @@ namespace Project.Scripts.Core
         public EntityPersistenceKind PersistenceKind => _persistenceKind;
         public PersistentComponentHost ComponentHost => _componentHost;
         public bool CanRemoveFromWorld => _owner != null;
+        public NodeData NodeData { get; private set; }
+
+        public void SetNodeData(NodeData nodeData)
+        {
+            NodeData = nodeData;
+        }
 
         public void Initialize(
             NodeId id,
@@ -67,6 +76,7 @@ namespace Project.Scripts.Core
             }
 
             _owner.NotifyEntityRemoved(this);
+            RemovedFromWorld?.Invoke(NodeData, Id, transform.position);
             gameObject.SetActive(false);
         }
 

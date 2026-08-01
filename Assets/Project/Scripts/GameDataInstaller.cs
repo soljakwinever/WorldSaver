@@ -124,9 +124,17 @@ public class GameDataInstaller : MonoInstaller
             .NonLazy();
         
         Container.Bind<PlayerDataController>().FromComponentInHierarchy().AsSingle();
+        Container.Bind<IWorldActionUiBlocker>()
+            .To<PlayerHUD>()
+            .FromComponentInHierarchy()
+            .AsSingle();
+        Container.BindInterfacesTo<PlayerGiveItemCommand>().AsSingle().NonLazy();
         Container.Bind<ITimeController>()
             .FromComponentInHierarchy()
             .AsSingle();
+        Container.BindInterfacesAndSelfTo<EventService>()
+            .AsSingle()
+            .NonLazy();
         
         Container.Bind<MapSignalBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<TimeSignalBus>().FromNew().AsSingle().NonLazy();
@@ -158,6 +166,9 @@ public class GameDataInstaller : MonoInstaller
             .NonLazy();
         Container.Bind<PlayerBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<EntityBus>().FromNew().AsSingle().NonLazy();
+        Container.BindInterfacesTo<PersistentEntityRemovalBridge>()
+            .AsSingle()
+            .NonLazy();
         Container.Bind<IAttackService>().To<AttackService>().AsSingle();
         Container.BindInterfacesAndSelfTo<ProjectileService>()
             .AsSingle();

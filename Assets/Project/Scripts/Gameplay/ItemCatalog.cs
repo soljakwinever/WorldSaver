@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Project.Scripts.Gameplay
 {
-    public sealed class ItemCatalog : MonoBehaviour
+    public class ItemCatalog : MonoBehaviour
     {
         [SerializeField] private ItemData[] items = Array.Empty<ItemData>();
 
@@ -13,9 +13,15 @@ namespace Project.Scripts.Gameplay
 
         public IReadOnlyList<ItemData> Items => items;
 
-        private void Awake()
+        protected virtual void Awake()
         {
             EnsureInitialized();
+        }
+
+        protected void SetItems(ItemData[] catalog)
+        {
+            items = catalog ?? throw new ArgumentNullException(nameof(catalog));
+            _itemsById = null;
         }
 
         public bool TryGet(string persistentId, out ItemData item)

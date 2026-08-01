@@ -11,16 +11,19 @@ namespace Project.Scripts
         INPCSpawnEnvironmentProvider
     {
         private readonly Chunkloader _chunkloader;
+        private readonly IEventService _events;
 
-        public PlayerNPCSpawnEnvironmentProvider(Chunkloader chunkloader)
+        public PlayerNPCSpawnEnvironmentProvider(
+            Chunkloader chunkloader,
+            IEventService events)
         {
             _chunkloader = chunkloader;
+            _events = events;
         }
 
         public bool IsEventActive(string eventId)
         {
-            // There is no runtime event source yet.
-            return false;
+            return _events != null && _events.IsActive(eventId);
         }
 
         public bool IsWeatherActive(string weatherId)

@@ -29,6 +29,18 @@ MonoBehaviour:
     strength: 1
     generator:
       rid: 830000000000000001
+  - enabled: 1
+    strength: 1
+    generator:
+      rid: 1367514975385420117
+  - enabled: 1
+    strength: 1
+    generator:
+      rid: 1367514975385420115
+  - enabled: 1
+    strength: 1
+    generator:
+      rid: 1367514975385420116
   entityArchetype: {fileID: 11400000, guid: a4000000000000000000000000000004, type: 2}
   regionUniqueKey: ClimateCore
   placementOffset: {x: 0, y: 0}
@@ -40,3 +52,25 @@ MonoBehaviour:
       data:
         platformHeight: 0.04
         flattenStrength: 0.8
+    - rid: 1367514975385420115
+      type: {class: CircleFloorGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        tile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+        offset: {x: 0, y: 0}
+        diameter: 9
+    - rid: 1367514975385420116
+      type: {class: OutlineCircleFloorGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        tile: {fileID: 0}
+        offset: {x: 0, y: 0}
+        diameter: 10
+        borderWidth: 2
+    - rid: 1367514975385420117
+      type: {class: StarFloorGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        tile: {fileID: 11400000, guid: 40444444444444448444444444444444, type: 2}
+        offset: {x: 0, y: 0}
+        width: 11
+        height: 11
+        points: 5
+        innerRadius: 0.45

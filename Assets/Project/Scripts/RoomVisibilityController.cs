@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Gameplay;
+using Project.Scripts.Interface;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Zenject;
@@ -56,7 +57,7 @@ namespace Project.Scripts
     /// Tracks the room occupied by the player, fades that room's roof, and
     /// draws an opaque tile-aligned mask over every visible cell outside it.
     /// </summary>
-    public sealed class RoomVisibilityController : MonoBehaviour
+    public sealed class RoomVisibilityController : MonoBehaviour, IRoomVisibility
     {
         private const int OutsideMaskSortingOrder = 30;
         private const int PlayerSortingOrder = 31;
@@ -84,6 +85,14 @@ namespace Project.Scripts
 
         public Room CurrentRoom { get; private set; }
         public bool IsPlayerInsideRoom => CurrentRoom != null;
+
+        public bool IsWorldPositionMasked(Vector3 worldPosition)
+        {
+            if (_displayRoom == null || _outsideAlpha <= 0f || _grid == null)
+                return false;
+
+            return !_visibleCells.Contains(_grid.WorldToCell(worldPosition));
+        }
 
         public event Action<Room> RoomChanged;
 

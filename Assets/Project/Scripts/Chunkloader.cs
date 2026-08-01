@@ -27,6 +27,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     }
 
     public int LoadedChunks => _loadedChunks.Count;
+    public Vector2Int WorldSpawnPosition => worldGeneration.WorldSpawnPosition;
     public float CurrentAmbientTemperature =>
         track == null ? 0f : weatherService.GetAmbientTemperature(track.position);
     public WeatherSample CurrentWeather =>
@@ -64,6 +65,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
     
     private Dictionary<Vector2Int, ChunkInstance> _loadedChunks = new Dictionary<Vector2Int, ChunkInstance>();
     private readonly Queue<Chunk> _biomeColorRefreshQueue = new();
+    private readonly HashSet<Vector2Int> _portalPinnedChunks = new();
     private float _biomeColorRefreshCellsPerSecond;
     private float _biomeColorRefreshCellAccumulator;
 
@@ -255,6 +257,14 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
                 }
             }
         }
+
+        foreach (Vector2Int pinned in _portalPinnedChunks)
+        {
+            if (_loadedChunks.TryGetValue(pinned, out ChunkInstance loaded))
+                loaded.Touch();
+            else if (!requestedChunks.Contains(pinned))
+                requestedChunks.Add(pinned);
+        }
         
         Vector2 trackedPosition = track.position;
         float chunkHalfSize = ChunkBuildResult.ChunkSize * 0.5f;
@@ -365,6 +375,26 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
             
             tickTimer -= TickTime;
         }
+
+    }
+
+
+    /// <summary> Keeps only the four chunks intersecting a portal preview alive. </summary>
+    public void SetPortalPreview(Vector2 worldPosition, bool enabled)
+    {
+        _portalPinnedChunks.Clear();
+        if (!enabled)
+            return;
+
+        float size = ChunkBuildResult.ChunkSize;
+        int x = Mathf.FloorToInt(worldPosition.x / size);
+        int y = Mathf.FloorToInt(worldPosition.y / size);
+        // A preview camera can straddle both axes, but never needs more than 2x2.
+        _portalPinnedChunks.Add(new Vector2Int(x, y));
+        _portalPinnedChunks.Add(new Vector2Int(x - 1, y));
+        _portalPinnedChunks.Add(new Vector2Int(x, y - 1));
+        _portalPinnedChunks.Add(new Vector2Int(x - 1, y - 1));
+        TouchChunks();
     }
 
     private void UnloadChunks(IEnumerable<Vector2Int> toRemove)

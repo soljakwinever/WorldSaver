@@ -84,8 +84,8 @@ namespace Project.Scripts.DataTypes
         public BiomeData[] allowedBiomes = Array.Empty<BiomeData>();
         public BiomeData[] restrictedBiomes = Array.Empty<BiomeData>();
 
-        [Header("Event (stub)")]
-        [Tooltip("Leave empty to ignore events. Requires an INPCSpawnEnvironmentProvider implementation.")]
+        [Header("Event")]
+        [Tooltip("Leave empty to ignore events. Otherwise this rule is enabled only while the matching event ID is active.")]
         public string requiredEvent;
 
         [Header("Weather")]

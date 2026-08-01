@@ -16,6 +16,19 @@ namespace Project.Scripts.UI
 
         public bool IsOpen => _request != null;
 
+        public bool IsPointerOverWindow(Vector2 screenPosition)
+        {
+            if (!IsOpen)
+                return false;
+
+            // Input-system screen coordinates start at the bottom-left, while
+            // IMGUI window coordinates start at the top-left.
+            Vector2 guiPosition = new(
+                screenPosition.x,
+                Screen.height - screenPosition.y);
+            return _windowRect.Contains(guiPosition);
+        }
+
         public void Open(ComponentWindowRequest request)
         {
             if (request == null)

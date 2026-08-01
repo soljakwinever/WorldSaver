@@ -13,7 +13,7 @@ using Zenject;
 namespace Project.Scripts
 {
     [RequireComponent(typeof(PanelRenderer))]
-    public class PlayerHUD : MonoBehaviour
+    public class PlayerHUD : MonoBehaviour, IWorldActionUiBlocker
     {
         private PanelRenderer _uiDocument;
     
@@ -311,6 +311,20 @@ namespace Project.Scripts
 
             levelUpPanel.pickingMode = PickingMode.Position;
             levelUpPanel.BringToFront();
+        }
+
+        public bool IsPointerOverBlockingUi(Vector2 screenPosition)
+        {
+            if (levelUpPanel == null || levelUpPanel.panel == null ||
+                levelUpPanel.resolvedStyle.display == DisplayStyle.None)
+            {
+                return false;
+            }
+
+            Vector2 panelPosition = RuntimePanelUtils.ScreenToPanel(
+                levelUpPanel.panel,
+                screenPosition);
+            return levelUpPanel.worldBound.Contains(panelPosition);
         }
 
         private static void SetPickingModeRecursive(

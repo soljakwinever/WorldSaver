@@ -399,6 +399,13 @@ namespace Project.Editor
             if (property.managedReferenceValue == null)
                 return fallback;
 
+            string summary = property.managedReferenceValue.ToString();
+            if (!string.IsNullOrWhiteSpace(summary) &&
+                summary != property.managedReferenceValue.GetType().FullName)
+            {
+                return new GUIContent(summary, fallback.tooltip);
+            }
+
             return new GUIContent(
                 ObjectNames.NicifyVariableName(
                     property.managedReferenceValue.GetType().Name),

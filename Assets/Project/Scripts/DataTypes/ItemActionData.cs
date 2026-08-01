@@ -83,4 +83,22 @@ namespace Project.Scripts.DataTypes
     {
         public NodeData node;
     }
+
+    [Serializable]
+    public sealed class FastTravelPortalActionData : ItemActionData
+    {
+        public GameObject portalPrefab;
+        public RenderTexture renderTexture;
+        public GameObject startOneShot;
+        public GameObject readyOneShot;
+        [Tooltip("Persistent visible particles around the portal. These do not write to the destination stencil.")]
+        public GameObject outerRimEffect;
+        [Min(0.1f)] public float creationDuration = 3f;
+        [Min(0.1f), Tooltip("Multiplier applied to the portal's authored particle sizes.")]
+        public float particleSizeMultiplier = 6f;
+        [Min(32)] public int textureSize = 256;
+        [Min(0.1f)] public float activationDistance = 1.5f;
+        [Min(0.05f)] public float transitionDuration = 0.45f;
+        public Vector2 entranceOffset = new(2f, 0f);
+    }
 }

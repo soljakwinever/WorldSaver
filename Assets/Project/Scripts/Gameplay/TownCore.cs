@@ -171,6 +171,7 @@ namespace Project.Scripts.Gameplay
                 context.user.GetComponentInParent<PersistentInventory>();
             PlayerDataController player =
                 context.user.GetComponentInParent<PlayerDataController>();
+            player?.RegisterTownVisit(this);
 
             _windowService.Open(new ComponentWindowRequest(
                 windowTitle,

@@ -20,6 +20,7 @@ namespace Project.Scripts
         private readonly IWorldClock _worldClock;
         private readonly ITimeController _time;
         private readonly INPCSpawnEnvironmentProvider _environment;
+        private readonly IEventService _events;
         private readonly Dictionary<Vector2Int, ChunkPopulation> _populations = new();
         private readonly List<Vector2Int> _pendingPersistentChunks = new();
         private readonly Dictionary<EnemySpawnRule, long> _nextRuleSpawnTicks = new();
@@ -32,7 +33,8 @@ namespace Project.Scripts
             WorldData worldData,
             IWorldClock worldClock,
             ITimeController time,
-            INPCSpawnEnvironmentProvider environment)
+            INPCSpawnEnvironmentProvider environment,
+            IEventService events)
         {
             _mapSignals = mapSignals;
             _pool = pool;
@@ -41,6 +43,7 @@ namespace Project.Scripts
             _worldClock = worldClock;
             _time = time;
             _environment = environment;
+            _events = events;
         }
 
         public void Initialize()
@@ -710,6 +713,11 @@ namespace Project.Scripts
             if (_worldData.enemySpawnRules == null)
                 yield break;
             foreach (EnemySpawnRule root in _worldData.enemySpawnRules)
+                foreach (EnemySpawnRule rule in Traverse(root, visited))
+                    yield return rule;
+            if (_events?.ActiveEnemySpawnRules == null)
+                yield break;
+            foreach (EnemySpawnRule root in _events.ActiveEnemySpawnRules)
                 foreach (EnemySpawnRule rule in Traverse(root, visited))
                     yield return rule;
         }

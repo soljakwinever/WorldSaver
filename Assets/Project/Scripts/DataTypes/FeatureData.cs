@@ -173,6 +173,7 @@ namespace Project.Scripts.DataTypes
     {
         public TileData tile;
         public Vector2 offset;
+        public abstract Vector2 HalfExtents { get; }
 
         public sealed override void Generate(
             ref TerrainGenerationState terrain,
@@ -182,11 +183,18 @@ namespace Project.Scripts.DataTypes
             if (tile == null || strength <= 0f || context.mask <= 0f)
                 return;
 
-            Vector2 point = new(
-                context.localX - offset.x,
-                context.localY - offset.y);
-            if (Contains(point))
-                terrain.floorTile = tile;
+            if (TryGetTile(
+                    new Vector2(context.localX, context.localY),
+                    out TileData generatedTile))
+            {
+                terrain.floorTile = generatedTile;
+            }
+        }
+
+        public bool TryGetTile(Vector2 featureLocalPoint, out TileData result)
+        {
+            result = tile;
+            return result != null && Contains(featureLocalPoint - offset);
         }
 
         protected abstract bool Contains(Vector2 point);
@@ -199,6 +207,8 @@ namespace Project.Scripts.DataTypes
         public bool diagonal;
         [Min(1f)] public float size = 9f;
         [Min(1f)] public float width = 1f;
+        public override Vector2 HalfExtents =>
+            Vector2.one * Mathf.Max(0.5f, size * 0.5f);
 
         protected override bool Contains(Vector2 point)
         {
@@ -221,6 +231,9 @@ namespace Project.Scripts.DataTypes
     {
         [Min(1f)] public float width = 9f;
         [Min(1f)] public float height = 9f;
+        public override Vector2 HalfExtents => new(
+            Mathf.Max(0.5f, width * 0.5f),
+            Mathf.Max(0.5f, height * 0.5f));
 
         protected override bool Contains(Vector2 point) =>
             Mathf.Abs(point.x) <= Mathf.Max(0.5f, width * 0.5f) &&
@@ -235,6 +248,9 @@ namespace Project.Scripts.DataTypes
         [Min(1f)] public float borderWidth = 1f;
         [Min(0f), Tooltip("Radius of the rectangle's rounded corners.")]
         public float borderRadius;
+        public override Vector2 HalfExtents => new(
+            Mathf.Max(0.5f, width * 0.5f),
+            Mathf.Max(0.5f, height * 0.5f));
 
         protected override bool Contains(Vector2 point)
         {
@@ -282,6 +298,8 @@ namespace Project.Scripts.DataTypes
     public sealed class CircleFloorGenerator : FloorGenerator
     {
         [Min(1f)] public float diameter = 9f;
+        public override Vector2 HalfExtents =>
+            Vector2.one * Mathf.Max(0.5f, diameter * 0.5f);
 
         protected override bool Contains(Vector2 point) =>
             point.sqrMagnitude <=
@@ -293,6 +311,8 @@ namespace Project.Scripts.DataTypes
     {
         [Min(1f)] public float diameter = 9f;
         [Min(1f)] public float borderWidth = 1f;
+        public override Vector2 HalfExtents =>
+            Vector2.one * Mathf.Max(0.5f, diameter * 0.5f);
 
         protected override bool Contains(Vector2 point)
         {
@@ -312,6 +332,9 @@ namespace Project.Scripts.DataTypes
         [Min(2)] public int points = 5;
         [Range(0.05f, 0.95f)]
         public float innerRadius = 0.45f;
+        public override Vector2 HalfExtents => new(
+            Mathf.Max(1f, width * 0.5f),
+            Mathf.Max(1f, height * 0.5f));
 
         protected override bool Contains(Vector2 point)
         {

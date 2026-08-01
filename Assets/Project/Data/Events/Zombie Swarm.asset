@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6d14f0c785d4ffca28fe6341643a4c1, type: 3}
+  m_Name: Zombie Swarm
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EventData
+  persistentId: zombie.swarm
+  blackboard: []
+  nodeDestroyedChanges: []
+  activationCondition:
+    rid: 1367514975385420123
+  endCondition:
+    rid: -2
+  effects:
+    globalTemperatureOffset: 0
+    weather: {fileID: 0}
+    enabledEnemySpawnRules: []
+    featureBuildings: []
+    portals: []
+    buildings: []
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1367514975385420123
+      type: {class: AllEventCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        conditions:
+        - rid: 1367514975385420124
+        - rid: 1367514975385420125
+    - rid: 1367514975385420124
+      type: {class: CalendarEventCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        every: 4
+        offset: 0
+        unit: 0
+    - rid: 1367514975385420125
+      type: {class: RandomChanceEventCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        chance: 0.5

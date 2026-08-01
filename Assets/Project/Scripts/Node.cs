@@ -38,6 +38,7 @@ public class Node : MonoBehaviour, INode
         ClearPersistentComponents();
         
         _nodeData = nodeData;
+        _persistentEntity.SetNodeData(nodeData);
         
         _persistentEntity.Initialize(nodeId, spawnData.persistenceKind, archetypeId);
         

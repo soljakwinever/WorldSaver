@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6d14f0c785d4ffca28fe6341643a4c1, type: 3}
+  m_Name: The Calm
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EventData
+  persistentId: the.calm
+  blackboard:
+  - name: FrostCoresDestroyed
+    initialValue: 0
+  nodeDestroyedChanges:
+  - nodeData: {fileID: 11400000, guid: a3000000000000000000000000000003, type: 2}
+    variable: FrostCoresDestroyed
+    amount: 1
+    onlyWhileEventIsActive: 0
+  activationCondition:
+    rid: -2
+  endCondition:
+    rid: 1367514975385420121
+  effects:
+    globalTemperatureOffset: 0
+    weather: {fileID: 0}
+    enabledEnemySpawnRules: []
+    featureBuildings:
+    - building: {fileID: 11400000, guid: a5000000000000000000000000000005, type: 2}
+      spawnMode: 0
+      count: 10
+      excludedRegionRadiusFromPlayer: 0
+    portals: []
+    buildings:
+    - {fileID: 11400000, guid: a5000000000000000000000000000005, type: 2}
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 1367514975385420121
+      type: {class: EventVariableCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        eventData: {fileID: 11400000}
+        variable: FrostCoresDestroyed
+        comparison: 5
+        value: 5
+        compareToVariable: 0
+        otherEventData: {fileID: 0}
+        otherVariable: variable
