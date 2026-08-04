@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Flooded Depths
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Flooded Depths
+  temperature: 0.32
+  temperatureVariance: 0.12
+  moisture: 0.94
+  moistureVariance: 0.12
+  height: 0.06
+  heightVariance: 0.09
+  heightOffset: 0
+  heightMultiplier: 0.7
+  erosionStrength: 1.1
+  mountainStrength: 0.65
+  valleyStrength: 0.65
+  roughnessStrength: 1.15
+  hillStrength: 0.075
+  hillScale: 82
+  bumpStrength: 0.03
+  bumpScale: 8
+  cliffChance: 0.1
+  cliffStrength: 0.08
+  cliffScale: 14
+  crevasseStrength: 0.15
+  lakeStrength: 2
+  SmallPoolsStrength: 7
+  volcanoChance: 0
+  craterChance: 0.04
+  mesaChance: 0
+  townChance: 0
+  groundColor: {r: 0.1, g: 0.2, b: 0.22, a: 1}
+  dirtColor: {r: 0.12, g: 0.18, b: 0.17, a: 1}
+  pathColor: {r: 0.2, g: 0.3, b: 0.3, a: 1}
+  waterColor: {r: 0.06, g: 0.34, b: 0.44, a: 1}
+  cliffColor: {r: 0.1, g: 0.16, b: 0.19, a: 1}
+  beachColor: {r: 0.32, g: 0.43, b: 0.42, a: 1}
+  springTint: {r: 1, g: 1, b: 1, a: 1}
+  summerTint: {r: 1, g: 1, b: 1, a: 1}
+  fallTint: {r: 1, g: 1, b: 1, a: 1}
+  winterTint: {r: 1, g: 1, b: 1, a: 1}
+  SeasonColorEffectMod: 0
+  overrideGroundTile: {fileID: 0}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 11400000, guid: 50555555555545558555555555555555, type: 2}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}
+  overrideMinedTileReplacement: {fileID: 0}

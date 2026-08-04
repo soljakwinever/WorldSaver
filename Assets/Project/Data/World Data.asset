@@ -12,6 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0c66ea53700b40698fab6aadc5faca19, type: 3}
   m_Name: World Data
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.WorldData
+  StartPlane: {fileID: 11400000, guid: e2000000000000000000000000000002, type: 2}
+  planes:
+  - {fileID: 11400000, guid: e2000000000000000000000000000002, type: 2}
+  - {fileID: 11400000, guid: e3000000000000000000000000000003, type: 2}
   tiles:
   - {fileID: 11400000, guid: 10111111111141118111111111111111, type: 2}
   - {fileID: 11400000, guid: 20222222222242228222222222222222, type: 2}
@@ -26,8 +30,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
   - {fileID: 11400000, guid: d4975b15b91d4ef47b318cc3d3a28091, type: 2}
   - {fileID: 11400000, guid: 0a99515bf4a32e0418f75da9c89e0a89, type: 2}
+  - {fileID: 11400000, guid: d43c15ab009b2a44c804bdf477b7fc16, type: 2}
   minedTileReplacement: {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
-  roomRoofTile: {fileID: 11400000, guid: 30333333333343338333333333333333, type: 2}
+  roomRoofTile: {fileID: 11400000, guid: 220ae2b505b8b69499ddafed783e4c25, type: 2}
   maximumRoomArea: 4096
   roomFloodFillsPerFrame: 4
   buildingRoomConnectionDistance: 1
@@ -645,17 +650,15 @@ MonoBehaviour:
     minScale: 0.85
     maxScale: 1
     randomFlipX: 1
-  enemySpawnRules:
-  - {fileID: 11400000, guid: 5a0c59a17f84480eb1b9dc64730a3c28, type: 2}
-  - {fileID: 11400000, guid: ea0d5b376706de44a97c694e7a1006c7, type: 2}
-  - {fileID: 11400000, guid: 7da5bce4e0632204686460839da1ef9f, type: 2}
+  enemySpawnRules: []
   transientRecycleCheckIntervalTicks: 5
   transientOffscreenViewportMargin: 0.1
   events:
   - {fileID: 11400000, guid: 17764ad08a997ee44a7ce1efa88fac1a, type: 2}
   - {fileID: 11400000, guid: e1e64f9440a9f7d4ea22c511c36672ee, type: 2}
-  startingEvent: {fileID: 0}
-  spawnPlatformNode: {fileID: 11400000, guid: d0c00430eef4e2343ac6468f8d0099d1, type: 2}
+  - {fileID: 11400000, guid: 4793796b4688d8b4390058fe52be2f1a, type: 2}
+  startingEvent: {fileID: 11400000, guid: 17764ad08a997ee44a7ce1efa88fac1a, type: 2}
+  worldSpawnFeature: {fileID: 11400000, guid: e7000000000000000000000000000007, type: 2}
   runtimeEntityArchetypes:
   - {fileID: 11400000, guid: f54a64c4914aedb45a88fb4adc14ed5d, type: 2}
   - {fileID: 11400000, guid: dec7ab53b1d372a42a9a7eb770fc195b, type: 2}
@@ -663,6 +666,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 98f20278eb423594a89deaf1aa93e10e, type: 2}
   - {fileID: 11400000, guid: 7334b6e3869b4526ac3662fec540476b, type: 2}
   - {fileID: 11400000, guid: a4000000000000000000000000000004, type: 2}
+  - {fileID: 11400000, guid: ab5122bbf35e44cfb0b6053256393442, type: 2}
+  - {fileID: 11400000, guid: a1600000000000000000000000000006, type: 2}
+  - {fileID: 11400000, guid: 6cfc70b5bc913b5418ce7254780c4119, type: 2}
   daysInMonth: 30
   minutesPerDay: 10
   startHour: 8
@@ -736,5 +742,5 @@ MonoBehaviour:
     m_NumAlphaKeys: 2
   playerSettings:
     hungerRate: 1.005
-    energyRate: 0.15
-    movementEnergyMulpiplier: 15
+    energyRate: 0.1
+    movementEnergyMulpiplier: 1.02

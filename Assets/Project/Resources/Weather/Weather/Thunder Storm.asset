@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Thunder Storm
   m_EditorClassIdentifier: 
   weatherId: rain.thunderstorm
+  watersPlants: 1
   displayName: Thunder Storm
   selectionWeight: 0.6
   seasons: 255

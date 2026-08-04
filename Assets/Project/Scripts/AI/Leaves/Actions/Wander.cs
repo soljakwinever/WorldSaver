@@ -120,6 +120,8 @@ namespace Project.Scripts.AI.Leaves.Actions
                     path[waypointIndex],
                     pathQuery))
                 return NodeState.Failure;
+            if (self.GetComponentInChildren<IMovementLock>()?.IsMovementLocked == true)
+                return NodeState.Running;
             float movement = Mathf.Max(0f, movementSpeed) *
                              AiPathingUtility.GetSpeedMultiplier(
                                  map,

@@ -78,6 +78,36 @@ namespace Project.Tests.EditMode
             }
         }
 
+        [Test]
+        public void LevelCapacityMakesNeedsDrainMoreSlowly()
+        {
+            WorldData worldData = CreateWorldData(1f, 1f);
+            GameObject playerObject = new("Leveled Player");
+            playerObject.SetActive(false);
+            try
+            {
+                PlayerDataController player =
+                    playerObject.AddComponent<PlayerDataController>();
+                PlayerNeedsController needs =
+                    playerObject.AddComponent<PlayerNeedsController>();
+                needs.Construct(worldData);
+                player.AddExperience(275); // Level 3: 104 hunger and energy.
+                playerObject.SetActive(true);
+                player.Hunger = 0.5f;
+                player.Energy = 0.5f;
+
+                needs.SimulateNeeds(10f);
+
+                Assert.That(player.Hunger, Is.EqualTo(0.4759615f).Within(0.0001f));
+                Assert.That(player.Energy, Is.EqualTo(0.4519231f).Within(0.0001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(worldData);
+            }
+        }
+
         private static WorldData CreateWorldData(
             float hungerRate,
             float energyRate)

@@ -2,6 +2,8 @@ using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
+using Project.Scripts.Persistence;
+using Project.Scripts.DataTypes.SaveData;
 using UnityEngine;
 
 namespace Project.Scripts.Actions
@@ -46,11 +48,17 @@ namespace Project.Scripts.Actions
 
             AccessIdentity identity =
                 ResolveAccessIdentity(context.User, position);
-            return chunk.TrySpawnRuntimeEntity(
+            bool spawned = chunk.TrySpawnRuntimeEntity(
                 node,
                 position,
                 identity,
-                out _);
+                out PersistentEntity entity);
+            if (spawned && entity != null &&
+                entity.GetComponentInChildren<PersistentPlant>(true) is { } plant)
+            {
+                plant.SetSeedRarity(GetSeedRarity(context.User, context.Item));
+            }
+            return spawned;
         }
 
         public bool TryGetCursor(
@@ -182,8 +190,45 @@ namespace Project.Scripts.Actions
             return chunkloader != null &&
                    chunkloader.TryGetLoadedChunk(cell, out chunk) &&
                    chunk.CanSpawnRuntimeEntity(node) &&
+                   CanPlantOnTarget(node, chunk, cell) &&
                    SpaceReservationUtility.CanPlace(node, position) &&
+                   (!data.requireWalkableArea ||
+                    chunk.IsWalkableArea(GetWalkableArea(data, position))) &&
                    !HasNodeInPlacementArea(node, position);
+        }
+
+        private static bool CanPlantOnTarget(NodeData node, Chunk chunk, Vector3Int cell)
+        {
+            PersistentPlantComponentData plant = null;
+            foreach (ComponentDefinitionData component in node.persistentComponents)
+                if (component is PersistentPlantComponentData candidate) { plant = candidate; break; }
+            if (plant == null) return true;
+            return plant.plant != null &&
+                   chunk.TryGetTileData(cell, PersistentTileLayer.Ground, out TileData tile) &&
+                   plant.plant.CanPlantOn(tile);
+        }
+
+        private static ItemData.Rarity GetSeedRarity(GameObject user, ItemData seed)
+        {
+            PersistentInventory inventory = user != null
+                ? user.GetComponentInParent<PersistentInventory>() : null;
+            if (inventory != null)
+                foreach (IItemStack stack in inventory.Stacks)
+                    if (stack.Item == seed && stack.Count > 0) return stack.Rarity;
+            return ItemData.Rarity.Common;
+        }
+
+        private static RectInt GetWalkableArea(
+            PlacePersistentNodeItemActionData data,
+            Vector2 position)
+        {
+            Vector2Int size = new(
+                Mathf.Max(1, data.walkableAreaSize.x),
+                Mathf.Max(1, data.walkableAreaSize.y));
+            return new RectInt(
+                Vector2Int.FloorToInt(position) +
+                data.walkableAreaOffset,
+                size);
         }
 
         private static bool HasNodeInPlacementArea(

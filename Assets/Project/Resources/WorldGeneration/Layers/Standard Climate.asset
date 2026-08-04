@@ -12,7 +12,60 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 52000000000000000000000000000002, type: 3}
   m_Name: Standard Climate
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ClimateLayerData
-  biomes: []
+  useLegacyResourceBiomes: 0
+  biomes:
+  - {fileID: 11400000, guid: 8f6f10d07ddeb1b4eb8dc69ae7c20f94, type: 2}
+  - {fileID: 11400000, guid: 79dbc5a5ee2025848812a6b5d1eb5b59, type: 2}
+  - {fileID: 11400000, guid: 8659ed92f17535541bc7857d07071e19, type: 2}
+  - {fileID: 11400000, guid: 429864dc3e095f349b7450b7a40d38e6, type: 2}
+  - {fileID: 11400000, guid: d592ed03576c900468bbc1bafaf5b3eb, type: 2}
+  - {fileID: 11400000, guid: 7324d617c3672744cb48e23fe683fc65, type: 2}
+  - {fileID: 11400000, guid: 7470543cb5a1be24d85abbc5f9f2d32b, type: 2}
+  - {fileID: 11400000, guid: 9fba730ccc52c074484ffedf623376fb, type: 2}
+  - {fileID: 11400000, guid: 2d224441b0820944f99821383bdb7027, type: 2}
+  - {fileID: 11400000, guid: f7e5d03f83b83ca4ba906988822a61fb, type: 2}
+  - {fileID: 11400000, guid: 41f32d4db469dd14f89517eb558fadc4, type: 2}
+  - {fileID: 11400000, guid: c410b1fad906afb44a720375b168c442, type: 2}
+  - {fileID: 11400000, guid: f6945f93121a01b4f98a89e18902a22b, type: 2}
+  - {fileID: 11400000, guid: d479375a44d6bb540aeed488cda135ff, type: 2}
+  - {fileID: 11400000, guid: 2aecfcdb615d6104695f0b2c9708a8c6, type: 2}
+  - {fileID: 11400000, guid: 86e02b4d0cd3ba94da25dc5bb1ad1ef7, type: 2}
+  - {fileID: 11400000, guid: b2033b77fe8949944a7eb18d09fdff12, type: 2}
+  - {fileID: 11400000, guid: 117b7090dcd0b864382e6db3ecbb7e2f, type: 2}
+  - {fileID: 11400000, guid: c9a1af4ddfc7bc446bcba23fe575e5ef, type: 2}
+  - {fileID: 11400000, guid: 3cc353b5b28fe0a4ea7c140d183523bf, type: 2}
+  - {fileID: 11400000, guid: 1084d3646a0846e48842451c71286610, type: 2}
+  - {fileID: 11400000, guid: 809e6c852363c3c459bf3b1b2522e7a2, type: 2}
+  - {fileID: 11400000, guid: 88cd43d05ce724647b64d84071a7e0dd, type: 2}
+  - {fileID: 11400000, guid: b32f9533c30a788478e04fc8bd3a51b3, type: 2}
+  - {fileID: 11400000, guid: 560194533b20bc04d897cf4cc67870dd, type: 2}
+  - {fileID: 11400000, guid: 8e8f5e8b17b52094d84d7dc106ebbc04, type: 2}
+  - {fileID: 11400000, guid: 86b0a203bc34b9b48b5e8042eacfc37a, type: 2}
+  - {fileID: 11400000, guid: 4a0fb93e3c13e464bb8be392d9e65a19, type: 2}
+  - {fileID: 11400000, guid: 818013f4e0120ef42836a1f10dd90153, type: 2}
+  - {fileID: 11400000, guid: b91cbe7ffeb94214b8b3d10a65459664, type: 2}
+  - {fileID: 11400000, guid: ae09222326b24d14083eb1189df113dd, type: 2}
+  - {fileID: 11400000, guid: 074cbc6fb930b82408171293eb382d9e, type: 2}
+  - {fileID: 11400000, guid: 5b28fc73a60f8e447944b1c7f332bd54, type: 2}
+  - {fileID: 11400000, guid: f7c76cb84fca27649bfd9649886c042b, type: 2}
+  - {fileID: 11400000, guid: 9e2bc2454cbf9e148ab81d671af3df6e, type: 2}
+  - {fileID: 11400000, guid: 6c44e694865be8d46b8c824d463240da, type: 2}
+  - {fileID: 11400000, guid: b11b0c654afc5b74783ee586a285d67f, type: 2}
+  - {fileID: 11400000, guid: 0d17a442b8506fe479e9b7ff7b0cbd41, type: 2}
+  - {fileID: 11400000, guid: 4dacee3ebc4726e4fa72e2ea3a4764fc, type: 2}
+  - {fileID: 11400000, guid: ecfed2d87f850a4419a8f534931a3e7c, type: 2}
+  - {fileID: 11400000, guid: 3508044a7ed5e3c4cb71a59d983d18dd, type: 2}
+  - {fileID: 11400000, guid: 857f0b581e49a124caeadda135d73931, type: 2}
+  - {fileID: 11400000, guid: 058bb59aaac82e94c9a66fb60cf64bf4, type: 2}
+  - {fileID: 11400000, guid: ebb2faebccdb2e34287bd925be134686, type: 2}
+  - {fileID: 11400000, guid: c341a0b2cb3a2884cbcec67e88ba8a70, type: 2}
+  - {fileID: 11400000, guid: 058bb59aaac82e94c9a66fb60cf64bf4, type: 2}
+  - {fileID: 11400000, guid: dc785bbff5047cf4db1a436c96544af2, type: 2}
+  - {fileID: 11400000, guid: 0b0d9020291412d4eb49b2b2d7d3fbde, type: 2}
+  - {fileID: 11400000, guid: 461c4f3d7bdea58449cc2af9ff8c2dfd, type: 2}
+  - {fileID: 11400000, guid: eeb19e0e4e7479a4a88ed7e909352c39, type: 2}
+  - {fileID: 11400000, guid: 9deba257788954b4491107153ee7acfb, type: 2}
+  - {fileID: 11400000, guid: 03b094fd2b4ccdc478b1329ce73f5582, type: 2}
   continentalNoiseScale: 16
   moistureNoiseScale: 48
   temperatureNoiseScale: 64

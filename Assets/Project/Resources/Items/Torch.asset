@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
+  m_Name: Torch
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
+  persistentId: Torch
+  description: A simple wooden torch that casts warm light.
+  maxStack: 32
+  sprite: {fileID: 8887255329501761466, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  projectile: {fileID: 0}
+  action: {fileID: 11400000, guid: c2ec6fc7e92d9ca429e1382be94dedca, type: 2}
+  actionData:
+  - rid: 910000000000000101
+  goldValue: 1
+  fuelValue: 1
+  magicValue: 0
+  tags: []
+  valueTags: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 910000000000000101
+      type: {class: PlacePersistentNodeItemActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        node: {fileID: 11400000, guid: b02b705c21214be5b6be820773c87871, type: 2}

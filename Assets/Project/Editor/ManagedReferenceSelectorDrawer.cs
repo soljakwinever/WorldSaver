@@ -168,7 +168,7 @@ namespace Project.Editor
                 property.serializedObject.targetObjects;
             string propertyPath = property.propertyPath;
             GenericMenu menu = new();
-            List<Type> types = TypeCache.GetTypesDerivedFrom(baseType)
+            List<Type> types = CandidateTypes(baseType)
                 .Where(IsConstructible)
                 .OrderBy(GetMenuName)
                 .ToList();
@@ -360,7 +360,7 @@ namespace Project.Editor
                 () => Assign(targets, propertyPath, null));
             menu.AddSeparator(string.Empty);
 
-            foreach (Type type in TypeCache.GetTypesDerivedFrom(baseType)
+            foreach (Type type in CandidateTypes(baseType)
                          .Where(IsConstructible)
                          .OrderBy(GetMenuName))
             {
@@ -373,6 +373,16 @@ namespace Project.Editor
             }
 
             menu.DropDown(buttonRect);
+        }
+
+        private static IEnumerable<Type> CandidateTypes(Type baseType)
+        {
+            // A managed-reference field may intentionally name a concrete type
+            // (for example a recursive tree node). TypeCache only returns
+            // descendants, so include the requested type itself as a candidate.
+            yield return baseType;
+            foreach (Type type in TypeCache.GetTypesDerivedFrom(baseType))
+                yield return type;
         }
 
         private static void Assign(

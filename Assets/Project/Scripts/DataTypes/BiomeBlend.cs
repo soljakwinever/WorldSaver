@@ -27,6 +27,7 @@ namespace Project.Scripts.DataTypes
         public float cliffChance;
         public float cliffStrength;
         public float cliffScale;
+        public float crevasseStrength;
         
         public Color groundColor;
         public Color dirtColor;

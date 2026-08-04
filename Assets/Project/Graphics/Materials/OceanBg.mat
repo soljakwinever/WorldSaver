@@ -21,11 +21,14 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: OceanBg
-  m_Shader: {fileID: -6465566751694194690, guid: 85ea8c22cc1ef9643b10fbe03e3b6adb, type: 3}
+  m_Shader: {fileID: 4800000, guid: 701c850c58eb4e268581a65b7e62c023, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _USETILETEXTUREINDEX_ON
+  - _USEVERTEXDEPTH_ON
+  - _ZWRITE_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -68,6 +71,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: b07f6f3189307f54da31719f45b50399, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _WaterTextures:
+        m_Texture: {fileID: 18700000, guid: 38dab8f75e7a7ce43812d2221586768c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -84,17 +91,39 @@ Material:
     m_Floats:
     - _CausticDistortion: 0.05
     - _CausticSpeed: 0.2
+    - _DeepBrightness: 0.413
+    - _Depth: 0.2
+    - _DepthExponent: 8
     - _DepthPower: 6
+    - _EmissionStrength: 1
     - _EnableExternalAlpha: 0
     - _Pixelize: 16
     - _SpecularThreshold: -0.85
     - _Speed: 0.025
-    - _ZWrite: 0
+    - _TextureIndex: 2
+    - _TextureInfluence: 1
+    - _UseTileTextureIndex: 1
+    - _UseVertexDepth: 1
+    - _WaterHeight: 0.1
+    - _WaterLayerBlend: 0.5
+    - _WaveScaleFrequency: 0.75
+    - _WaveScaleSpeed: 1.5
+    - _WaveScaleStrength: 0.183
+    - _ZWrite: 1
     m_Colors:
     - White: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseTileAtlasGrid: {r: 32, g: 32, b: 0, a: 0}
     - _CausticColor: {r: 0.40030187, g: 0.6108335, b: 0.6415094, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
     - _SpecularColor: {r: 0.8066038, g: 0.99814314, b: 1, a: 1}
+    - _TextureOffset: {r: 0, g: 0, b: 0, a: 0}
+    - _TextureTiling: {r: 0.1, g: 0.1, b: 1, a: 1}
+    - _WaterScaleA: {r: 1, g: 1, b: 0, a: 0}
+    - _WaterScaleB: {r: 2, g: 2, b: 0, a: 0}
+    - _WaterScrollA: {r: 0.02, g: 0.01, b: 0, a: 0}
+    - _WaterScrollB: {r: -0.015, g: 0.025, b: 0, a: 0}
+    - _WaveScaleDirection: {r: 1, g: 0.35, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

@@ -12,6 +12,7 @@ namespace Project.Scripts.DataTypes
                 throw new ArgumentNullException(nameof(world));
 
             ClimateLayerData climate = Create<ClimateLayerData>();
+            climate.useLegacyResourceBiomes = true;
             climate.continentalNoiseScale = world.continentalNoiseScale;
             climate.moistureNoiseScale = world.moistureNoiseScale;
             climate.temperatureNoiseScale = world.temperatureNoiseScale;
@@ -52,6 +53,7 @@ namespace Project.Scripts.DataTypes
             features.chancePerCell = world.featureChancePerCell;
 
             SurfaceDetailLayerData surface = Create<SurfaceDetailLayerData>();
+            surface.useLegacyWorldPropRules = false;
             surface.grassHeightNoiseScale = world.grassHeightNoiseScale;
             surface.propSpawnRules =
                 world.propSpawnRules ?? Array.Empty<PropSpawnRule>();
@@ -70,6 +72,10 @@ namespace Project.Scripts.DataTypes
             preset.outcrops = outcrops;
             preset.features = features;
             preset.surfaceDetails = surface;
+            preset.useLegacyWorldNPCSpawnRules = false;
+            preset.enemySpawnRules =
+                world.enemySpawnRules ?? Array.Empty<EnemySpawnRule>();
+            preset.allowEventNPCSpawnRules = true;
             return preset;
         }
 

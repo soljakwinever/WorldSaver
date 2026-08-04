@@ -34,6 +34,7 @@ namespace Project.Scripts
 
     public sealed class FeatureBuildingService : IInitializable, IDisposable
     {
+        private const int FeatureFindRadiusInRegions = 32;
         private readonly WorldGeneration _worldGeneration;
         private readonly Chunkloader _chunkloader;
         private readonly IRegionRepository _regions;
@@ -81,6 +82,11 @@ namespace Project.Scripts
                 "regionX",
                 "regionY");
             DebugLogConsole.AddCommand<string>(
+                "feature.find",
+                "Finds the nearest generated feature and prints its chunk position.",
+                DebugFind,
+                "featureId");
+            DebugLogConsole.AddCommand<string>(
                 "feature.findeventfeature",
                 "Locates features configured by an event in the player's current region.",
                 DebugFindEventFeature,
@@ -91,7 +97,39 @@ namespace Project.Scripts
         {
             DebugLogConsole.RemoveCommand<string, int, int>(DebugSpawn);
             DebugLogConsole.RemoveCommand<string, int, int>(DebugLocate);
+            DebugLogConsole.RemoveCommand<string>(DebugFind);
             DebugLogConsole.RemoveCommand<string>(DebugFindEventFeature);
+        }
+
+        private void DebugFind(string featureId)
+        {
+            if (_chunkloader.track == null)
+            {
+                Debug.LogWarning(
+                    "Cannot find a feature because no player transform is being tracked.");
+                return;
+            }
+
+            Vector2Int originRegion = WorldPartition.ChunkToRegion(
+                _chunkloader.Position);
+            if (_worldGeneration.TryFindNearestFeature(
+                    featureId,
+                    originRegion,
+                    FeatureFindRadiusInRegions,
+                    out Vector2Int region,
+                    out Vector2 position))
+            {
+                LogLocatedFeature(
+                    featureId,
+                    region,
+                    position,
+                    "nearest generated");
+                return;
+            }
+
+            Debug.LogWarning(
+                $"Feature '{featureId}' was not found within " +
+                $"{FeatureFindRadiusInRegions} regions of {originRegion}.");
         }
 
         private async void DebugFindEventFeature(string eventName)

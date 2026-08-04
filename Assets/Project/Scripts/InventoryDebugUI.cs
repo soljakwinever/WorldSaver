@@ -9,7 +9,7 @@ using Zenject;
 namespace Project.Scripts.Gameplay
 {
     [DisallowMultipleComponent]
-    public sealed class InventoryDebugUI : MonoBehaviour
+    public sealed class InventoryDebugUI : MonoBehaviour, IWorldActionUiBlocker
     {
         [Header("Inventory")]
         [SerializeField] private PersistentInventory inventory;
@@ -34,6 +34,18 @@ namespace Project.Scripts.Gameplay
 
         public IInventory Target => _otherInventory;
         public bool IsVisible => _visible;
+
+        public bool IsPointerOverBlockingUi(Vector2 screenPosition)
+        {
+            if (!_visible)
+                return false;
+
+            Vector2 guiPosition = new(
+                screenPosition.x,
+                Screen.height - screenPosition.y);
+            return windowRect.Contains(guiPosition) ||
+                   _otherInventory != null && otherWindowRect.Contains(guiPosition);
+        }
 
         private void Awake()
         {

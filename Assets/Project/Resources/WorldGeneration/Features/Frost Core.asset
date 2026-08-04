@@ -14,6 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.FeatureBuildingData
   persistentId: FrostCore
   selectionWeight: 0.1
+  canBeSensed: 1
+  senseIcon: {fileID: 116095266705567999, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  senseName: Frost Core
   minimumRadius: 48
   maximumRadius: 80
   minimumAspect: 0.85

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Project.Scripts;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
@@ -10,7 +11,7 @@ using UnityEngine;
 using Zenject;
 
 
-public class WorldGeneration : IWorldGenerator
+public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
 {
     FastNoiseLite continentalNoise;
     FastNoiseLite moistureNoise;
@@ -26,6 +27,9 @@ public class WorldGeneration : IWorldGenerator
     private FastNoiseLite outcropEdgeNoise;
 
     private FastNoiseLite propNoise;
+    private FastNoiseLite caveChamberNoise;
+    private FastNoiseLite caveWarpNoise;
+    private FastNoiseLite caveCrevasseMaskNoise;
     
     FastNoiseLite hillNoise;
     FastNoiseLite bumpNoise;
@@ -47,10 +51,21 @@ public class WorldGeneration : IWorldGenerator
     private readonly OutcropLayerData outcropLayer;
     private readonly FeatureCellLayerData featureLayer;
     private readonly SurfaceDetailLayerData surfaceLayer;
+    private readonly CaveLayoutLayerData caveLayer;
+    private readonly CaveBiomeMapLayerData caveBiomeMapLayer;
     private readonly ITimeController timeController;
     private readonly BiomeData[] biomeLibrary;
     private readonly Dictionary<long, FeatureInstance> featureInstances = new();
     private readonly object featureInstanceLock = new();
+    private const int CaveCellBlockSize = 64;
+    private const int CaveCellCacheCapacity = 128;
+    private const int CaveBiomeSiteCacheCapacity = 1024;
+    private readonly Dictionary<long, Lazy<byte[]>> caveCellBlocks = new();
+    private readonly Queue<long> caveCellBlockOrder = new();
+    private readonly object caveCellBlockLock = new();
+    private readonly Dictionary<long, BiomeData> caveBiomeSites = new();
+    private readonly Queue<long> caveBiomeSiteOrder = new();
+    private readonly object caveBiomeSiteLock = new();
     private readonly object spawnPositionLock = new();
     private readonly int featureNeighborRange;
     private volatile bool hasWorldSpawnPosition;
@@ -82,14 +97,20 @@ public class WorldGeneration : IWorldGenerator
             return worldSpawnPosition;
         }
     }
-    public NodeData SpawnPlatformNode => worldData.spawnPlatformNode;
+    public FeatureData WorldSpawnFeature => worldData.worldSpawnFeature;
     public WorldGenerationPresetData Preset => preset;
     public ElevationLayerData Elevation => elevationLayer;
+    public bool UsesCaveLayout => caveLayer != null;
     public IReadOnlyList<PropSpawnRule> PropSpawnRules =>
-        surfaceLayer.propSpawnRules != null &&
-        surfaceLayer.propSpawnRules.Length > 0
-            ? surfaceLayer.propSpawnRules
-            : worldData.propSpawnRules ?? Array.Empty<PropSpawnRule>();
+        surfaceLayer.useLegacyWorldPropRules
+            ? worldData.propSpawnRules ?? Array.Empty<PropSpawnRule>()
+            : surfaceLayer.propSpawnRules ?? Array.Empty<PropSpawnRule>();
+    public IReadOnlyList<EnemySpawnRule> EnemySpawnRules =>
+        preset.useLegacyWorldNPCSpawnRules
+            ? worldData.enemySpawnRules ?? Array.Empty<EnemySpawnRule>()
+            : preset.enemySpawnRules ?? Array.Empty<EnemySpawnRule>();
+    public bool AllowEventNPCSpawnRules =>
+        preset.allowEventNPCSpawnRules;
 
     public IReadOnlyList<FeatureBuildingData> FeatureBuildings =>
         AllFeatureBuildings
@@ -137,12 +158,13 @@ public class WorldGeneration : IWorldGenerator
         outcropLayer = preset.outcrops;
         featureLayer = preset.features;
         surfaceLayer = preset.surfaceDetails;
+        caveLayer = preset.caveLayout;
+        caveBiomeMapLayer = preset.caveBiomeMap;
         this.timeController = timeController;
         seed = unchecked((uint)selection.Seed);
-        biomeLibrary =
-            climateLayer.biomes != null && climateLayer.biomes.Length > 0
-                ? climateLayer.biomes
-                : Resources.LoadAll<BiomeData>("Biomes");
+        biomeLibrary = climateLayer.useLegacyResourceBiomes
+            ? Resources.LoadAll<BiomeData>("Biomes")
+            : climateLayer.biomes ?? Array.Empty<BiomeData>();
         if (biomeLibrary.Length == 0)
             throw new InvalidOperationException($"Preset '{preset.name}' has no biomes.");
         float largestFeatureRadius = 0f;
@@ -152,7 +174,8 @@ public class WorldGeneration : IWorldGenerator
             {
                 largestFeatureRadius = Mathf.Max(
                     largestFeatureRadius,
-                    feature.maximumRadius);
+                    feature.maximumRadius,
+                    GetMaximumEntityReach(feature));
             }
         }
         featureNeighborRange = Mathf.Max(
@@ -280,6 +303,15 @@ public class WorldGeneration : IWorldGenerator
         outcropEdgeNoise.SetFractalGain(0.45f);
 
         propNoise = new FastNoiseLite(667766 + selection.Seed);
+
+        caveChamberNoise = new FastNoiseLite(741103 + selection.Seed);
+        caveChamberNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+        caveChamberNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
+        caveChamberNoise.SetFractalOctaves(3);
+        caveWarpNoise = new FastNoiseLite(741107 + selection.Seed);
+        caveWarpNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+        caveCrevasseMaskNoise = new FastNoiseLite(741109 + selection.Seed);
+        caveCrevasseMaskNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
     }
 
     private float ContinentalNoise(float x, float y) => Mathf.InverseLerp(-0.5f, 0.5f,continentalNoise.GetNoise(x / climateLayer.continentalNoiseScale, y / climateLayer.continentalNoiseScale));
@@ -361,19 +393,76 @@ public class WorldGeneration : IWorldGenerator
         return GetTileIndex(height);
     }
 
+    public int GetTileForChunk(
+        int x,
+        int y,
+        out BiomeBlend biomeData,
+        out float height,
+        out float moisture,
+        out float temperature,
+        out TileData floorTile,
+        out TerrainKind terrainKind,
+        out ChunkBuildResult.IsCliff cliff)
+    {
+        TerrainKind? knownCaveKind = caveLayer != null
+            ? GetTerrainKind(x, y)
+            : null;
+        terrainKind = knownCaveKind ?? TerrainKind.Floor;
+        height = GetHeight(
+            x,
+            y,
+            out biomeData,
+            out _,
+            out moisture,
+            out temperature,
+            out floorTile,
+            sampleRadius: -1,
+            knownCaveKind: knownCaveKind);
+        cliff = caveLayer != null
+            ? new ChunkBuildResult.IsCliff(
+                terrainKind == TerrainKind.Wall,
+                terrainKind == TerrainKind.Wall)
+            : default;
+
+        if (preset.heightMapDebug)
+        {
+            height = SelectNoiseLayer(x, y, moisture, temperature, biomeData);
+            return 0;
+        }
+        return GetTileIndex(height);
+    }
+
     public TerrainSample GetTerrainSample(int x, int y)
     {
-        var height = GetHeight(x, y, out BiomeBlend biomeData, out float baseHeight, out float moisture, out float temperature, 8);
+        TerrainKind? knownCaveKind = caveLayer != null
+            ? GetTerrainKind(x, y)
+            : null;
+        TerrainKind terrainKind = knownCaveKind ?? TerrainKind.Floor;
+        int terrainSampleRadius = caveLayer != null
+            ? climateLayer.blendSampleRadius
+            : 8;
+        float height = GetHeight(
+            x,
+            y,
+            out BiomeBlend biomeData,
+            out _,
+            out float moisture,
+            out float temperature,
+            out _,
+            terrainSampleRadius,
+            knownCaveKind);
         return new TerrainSample()
         {
+            terrainKind = terrainKind,
             biome = biomeData.dominantBiome,
             biomeBlend = biomeData,
             height = height,
             moisture = moisture,
             temperature = temperature,
                     
-            isCliff = IsSmallCliff(x,y),
-            isWater = height <= elevationLayer.waterHeight,
+            isCliff = terrainKind == TerrainKind.Wall ||
+                      caveLayer == null && IsSmallCliff(x,y),
+            isWater = terrainKind == TerrainKind.Floor && height <= elevationLayer.waterHeight,
             isRoad = false,
             isTrail = false
         };
@@ -440,21 +529,72 @@ public class WorldGeneration : IWorldGenerator
         out float moisture,
         out float temperature,
         out TileData floorTile,
-        int sampleRadius = -1)
+        int sampleRadius = -1,
+        TerrainKind? knownCaveKind = null)
     {
         if (sampleRadius < 0)
             sampleRadius = climateLayer.blendSampleRadius;
 
-        float peakValleyNoise = PeakValleyNoise(x, y);
-        float erosionNoise = ErosionNoise(x, y);
-
-        var blendedValues = SampleBlendedTerrainValues(x, y, sampleRadius);
+        Vector3 blendedValues = caveLayer != null && biomeLibrary.Length == 1
+            ? new Vector3(
+                biomeLibrary[0].height,
+                MoistureNoise(x, y),
+                TemperatureNoise(x, y))
+            : SampleBlendedTerrainValues(x, y, sampleRadius);
 
         float height = baseHeight = blendedValues.x;
         moisture = blendedValues.y;
         temperature = blendedValues.z;
         
-        biomeData = BiomeSelector.GetBiomeBlend(biomeLibrary, blendedValues.x, blendedValues.y, blendedValues.z);
+        biomeData = SelectBiomeBlend(x, y, blendedValues);
+        if (caveLayer != null)
+        {
+            TerrainKind kind = knownCaveKind ?? GetTerrainKind(x, y);
+            float caveFloorHeight = caveLayer.floorHeight +
+                                    GetRoughness(x, y) * 0.025f;
+            BiomeData dominantBiome = biomeData.dominantBiome;
+            bool allowsUndergroundLake = dominantBiome != null &&
+                                         (dominantBiome.overrideWaterTile != null ||
+                                          dominantBiome.overrideBeachTile != null);
+            if (kind == TerrainKind.Floor && allowsUndergroundLake)
+            {
+                caveFloorHeight = ApplyLakes(
+                    x,
+                    y,
+                    caveFloorHeight,
+                    biomeData.lakeStrength);
+                caveFloorHeight = ApplySmallPools(
+                    x,
+                    y,
+                    caveFloorHeight,
+                    biomeData.SmallPoolsStrength);
+            }
+
+            height = kind switch
+            {
+                TerrainKind.Wall => caveLayer.wallHeight,
+                TerrainKind.Crevasse => caveLayer.crevasseHeight,
+                _ => caveFloorHeight
+            };
+            floorTile = kind switch
+            {
+                TerrainKind.Wall => caveLayer.wallTile,
+                TerrainKind.Crevasse => caveLayer.crevasseTile,
+                _ => null
+            };
+            moisture = Mathf.Clamp01(moisture);
+            temperature = Mathf.Clamp01(temperature);
+            SeasonalBiomeTint.Apply(
+                ref biomeData,
+                worldData,
+                timeController,
+                x,
+                y);
+            return Mathf.Clamp01(height);
+        }
+
+        float peakValleyNoise = PeakValleyNoise(x, y);
+        float erosionNoise = ErosionNoise(x, y);
         //Local Height Adjustment
         //Less Eroded = More Height
         float mountainStrength = (1f - erosionNoise) * biomeData.mountainStrength;
@@ -515,6 +655,12 @@ public class WorldGeneration : IWorldGenerator
     
     public ChunkBuildResult.IsCliff IsSmallCliff(int x, int y)
     {
+        if (caveLayer != null)
+        {
+            bool wall = GetTerrainKind(x, y) == TerrainKind.Wall;
+            return new ChunkBuildResult.IsCliff(wall, wall);
+        }
+
         GetTile(x, y, out BiomeBlend _, out float h, out float _, out float _);
 
         GetTile(x + 1, y, out BiomeBlend _, out float hR, out float _, out float _);
@@ -576,6 +722,110 @@ public class WorldGeneration : IWorldGenerator
             return bestPosition;
         
         return FindSpawnPointSpiral(minHeight, maxHeight);
+    }
+
+    public bool TryFindSafePortalPosition(
+        Vector2Int requested,
+        out Vector2Int safePosition,
+        int searchRadius = 64,
+        int clearanceRadius = 2)
+    {
+        safePosition = default;
+        searchRadius = Mathf.Max(0, searchRadius);
+        clearanceRadius = Mathf.Max(0, clearanceRadius);
+        for (int radius = 0; radius <= searchRadius; radius++)
+        {
+            for (int x = -radius; x <= radius; x++)
+            {
+                if (TryPortalCandidate(
+                        requested.x + x,
+                        requested.y + radius,
+                        clearanceRadius,
+                        out safePosition))
+                    return true;
+                if (radius > 0 &&
+                    TryPortalCandidate(
+                        requested.x + x,
+                        requested.y - radius,
+                        clearanceRadius,
+                        out safePosition))
+                    return true;
+            }
+            for (int y = -radius + 1; y < radius; y++)
+            {
+                if (TryPortalCandidate(
+                        requested.x + radius,
+                        requested.y + y,
+                        clearanceRadius,
+                        out safePosition))
+                    return true;
+                if (radius > 0 &&
+                    TryPortalCandidate(
+                        requested.x - radius,
+                        requested.y + y,
+                        clearanceRadius,
+                        out safePosition))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool TryFindSafePortalPosition(
+        PlaneData destinationPlane,
+        Vector2Int requestedCell,
+        out Vector2Int safeCell,
+        int searchRadius = 64,
+        int clearanceRadius = 2)
+    {
+        if (destinationPlane == null ||
+            destinationPlane.generationPreset == null)
+        {
+            safeCell = default;
+            return false;
+        }
+
+        WorldGeneration destinationGeneration = new(
+            worldData,
+            new WorldGenerationSelection(
+                unchecked((int)Seed),
+                destinationPlane.generationPreset),
+            timeController);
+        return destinationGeneration.TryFindSafePortalPosition(
+            requestedCell,
+            out safeCell,
+            searchRadius,
+            clearanceRadius);
+    }
+
+    private bool TryPortalCandidate(
+        int x,
+        int y,
+        int clearanceRadius,
+        out Vector2Int candidate)
+    {
+        candidate = default;
+        if (!IsPortalAreaSafe(x, y, clearanceRadius))
+            return false;
+        candidate = new Vector2Int(x, y);
+        return true;
+    }
+
+    private bool IsPortalAreaSafe(int centerX, int centerY, int radius)
+    {
+        if (!GetTerrainSample(centerX, centerY).IsWalkable)
+            return false;
+        for (int y = -radius; y <= radius; y++)
+        for (int x = -radius; x <= radius; x++)
+        {
+            if (x == 0 && y == 0)
+                continue;
+            TerrainSample sample = GetTerrainSample(centerX + x, centerY + y);
+            if (!sample.IsWalkable)
+                return false;
+        }
+        return true;
     }
 
     private int GetSpawnSearchCoordinate(
@@ -707,6 +957,17 @@ public class WorldGeneration : IWorldGenerator
     
     private Vector3 SampleBlendedTerrainValues(int worldX, int worldY, int radius)
     {
+        // With radius one, every non-center sample lies exactly on the edge and
+        // receives zero weight. Return the mathematically identical center
+        // sample without evaluating four discarded sets of climate noise.
+        if (radius <= 1)
+        {
+            return new Vector3(
+                ContinentalNoise(worldX, worldY),
+                MoistureNoise(worldX, worldY),
+                TemperatureNoise(worldX, worldY));
+        }
+
         float totalHeight = 0f;
         float totalMoisture = 0f;
         float totalTemperature = 0f;
@@ -745,6 +1006,189 @@ public class WorldGeneration : IWorldGenerator
             totalMoisture / totalWeight,
             totalTemperature / totalWeight
         );
+    }
+
+    private BiomeBlend SelectBiomeBlend(
+        int worldX,
+        int worldY,
+        Vector3 climate)
+    {
+        if (caveLayer == null || caveBiomeMapLayer == null)
+        {
+            return BiomeSelector.GetBiomeBlend(
+                biomeLibrary,
+                climate.x,
+                climate.y,
+                climate.z);
+        }
+
+        return SelectCellularCaveBiome(worldX, worldY);
+    }
+
+    private BiomeBlend SelectCellularCaveBiome(int worldX, int worldY)
+    {
+        int cellSize = Mathf.Max(32, caveBiomeMapLayer.cellSize);
+        int baseCellX = FloorDiv(worldX, cellSize);
+        int baseCellY = FloorDiv(worldY, cellSize);
+        float nearestDistance = float.MaxValue;
+        float secondDistance = float.MaxValue;
+        Vector2Int nearestCell = default;
+        Vector2Int secondCell = default;
+        Vector2 nearestSite = default;
+        Vector2 secondSite = default;
+
+        for (int offsetY = -1; offsetY <= 1; offsetY++)
+        for (int offsetX = -1; offsetX <= 1; offsetX++)
+        {
+            int cellX = baseCellX + offsetX;
+            int cellY = baseCellY + offsetY;
+            Vector2 site = GetCaveBiomeSite(cellX, cellY, cellSize);
+            float distance = new Vector2(
+                worldX - site.x,
+                worldY - site.y).sqrMagnitude;
+
+            if (distance < nearestDistance)
+            {
+                secondDistance = nearestDistance;
+                secondCell = nearestCell;
+                secondSite = nearestSite;
+                nearestDistance = distance;
+                nearestCell = new Vector2Int(cellX, cellY);
+                nearestSite = site;
+            }
+            else if (distance < secondDistance)
+            {
+                secondDistance = distance;
+                secondCell = new Vector2Int(cellX, cellY);
+                secondSite = site;
+            }
+        }
+
+        BiomeData nearestBiome = SelectCaveSiteBiome(
+            nearestCell.x,
+            nearestCell.y,
+            nearestSite);
+        BiomeData secondBiome = SelectCaveSiteBiome(
+            secondCell.x,
+            secondCell.y,
+            secondSite);
+        if (nearestBiome == secondBiome || secondBiome == null)
+            return BiomeSelector.CreateSingleBiomeBlend(nearestBiome);
+
+        float blendWidth = Mathf.Max(0f, caveBiomeMapLayer.edgeBlendWidth);
+        if (blendWidth <= 0f)
+            return BiomeSelector.CreateSingleBiomeBlend(nearestBiome);
+
+        float edgeDistance = Mathf.Max(
+            0f,
+            Mathf.Sqrt(secondDistance) - Mathf.Sqrt(nearestDistance));
+        float nearestWeight = 0.5f +
+                              0.5f * Mathf.SmoothStep(
+                                  0f,
+                                  1f,
+                                  Mathf.Clamp01(edgeDistance / blendWidth));
+        return BiomeSelector.BlendBiomes(
+            secondBiome,
+            nearestBiome,
+            nearestWeight);
+    }
+
+    private Vector2 GetCaveBiomeSite(int cellX, int cellY, int cellSize)
+    {
+        int salt = unchecked((int)seed) ^ caveBiomeMapLayer.seedOffset;
+        float jitter = Mathf.Clamp(caveBiomeMapLayer.siteJitter, 0f, 0.45f);
+        float jitterX = (Util.Hash01(cellX, cellY, salt ^ 0x2f6e2b1) - 0.5f) *
+                        2f * jitter;
+        float jitterY = (Util.Hash01(cellX, cellY, salt ^ 0x68bc91d) - 0.5f) *
+                        2f * jitter;
+        return new Vector2(
+            (cellX + 0.5f + jitterX) * cellSize,
+            (cellY + 0.5f + jitterY) * cellSize);
+    }
+
+    private BiomeData SelectCaveSiteBiome(
+        int cellX,
+        int cellY,
+        Vector2 site)
+    {
+        if (biomeLibrary.Length == 1)
+            return biomeLibrary[0];
+
+        long siteKey = PackCoordinates(cellX, cellY);
+        lock (caveBiomeSiteLock)
+        {
+            if (caveBiomeSites.TryGetValue(siteKey, out BiomeData cached))
+                return cached;
+        }
+
+        int sampleX = Mathf.FloorToInt(site.x);
+        int sampleY = Mathf.FloorToInt(site.y);
+        float continentalness = ContinentalNoise(sampleX, sampleY);
+        float moisture = MoistureNoise(sampleX, sampleY);
+        float temperature = TemperatureNoise(sampleX, sampleY);
+        float climateInfluence = Mathf.Clamp01(
+            caveBiomeMapLayer.climateInfluence);
+        float totalWeight = 0f;
+
+        for (int i = 0; i < biomeLibrary.Length; i++)
+        {
+            BiomeData biome = biomeLibrary[i];
+            if (biome == null)
+                continue;
+
+            float suitability = 1f / (1f + BiomeSelector.GetBiomeDistance(
+                biome,
+                continentalness,
+                moisture,
+                temperature));
+            totalWeight += Mathf.Lerp(1f, suitability, climateInfluence);
+        }
+
+        if (totalWeight <= 0f)
+            return biomeLibrary[0];
+
+        int salt = unchecked((int)seed) ^
+                   caveBiomeMapLayer.seedOffset ^
+                   0x17c7a53;
+        float roll = Util.Hash01(cellX, cellY, salt) * totalWeight;
+        BiomeData fallback = biomeLibrary[0];
+        for (int i = 0; i < biomeLibrary.Length; i++)
+        {
+            BiomeData biome = biomeLibrary[i];
+            if (biome == null)
+                continue;
+
+            fallback = biome;
+            float suitability = 1f / (1f + BiomeSelector.GetBiomeDistance(
+                biome,
+                continentalness,
+                moisture,
+                temperature));
+            roll -= Mathf.Lerp(1f, suitability, climateInfluence);
+            if (roll <= 0f)
+                return CacheCaveSiteBiome(siteKey, biome);
+        }
+
+        return CacheCaveSiteBiome(siteKey, fallback);
+    }
+
+    private BiomeData CacheCaveSiteBiome(long siteKey, BiomeData biome)
+    {
+        lock (caveBiomeSiteLock)
+        {
+            if (caveBiomeSites.TryGetValue(siteKey, out BiomeData cached))
+                return cached;
+
+            caveBiomeSites.Add(siteKey, biome);
+            caveBiomeSiteOrder.Enqueue(siteKey);
+            while (caveBiomeSites.Count > CaveBiomeSiteCacheCapacity)
+            {
+                long oldest = caveBiomeSiteOrder.Dequeue();
+                caveBiomeSites.Remove(oldest);
+            }
+
+            return biome;
+        }
     }
 
     #region Noise Generation
@@ -923,34 +1367,53 @@ public class WorldGeneration : IWorldGenerator
         int y,
         ref TerrainGenerationState terrain)
     {
-        if (featureLayer.chancePerCell <= 0f ||
-            featureLayer.features == null ||
-            featureLayer.features.Length == 0)
+        if (featureLayer.chancePerCell > 0f &&
+            featureLayer.features != null &&
+            featureLayer.features.Length > 0)
         {
-            return;
-        }
+            int cellSize = Mathf.Max(1, featureLayer.cellSize);
+            int cellX = Mathf.FloorToInt((float)x / cellSize);
+            int cellY = Mathf.FloorToInt((float)y / cellSize);
 
-        int cellSize = Mathf.Max(1, featureLayer.cellSize);
-        int cellX = Mathf.FloorToInt((float)x / cellSize);
-        int cellY = Mathf.FloorToInt((float)y / cellSize);
-
-        for (int offsetX = -featureNeighborRange;
-             offsetX <= featureNeighborRange;
-             offsetX++)
-        {
-            for (int offsetY = -featureNeighborRange;
-                 offsetY <= featureNeighborRange;
-                 offsetY++)
+            for (int offsetX = -featureNeighborRange;
+                 offsetX <= featureNeighborRange;
+                 offsetX++)
             {
-                FeatureInstance instance = GetFeatureInstance(
-                    cellX + offsetX,
-                    cellY + offsetY);
-                if (!instance.exists)
-                    continue;
+                for (int offsetY = -featureNeighborRange;
+                     offsetY <= featureNeighborRange;
+                     offsetY++)
+                {
+                    FeatureInstance instance = GetFeatureInstance(
+                        cellX + offsetX,
+                        cellY + offsetY);
+                    if (!instance.exists)
+                        continue;
 
-                ApplyFeatureInstance(x, y, instance, ref terrain);
+                    ApplyFeatureInstance(x, y, instance, ref terrain);
+                }
             }
         }
+
+        FeatureInstance worldSpawn = GetWorldSpawnFeatureInstance();
+        if (worldSpawn.exists)
+            ApplyFeatureInstance(x, y, worldSpawn, ref terrain);
+    }
+
+    private FeatureInstance GetWorldSpawnFeatureInstance()
+    {
+        FeatureData feature = WorldSpawnFeature;
+        if (feature == null || !hasWorldSpawnPosition)
+            return default;
+
+        return new FeatureInstance
+        {
+            exists = true,
+            feature = feature,
+            center = WorldSpawnPosition,
+            radius = Mathf.Max(1f, feature.maximumRadius),
+            aspect = Mathf.Max(0.1f, feature.maximumAspect),
+            rotation = 0f
+        };
     }
 
     private FeatureInstance GetFeatureInstance(int cellX, int cellY)
@@ -1022,6 +1485,281 @@ public class WorldGeneration : IWorldGenerator
         };
     }
 
+    public TerrainKind GetTerrainKind(int x, int y)
+    {
+        if (caveLayer == null)
+            return TerrainKind.Floor;
+
+        Vector2 warped = WarpCavePoint(x, y);
+        float routeDistance = GetCaveRouteDistance(x, y);
+        bool protectedRoute = routeDistance <=
+            caveLayer.corridorHalfWidth + caveLayer.protectedRouteMargin;
+        if (routeDistance > caveLayer.corridorHalfWidth &&
+            IsCellularCaveWall(warped))
+            return TerrainKind.Wall;
+        if (!protectedRoute && IsCaveCrevasse(warped, x, y))
+            return TerrainKind.Crevasse;
+        return TerrainKind.Floor;
+    }
+
+    private bool IsCellularCaveWall(Vector2 point)
+    {
+        int cellSize = Mathf.Max(1, caveLayer.cellularCellSize);
+        int cellX = Mathf.FloorToInt(point.x / cellSize);
+        int cellY = Mathf.FloorToInt(point.y / cellSize);
+        int blockX = FloorDiv(cellX, CaveCellBlockSize);
+        int blockY = FloorDiv(cellY, CaveCellBlockSize);
+        long key = PackCoordinates(blockX, blockY);
+        Lazy<byte[]> lazyBlock;
+
+        lock (caveCellBlockLock)
+        {
+            if (!caveCellBlocks.TryGetValue(key, out lazyBlock))
+            {
+                int capturedBlockX = blockX;
+                int capturedBlockY = blockY;
+                lazyBlock = new Lazy<byte[]>(
+                    () => BuildCaveCellBlock(
+                        capturedBlockX,
+                        capturedBlockY),
+                    LazyThreadSafetyMode.ExecutionAndPublication);
+                caveCellBlocks.Add(key, lazyBlock);
+                caveCellBlockOrder.Enqueue(key);
+                while (caveCellBlocks.Count > CaveCellCacheCapacity)
+                {
+                    long oldest = caveCellBlockOrder.Dequeue();
+                    caveCellBlocks.Remove(oldest);
+                }
+            }
+        }
+
+        // Generate outside the dictionary lock. Different cave blocks can now
+        // use separate chunk workers, while Lazy still guarantees that two
+        // neighboring chunks requesting the same block build it only once.
+        byte[] block = lazyBlock.Value;
+        int localX = cellX - blockX * CaveCellBlockSize;
+        int localY = cellY - blockY * CaveCellBlockSize;
+        return block[localY * CaveCellBlockSize + localX] != 0;
+    }
+
+    private byte[] BuildCaveCellBlock(int blockX, int blockY)
+    {
+        int iterations = Mathf.Clamp(caveLayer.cellularIterations, 0, 8);
+        int padding = iterations;
+        int side = CaveCellBlockSize + padding * 2;
+        int originX = blockX * CaveCellBlockSize - padding;
+        int originY = blockY * CaveCellBlockSize - padding;
+        byte[] current = new byte[side * side];
+        byte[] next = new byte[side * side];
+
+        for (int y = 0; y < side; y++)
+        for (int x = 0; x < side; x++)
+        {
+            current[y * side + x] = IsInitialCaveWall(
+                originX + x,
+                originY + y)
+                ? (byte)1
+                : (byte)0;
+        }
+
+        int birthLimit = Mathf.Clamp(caveLayer.wallBirthLimit, 0, 8);
+        int survivalLimit = Mathf.Clamp(caveLayer.wallSurvivalLimit, 0, 8);
+        for (int iteration = 1; iteration <= iterations; iteration++)
+        {
+            int minimum = iteration;
+            int maximum = side - iteration;
+            for (int y = minimum; y < maximum; y++)
+            for (int x = minimum; x < maximum; x++)
+            {
+                int neighborWalls = 0;
+                for (int oy = -1; oy <= 1; oy++)
+                for (int ox = -1; ox <= 1; ox++)
+                {
+                    if (ox == 0 && oy == 0)
+                        continue;
+                    neighborWalls += current[(y + oy) * side + x + ox];
+                }
+
+                bool isWall = current[y * side + x] != 0;
+                next[y * side + x] =
+                    neighborWalls >= (isWall ? survivalLimit : birthLimit)
+                        ? (byte)1
+                        : (byte)0;
+            }
+
+            (current, next) = (next, current);
+        }
+
+        byte[] result = new byte[CaveCellBlockSize * CaveCellBlockSize];
+        for (int y = 0; y < CaveCellBlockSize; y++)
+        {
+            Array.Copy(
+                current,
+                (y + padding) * side + padding,
+                result,
+                y * CaveCellBlockSize,
+                CaveCellBlockSize);
+        }
+
+        return result;
+    }
+
+    private bool IsInitialCaveWall(int cellX, int cellY)
+    {
+        int cellSize = Mathf.Max(1, caveLayer.cellularCellSize);
+        float worldX = (cellX + 0.5f) * cellSize;
+        float worldY = (cellY + 0.5f) * cellSize;
+        GetCaveBiomeShape(
+            worldX,
+            worldY,
+            out float chamberScale,
+            out float chamberOpenness);
+        float chamber = caveChamberNoise.GetNoise(
+            worldX / chamberScale,
+            worldY / chamberScale);
+        float wallChance = Mathf.Clamp01(
+            caveLayer.initialWallChance -
+            chamber * caveLayer.chamberInfluence -
+            chamberOpenness);
+        int seedSalt = unchecked((int)seed) ^ 0x5ca1ab1;
+        return Util.Hash01(cellX, cellY, seedSalt) < wallChance;
+    }
+
+    private void GetCaveBiomeShape(
+        float worldX,
+        float worldY,
+        out float chamberScale,
+        out float chamberOpenness)
+    {
+        float fallback = Mathf.Max(1f, caveLayer.chamberScale);
+        if (biomeLibrary.Length == 0)
+        {
+            chamberScale = fallback;
+            chamberOpenness = 0f;
+            return;
+        }
+
+        if (biomeLibrary.Length == 1)
+        {
+            BiomeData b = biomeLibrary[0];
+            float scale = b?.hillScale ?? fallback;
+            chamberScale = scale > 0f ? scale : fallback;
+            chamberOpenness = Mathf.Clamp(
+                b?.hillStrength ?? 0f,
+                0f,
+                0.15f);
+            return;
+        }
+
+        // Cave biome selection is cellular and does not consume climate. The
+        // previous code evaluated blended climate noise here for every source
+        // cell in every automaton block, then discarded it.
+        BiomeBlend biome = SelectCellularCaveBiome(
+            Mathf.FloorToInt(worldX),
+            Mathf.FloorToInt(worldY));
+        chamberScale = biome.hillScale > 0f
+            ? biome.hillScale
+            : fallback;
+        chamberOpenness = Mathf.Clamp(biome.hillStrength, 0f, 0.15f);
+    }
+
+    private static int FloorDiv(int value, int divisor)
+    {
+        int quotient = value / divisor;
+        int remainder = value % divisor;
+        return remainder < 0 ? quotient - 1 : quotient;
+    }
+
+    private static long PackCoordinates(int x, int y)
+    {
+        return (long)(uint)x << 32 | (uint)y;
+    }
+
+    private Vector2 WarpCavePoint(float x, float y)
+    {
+        float scale = Mathf.Max(1f, caveLayer.warpScale);
+        float strength = caveLayer.warpStrength;
+        return new Vector2(
+            x + caveWarpNoise.GetNoise(x / scale, y / scale) * strength,
+            y + caveWarpNoise.GetNoise((x + 193.7f) / scale, (y - 71.3f) / scale) * strength);
+    }
+
+    private bool IsCaveCrevasse(
+        Vector2 point,
+        int worldX,
+        int worldY)
+    {
+        float strength = GetBiomeCrevasseStrength(worldX, worldY);
+        if (strength <= 0f)
+            return false;
+
+        float cellSize = Mathf.Max(4f, caveLayer.crevasseCellSize);
+        float px = point.x / cellSize;
+        float py = point.y / cellSize;
+        int baseX = Mathf.FloorToInt(px);
+        int baseY = Mathf.FloorToInt(py);
+        float nearest = float.MaxValue;
+        float second = float.MaxValue;
+        for (int oy = -1; oy <= 1; oy++)
+        for (int ox = -1; ox <= 1; ox++)
+        {
+            int cx = baseX + ox;
+            int cy = baseY + oy;
+            float fx = cx + Util.Hash01(cx, cy, 741121);
+            float fy = cy + Util.Hash01(cx, cy, 741127);
+            float distance = new Vector2(px - fx, py - fy).sqrMagnitude;
+            if (distance < nearest) { second = nearest; nearest = distance; }
+            else if (distance < second) second = distance;
+        }
+        float edgeDistance = Mathf.Sqrt(second) - Mathf.Sqrt(nearest);
+        float mask = Mathf.InverseLerp(-1f, 1f,
+            caveCrevasseMaskNoise.GetNoise(point.x / 128f, point.y / 128f));
+        return edgeDistance < caveLayer.crevasseWidth * strength &&
+               mask < Mathf.Clamp01(caveLayer.crevasseDensity * strength);
+    }
+
+    private float GetBiomeCrevasseStrength(int worldX, int worldY)
+    {
+        if (biomeLibrary.Length == 1)
+            return Mathf.Max(0f, biomeLibrary[0].crevasseStrength);
+
+        // Cellular cave biome selection ignores climate, so avoid calculating
+        // a blended climate sample for every crevasse test.
+        BiomeBlend biome = SelectCellularCaveBiome(worldX, worldY);
+        return Mathf.Max(0f, biome.crevasseStrength);
+    }
+
+    private float GetCaveRouteDistance(float x, float y)
+    {
+        int size = Mathf.Max(32, caveLayer.regionSize);
+        int rx = Mathf.FloorToInt(x / size);
+        int ry = Mathf.FloorToInt(y / size);
+        Vector2 point = new(x, y);
+        Vector2 center = CaveRegionAnchor(rx, ry, size);
+        float distance = float.MaxValue;
+        distance = Mathf.Min(distance, DistanceToSegment(point, center, CaveRegionAnchor(rx + 1, ry, size)));
+        distance = Mathf.Min(distance, DistanceToSegment(point, center, CaveRegionAnchor(rx - 1, ry, size)));
+        distance = Mathf.Min(distance, DistanceToSegment(point, center, CaveRegionAnchor(rx, ry + 1, size)));
+        distance = Mathf.Min(distance, DistanceToSegment(point, center, CaveRegionAnchor(rx, ry - 1, size)));
+        return distance;
+    }
+
+    private Vector2 CaveRegionAnchor(int rx, int ry, int size)
+    {
+        const float margin = 0.28f;
+        return new Vector2(
+            (rx + Mathf.Lerp(margin, 1f - margin, Util.Hash01(rx, ry, 741131))) * size,
+            (ry + Mathf.Lerp(margin, 1f - margin, Util.Hash01(rx, ry, 741133))) * size);
+    }
+
+    private static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)
+    {
+        Vector2 delta = b - a;
+        float t = Mathf.Clamp01(Vector2.Dot(point - a, delta) /
+                                Mathf.Max(0.0001f, delta.sqrMagnitude));
+        return Vector2.Distance(point, a + delta * t);
+    }
+
     private TerrainGenerationState SampleFeaturePlacementTerrain(int x, int y)
     {
         Vector3 values = SampleBlendedTerrainValues(
@@ -1034,11 +1772,7 @@ public class WorldGeneration : IWorldGenerator
             baseHeight = values.x,
             moisture = values.y,
             temperature = values.z,
-            biomeData = BiomeSelector.GetBiomeBlend(
-                biomeLibrary,
-                values.x,
-                values.y,
-                values.z)
+            biomeData = SelectBiomeBlend(x, y, values)
         };
     }
 
@@ -1115,6 +1849,188 @@ public class WorldGeneration : IWorldGenerator
         return spawns;
     }
 
+    public void ApplyFeatureEntityGenerators(
+        Vector2Int chunkPosition,
+        List<PropSpawnData> entities)
+    {
+        if (entities == null)
+            throw new ArgumentNullException(nameof(entities));
+
+        // Resolve the anchor before sampling the fixed feature. Terrain samples
+        // used by the spawn search intentionally ignore this feature to avoid a
+        // circular WorldSpawnPosition lookup.
+        _ = WorldSpawnPosition;
+
+        foreach (FeatureInstance instance in
+                 GetFeatureInstancesAffectingChunk(chunkPosition))
+        {
+            ApplyFeatureEntityGenerators(
+                chunkPosition,
+                entities,
+                instance);
+        }
+    }
+
+    private IEnumerable<FeatureInstance> GetFeatureInstancesAffectingChunk(
+        Vector2Int chunkPosition)
+    {
+        int cellSize = Mathf.Max(1, featureLayer.cellSize);
+        int minimumWorldX = chunkPosition.x * ChunkBuildResult.ChunkSize;
+        int minimumWorldY = chunkPosition.y * ChunkBuildResult.ChunkSize;
+        int maximumWorldX = minimumWorldX + ChunkBuildResult.ChunkSize - 1;
+        int maximumWorldY = minimumWorldY + ChunkBuildResult.ChunkSize - 1;
+        int minimumCellX =
+            Mathf.FloorToInt((float)minimumWorldX / cellSize) -
+            featureNeighborRange;
+        int minimumCellY =
+            Mathf.FloorToInt((float)minimumWorldY / cellSize) -
+            featureNeighborRange;
+        int maximumCellX =
+            Mathf.FloorToInt((float)maximumWorldX / cellSize) +
+            featureNeighborRange;
+        int maximumCellY =
+            Mathf.FloorToInt((float)maximumWorldY / cellSize) +
+            featureNeighborRange;
+
+        if (featureLayer.chancePerCell > 0f &&
+            featureLayer.features != null &&
+            featureLayer.features.Length > 0)
+        {
+            for (int cellY = minimumCellY; cellY <= maximumCellY; cellY++)
+            for (int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
+            {
+                FeatureInstance instance = GetFeatureInstance(cellX, cellY);
+                if (!instance.exists ||
+                    !IsSelectedFeatureBuilding(
+                        instance,
+                        GetFeaturePosition(instance)))
+                {
+                    continue;
+                }
+
+                yield return instance;
+            }
+        }
+
+        FeatureInstance worldSpawn = GetWorldSpawnFeatureInstance();
+        if (worldSpawn.exists)
+            yield return worldSpawn;
+    }
+
+    private void ApplyFeatureEntityGenerators(
+        Vector2Int chunkPosition,
+        List<PropSpawnData> entities,
+        FeatureInstance instance)
+    {
+        float cosine = Mathf.Cos(instance.rotation);
+        float sine = Mathf.Sin(instance.rotation);
+        GeneratorInfo[] recipe =
+            instance.feature.generators ?? Array.Empty<GeneratorInfo>();
+
+        for (int generatorIndex = 0;
+             generatorIndex < recipe.Length;
+             generatorIndex++)
+        {
+            GeneratorInfo info = recipe[generatorIndex];
+            FeatureGenerator generator = info?.generator;
+            if (info?.enabled != true ||
+                generator == null ||
+                info.strength <= 0f)
+            {
+                continue;
+            }
+
+            entities.RemoveAll(candidate => generator.ClearsEntity(
+                WorldToFeatureLocal(
+                    candidate.position,
+                    instance.center,
+                    cosine,
+                    sine)));
+
+            if (!generator.TryGetEntityPlacement(
+                    out FeatureEntityPlacement placement) ||
+                placement.entity == null)
+            {
+                continue;
+            }
+
+            Vector2 rotatedOffset = new(
+                placement.offset.x * cosine - placement.offset.y * sine,
+                placement.offset.x * sine + placement.offset.y * cosine);
+            Vector2 position = instance.center + rotatedOffset;
+            if (WorldPartition.WorldToChunk(position) != chunkPosition)
+                continue;
+
+            Vector2Int worldCell = Vector2Int.FloorToInt(position);
+            if (placement.requireWalkableArea &&
+                !IsGeneratedAreaWalkable(new RectInt(
+                    worldCell + placement.walkableAreaOffset,
+                    new Vector2Int(
+                        Mathf.Max(1, placement.walkableAreaSize.x),
+                        Mathf.Max(1, placement.walkableAreaSize.y)))))
+            {
+                continue;
+            }
+            string placementId = string.IsNullOrWhiteSpace(
+                placement.persistentId)
+                ? $"FeatureEntity:{instance.feature.persistentId}:{generatorIndex}"
+                : placement.persistentId.Trim();
+            ushort generatorType = NodeId.CreateGeneratorType(placementId);
+
+            entities.RemoveAll(candidate =>
+                candidate.worldPosition == worldCell);
+            entities.Add(new PropSpawnData
+            {
+                NodeId = NodeId.Create(
+                    seed,
+                    worldCell,
+                    generatorType,
+                    slot: 0),
+                worldPosition = worldCell,
+                propName = placementId,
+                nodeData = placement.entity,
+                position = position,
+                scale = placement.scale,
+                flipX = placement.flipX,
+                terrainSample = GetTerrainSample(
+                    worldCell.x,
+                    worldCell.y),
+                persistenceKind = EntityPersistenceKind.Procedural,
+                damageImmune = placement.damageImmune,
+                clearReservedAreaCoverage =
+                    placement.clearReservedAreaCoverage
+            });
+        }
+    }
+
+    public bool IsGeneratedAreaWalkable(RectInt worldArea)
+    {
+        foreach (Vector2Int cell in worldArea.allPositionsWithin)
+        {
+            if (!GetTerrainSample(cell.x, cell.y).IsWalkable)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static Vector2 WorldToFeatureLocal(
+        Vector2 position,
+        Vector2 center,
+        float cosine,
+        float sine)
+    {
+        Vector2 delta = position - center;
+        return new Vector2(
+            delta.x * cosine + delta.y * sine,
+            -delta.x * sine + delta.y * cosine);
+    }
+
+    private static Vector2 GetFeaturePosition(FeatureInstance instance) =>
+        instance.feature is FeatureBuildingData building
+            ? instance.center + building.placementOffset
+            : instance.center;
+
     public bool RegionContainsGeneratedFeatureBuilding(
         Vector2Int region,
         string uniqueKey)
@@ -1133,6 +2049,21 @@ public class WorldGeneration : IWorldGenerator
         position = default;
         string normalizedId = featureId?.Trim();
         if (string.IsNullOrEmpty(normalizedId))
+            return false;
+
+        FeatureData worldSpawn = WorldSpawnFeature;
+        if (worldSpawn != null &&
+            string.Equals(
+                worldSpawn.persistentId,
+                normalizedId,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            position = WorldSpawnPosition;
+            return WorldPartition.ChunkToRegion(
+                WorldPartition.WorldToChunk(position)) == region;
+        }
+
+        if (featureLayer?.features == null)
             return false;
 
         FeatureBuildingData requestedBuilding =
@@ -1207,6 +2138,81 @@ public class WorldGeneration : IWorldGenerator
         return false;
     }
 
+    public bool TryFindNearestFeature(
+        string featureId,
+        Vector2Int originRegion,
+        int maximumRegionRadius,
+        out Vector2Int featureRegion,
+        out Vector2 position)
+    {
+        featureRegion = default;
+        position = default;
+        if (string.IsNullOrWhiteSpace(featureId) || maximumRegionRadius < 0)
+            return false;
+
+        for (int radius = 0; radius <= maximumRegionRadius; radius++)
+        {
+            for (int x = -radius; x <= radius; x++)
+            {
+                if (TryFindFeatureAtRegionOffset(
+                        featureId,
+                        originRegion,
+                        x,
+                        radius,
+                        out featureRegion,
+                        out position))
+                    return true;
+                if (radius > 0 && TryFindFeatureAtRegionOffset(
+                        featureId,
+                        originRegion,
+                        x,
+                        -radius,
+                        out featureRegion,
+                        out position))
+                    return true;
+            }
+
+            for (int y = -radius + 1; y < radius; y++)
+            {
+                if (TryFindFeatureAtRegionOffset(
+                        featureId,
+                        originRegion,
+                        radius,
+                        y,
+                        out featureRegion,
+                        out position))
+                    return true;
+                if (radius > 0 && TryFindFeatureAtRegionOffset(
+                        featureId,
+                        originRegion,
+                        -radius,
+                        y,
+                        out featureRegion,
+                        out position))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryFindFeatureAtRegionOffset(
+        string featureId,
+        Vector2Int originRegion,
+        int offsetX,
+        int offsetY,
+        out Vector2Int featureRegion,
+        out Vector2 position)
+    {
+        featureRegion = new Vector2Int(
+            originRegion.x + offsetX,
+            originRegion.y + offsetY);
+        return TryLocateFeatureInRegion(
+            featureId,
+            featureRegion,
+            out position);
+    }
+
     public bool TryLocateAnyFeatureInRegion(
         Vector2Int region,
         out FeatureData feature,
@@ -1229,6 +2235,83 @@ public class WorldGeneration : IWorldGenerator
         feature = null;
         position = default;
         return false;
+    }
+
+    public IReadOnlyList<IFeatureData> FindFeatures(
+        Vector3 center,
+        float radius)
+    {
+        if (radius <= 0f || featureLayer?.features == null)
+            return Array.Empty<IFeatureData>();
+
+        float radiusSquared = radius * radius;
+        int cellSize = Mathf.Max(1, featureLayer.cellSize);
+        int minimumCellX = Mathf.FloorToInt((center.x - radius) / cellSize) - 1;
+        int minimumCellY = Mathf.FloorToInt((center.y - radius) / cellSize) - 1;
+        int maximumCellX = Mathf.FloorToInt((center.x + radius) / cellSize) + 1;
+        int maximumCellY = Mathf.FloorToInt((center.y + radius) / cellSize) + 1;
+        List<IFeatureData> result = new();
+        HashSet<string> seen = new(StringComparer.Ordinal);
+
+        for (int cellY = minimumCellY; cellY <= maximumCellY; cellY++)
+        for (int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
+        {
+            FeatureInstance instance = GetFeatureInstance(cellX, cellY);
+            FeatureData feature = instance.feature;
+            if (!instance.exists || feature == null || !feature.canBeSensed)
+                continue;
+
+            Vector2 position = feature is FeatureBuildingData building
+                ? instance.center + building.placementOffset
+                : instance.center;
+            if (((Vector2)center - position).sqrMagnitude > radiusSquared ||
+                !IsSelectedFeatureBuilding(instance, position))
+                continue;
+
+            string key = $"{feature.persistentId}:{position.x:R}:{position.y:R}";
+            if (!seen.Add(key))
+                continue;
+            result.Add(new LocatedFeature(
+                position,
+                feature.senseIcon,
+                string.IsNullOrWhiteSpace(feature.senseName)
+                    ? feature.name
+                    : feature.senseName.Trim()));
+        }
+
+        return result;
+    }
+
+    private bool IsSelectedFeatureBuilding(
+        FeatureInstance instance,
+        Vector2 position)
+    {
+        if (instance.feature is not FeatureBuildingData building)
+            return true;
+        Vector2Int region = WorldPartition.ChunkToRegion(
+            WorldPartition.WorldToChunk(position));
+        string key = string.IsNullOrWhiteSpace(building.regionUniqueKey)
+            ? null
+            : building.regionUniqueKey.Trim();
+        if (key == null)
+            return true;
+        return GetFeatureBuildingWinners(region).TryGetValue(key, out FeatureInstance winner) &&
+               winner.feature == instance.feature &&
+               (winner.center - instance.center).sqrMagnitude < 0.0001f;
+    }
+
+    private sealed class LocatedFeature : IFeatureData
+    {
+        public Vector3 Position { get; }
+        public Sprite Icon { get; }
+        public string Name { get; }
+
+        public LocatedFeature(Vector2 position, Sprite icon, string name)
+        {
+            Position = position;
+            Icon = icon;
+            Name = name;
+        }
     }
 
     private Dictionary<string, FeatureInstance> GetFeatureBuildingWinners(
@@ -1348,6 +2431,23 @@ public class WorldGeneration : IWorldGenerator
                 hash = (hash ^ character) * 16777619u;
             return (int)hash;
         }
+    }
+
+    private static float GetMaximumEntityReach(FeatureData feature)
+    {
+        float maximum = 0f;
+        foreach (GeneratorInfo info in
+                 feature?.generators ?? Array.Empty<GeneratorInfo>())
+        {
+            if (info?.enabled == true && info.generator != null)
+            {
+                maximum = Mathf.Max(
+                    maximum,
+                    info.generator.EntityReach);
+            }
+        }
+
+        return maximum;
     }
 
     private struct FeatureInstance

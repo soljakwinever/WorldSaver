@@ -1,8 +1,10 @@
 #if UNITY_INCLUDE_TESTS
+using System.Collections.Generic;
 using NUnit.Framework;
 using Project.Scripts;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using UnityEngine;
 
@@ -165,46 +167,196 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
-        public void SpawnPlatformDataIsCreatedOnlyForOwningChunkAndIsStable()
+        public void SelectedPresetControlsBaselineAndEventNPCSpawnRules()
+        {
+            EnemySpawnRule legacyRule =
+                ScriptableObject.CreateInstance<EnemySpawnRule>();
+            EnemySpawnRule presetRule =
+                ScriptableObject.CreateInstance<EnemySpawnRule>();
+            try
+            {
+                _worldData.enemySpawnRules = new[] { legacyRule };
+                _preset.useLegacyWorldNPCSpawnRules = false;
+                _preset.enemySpawnRules = new[] { presetRule };
+                _preset.allowEventNPCSpawnRules = false;
+
+                WorldGeneration generator = (WorldGeneration)_generator;
+
+                Assert.That(
+                    generator.EnemySpawnRules,
+                    Is.EqualTo(new[] { presetRule }));
+                Assert.That(generator.AllowEventNPCSpawnRules, Is.False);
+
+                _preset.enemySpawnRules = System.Array.Empty<EnemySpawnRule>();
+                Assert.That(generator.EnemySpawnRules, Is.Empty);
+            }
+            finally
+            {
+                Object.DestroyImmediate(presetRule);
+                Object.DestroyImmediate(legacyRule);
+            }
+        }
+
+        [Test]
+        public void WorldSpawnFeaturePlacesPlatformOnlyInOwningChunkAndIsStable()
         {
             NodeData platform =
                 ScriptableObject.CreateInstance<NodeData>();
-            _worldData.spawnPlatformNode = platform;
+            FeatureData feature = ScriptableObject.CreateInstance<FeatureData>();
+            feature.persistentId = "WorldSpawnPlatform";
+            feature.generators = new[]
+            {
+                new GeneratorInfo
+                {
+                    generator = new ClearEntitiesRectangleFeatureGenerator
+                    {
+                        size = new Vector2(8f, 8f)
+                    }
+                },
+                new GeneratorInfo
+                {
+                    generator = new PlaceEntityFeatureGenerator
+                    {
+                        persistentId = "World Spawn Platform",
+                        entity = platform,
+                        damageImmune = true
+                    }
+                }
+            };
+            _worldData.worldSpawnFeature = feature;
             WorldGeneration generator = (WorldGeneration)_generator;
             Vector2Int spawnPosition = generator.WorldSpawnPosition;
             Vector2Int ownerChunk =
                 WorldPartition.WorldToChunk(spawnPosition);
+            Vector2Int ownerRegion =
+                WorldPartition.ChunkToRegion(ownerChunk);
 
             try
             {
                 Assert.That(
-                    ChunkGenerator.TryCreateSpawnPlatformData(
-                        generator,
-                        ownerChunk,
-                        out PropSpawnData first),
+                    generator.TryFindNearestFeature(
+                        feature.persistentId,
+                        ownerRegion + new Vector2Int(2, -1),
+                        2,
+                        out Vector2Int foundRegion,
+                        out Vector2 foundPosition),
                     Is.True);
+                Assert.That(foundRegion, Is.EqualTo(ownerRegion));
+                Assert.That(
+                    WorldPartition.WorldToChunk(foundPosition),
+                    Is.EqualTo(ownerChunk));
+
+                List<PropSpawnData> firstResult = new()
+                {
+                    new PropSpawnData
+                    {
+                        worldPosition = spawnPosition + Vector2Int.right,
+                        position = spawnPosition + Vector2Int.right
+                    }
+                };
+                generator.ApplyFeatureEntityGenerators(
+                    ownerChunk,
+                    firstResult);
+                Assert.That(firstResult, Has.Count.EqualTo(1));
+                PropSpawnData first = firstResult[0];
                 Assert.That(first.nodeData, Is.SameAs(platform));
                 Assert.That(first.worldPosition, Is.EqualTo(spawnPosition));
+                Assert.That(first.damageImmune, Is.True);
 
-                Assert.That(
-                    ChunkGenerator.TryCreateSpawnPlatformData(
-                        generator,
-                        ownerChunk,
-                        out PropSpawnData second),
-                    Is.True);
+                List<PropSpawnData> secondResult = new();
+                generator.ApplyFeatureEntityGenerators(
+                    ownerChunk,
+                    secondResult);
+                Assert.That(secondResult, Has.Count.EqualTo(1));
+                PropSpawnData second = secondResult[0];
                 Assert.That(second.NodeId, Is.EqualTo(first.NodeId));
 
-                Assert.That(
-                    ChunkGenerator.TryCreateSpawnPlatformData(
-                        generator,
-                        ownerChunk + Vector2Int.right,
-                        out _),
-                    Is.False);
+                List<PropSpawnData> otherChunkResult = new();
+                generator.ApplyFeatureEntityGenerators(
+                    ownerChunk + Vector2Int.right,
+                    otherChunkResult);
+                Assert.That(otherChunkResult, Is.Empty);
             }
             finally
             {
-                _worldData.spawnPlatformNode = null;
+                _worldData.worldSpawnFeature = null;
+                Object.DestroyImmediate(feature);
                 Object.DestroyImmediate(platform);
+            }
+        }
+
+        [Test]
+        public void EntityClearGeneratorsSupportCircleAndRectangleAreas()
+        {
+            ClearEntitiesCircleFeatureGenerator circle = new()
+            {
+                offset = new Vector2(2f, 0f),
+                radius = 3f
+            };
+            ClearEntitiesRectangleFeatureGenerator rectangle = new()
+            {
+                offset = new Vector2(-2f, 1f),
+                size = new Vector2(4f, 6f)
+            };
+
+            Assert.That(circle.ClearsEntity(new Vector2(5f, 0f)), Is.True);
+            Assert.That(circle.ClearsEntity(new Vector2(5.1f, 0f)), Is.False);
+            Assert.That(rectangle.ClearsEntity(new Vector2(0f, 4f)), Is.True);
+            Assert.That(rectangle.ClearsEntity(new Vector2(0.1f, 4f)), Is.False);
+        }
+
+        [Test]
+        public void PlaneEntranceResolvesSafeDestinationOnConfiguredPlane()
+        {
+            PlaneData surface = ScriptableObject.CreateInstance<PlaneData>();
+            PlaneData underground = ScriptableObject.CreateInstance<PlaneData>();
+            GameObject entranceObject = new("Underground Entrance");
+            try
+            {
+                JsonUtility.FromJsonOverwrite(
+                    "{\"persistentId\":\"surface\"}",
+                    surface);
+                JsonUtility.FromJsonOverwrite(
+                    "{\"persistentId\":\"underground\"}",
+                    underground);
+                surface.generationPreset = _preset;
+                underground.generationPreset = _preset;
+                _worldData.StartPlane = surface;
+                _worldData.planes = new[] { surface, underground };
+
+                WorldGeneration generator = (WorldGeneration)_generator;
+                entranceObject.transform.position =
+                    (Vector2)generator.WorldSpawnPosition;
+                PlaneEntranceComponent entrance =
+                    entranceObject.AddComponent<PlaneEntranceComponent>();
+                entrance.Construct(
+                    _worldData,
+                    generator,
+                    new PlaneSelection(surface));
+                entrance.Initialize(
+                    "underground",
+                    "Descend underground",
+                    searchRadius: 32,
+                    clearanceRadius: 1);
+
+                Assert.That(
+                    entrance.TryResolveDestination(
+                        out PlaneData resolvedPlane,
+                        out Vector3 destination),
+                    Is.True);
+                Assert.That(resolvedPlane, Is.SameAs(underground));
+                Vector2Int destinationCell = Vector2Int.FloorToInt(destination);
+                Assert.That(
+                    generator.IsGeneratedAreaWalkable(new RectInt(
+                        destinationCell - Vector2Int.one,
+                        Vector2Int.one * 3)),
+                    Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(entranceObject);
+                Object.DestroyImmediate(underground);
+                Object.DestroyImmediate(surface);
             }
         }
     }

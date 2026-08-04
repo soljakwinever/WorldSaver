@@ -41,9 +41,7 @@ namespace Project.Scripts.Persistence
             component.Initialize(
                 node != null ? node.transform : host.transform,
                 configuration.width,
-                configuration.height,
-                configuration.xOffset,
-                configuration.yOffset);
+                configuration.height);
         }
     }
 }

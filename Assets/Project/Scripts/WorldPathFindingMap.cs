@@ -68,7 +68,7 @@ namespace Project.Scripts.Pathfinding
 
             TerrainSample sample =
                 _worldGeneration.GetTerrainSample(worldCell.x, worldCell.y);
-            return !sample.isWater && !sample.isCliff;
+            return sample.IsWalkable;
         }
 
         public float GetTraversalCost(Vector2Int worldCell)
@@ -91,6 +91,8 @@ namespace Project.Scripts.Pathfinding
 
             TerrainSample sample =
                 _worldGeneration.GetTerrainSample(worldCell.x, worldCell.y);
+            if (!sample.IsWalkable)
+                return float.PositiveInfinity;
             // Prefer roads and trails while retaining an admissible cost floor.
             return sample.isRoad ? 1f : sample.isTrail ? 1.1f : 1.25f;
         }
@@ -471,6 +473,7 @@ namespace Project.Scripts.Pathfinding
             for (int i = 0; i < cellCount; i++)
             {
                 walkable[i] =
+                    result.terrainKinds[i] == TerrainKind.Floor &&
                     result.heights[i] >
                     _worldGeneration.Elevation.waterHeight &&
                     !result.isCliff[i];

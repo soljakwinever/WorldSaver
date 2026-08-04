@@ -1,4 +1,5 @@
 using Project.Scripts.GameTime;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using Project.Scripts.TimeAndWeather;
 using UnityEngine;
@@ -23,8 +24,12 @@ namespace Project.Scripts
 
         private void Update()
         {
-            Color dayColor =
-                worldData.dayColorGradient.Evaluate(timeController.DayProgress);
+            PlaneData plane = chunkloader.CurrentPlane;
+            Color ambientColor = plane == null ||
+                                 plane.ParticipatesInDayNightCycle
+                ? worldData.dayColorGradient.Evaluate(
+                    timeController.DayProgress)
+                : plane.AmbientColor;
             Color weatherTint = Color.white;
 
             if (chunkloader.track != null)
@@ -34,8 +39,8 @@ namespace Project.Scripts
                     .AmbientColorTint;
             }
 
-            Color combinedColor = dayColor * weatherTint;
-            combinedColor.a = dayColor.a;
+            Color combinedColor = ambientColor * weatherTint;
+            combinedColor.a = ambientColor.a;
             globalLight.color = combinedColor;
         }
     }

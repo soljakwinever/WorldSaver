@@ -16,6 +16,7 @@ namespace Project.Scripts
         private NodeData _nodeData;
         private PersistentEntity _persistentEntity;
         private PersistentHealth _health;
+        private bool _damageImmune;
 
         public void Initialize(
             NodeData nodeData,
@@ -25,11 +26,16 @@ namespace Project.Scripts
             _nodeData = nodeData;
             _persistentEntity = persistentEntity;
             _health = health;
+            _damageImmune = false;
         }
+
+        public void SetDamageImmune(bool damageImmune) =>
+            _damageImmune = damageImmune;
 
         public bool CanReceiveDamage(AttackContext context)
         {
-            if (_nodeData == null ||
+            if (_damageImmune ||
+                _nodeData == null ||
                 _persistentEntity == null ||
                 !_persistentEntity.CanRemoveFromWorld ||
                 context.Force <= 0)

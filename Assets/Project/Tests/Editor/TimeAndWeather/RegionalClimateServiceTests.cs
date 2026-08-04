@@ -309,6 +309,12 @@ namespace Project.Tests.EditMode
                 throw new NotSupportedException();
             }
 
+            public bool TryFindSafePortalPosition(PlaneData destinationPlane, Vector2Int requestedCell, out Vector2Int safeCell,
+                int searchRadius = 64, int clearanceRadius = 2)
+            {
+                throw new NotSupportedException();
+            }
+
             public ChunkBuildResult.IsCliff IsSmallCliff(int x, int y)
             {
                 return default;

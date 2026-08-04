@@ -149,7 +149,7 @@ namespace Project.Scripts.Persistence
                 int entityCount = ReadCount(reader, "entity");
 
                 for (int entityIndex = 0; entityIndex < entityCount; entityIndex++)
-                    chunk.entities.Add(ReadEntity(reader));
+                    chunk.entities.Add(ReadEntity(reader, save.version));
 
                 int componentCount = ReadCount(reader, "chunk component");
 
@@ -260,6 +260,8 @@ namespace Project.Scripts.Persistence
             writer.Write((byte)entity.persistenceKind);
             writer.Write((byte)entity.existenceState);
             writer.Write(entity.lastSimulatedTick);
+            writer.Write(entity.respawnAtTick);
+            writer.Write(entity.respawnInsideTownInfluence);
 
             int count = entity.components?.Count ?? 0;
             writer.Write(count);
@@ -268,7 +270,9 @@ namespace Project.Scripts.Persistence
                 WritePersistentComponent(writer, entity.components[i]);
         }
 
-        private static PersistentEntityRecord ReadEntity(BinaryReader reader)
+        private static PersistentEntityRecord ReadEntity(
+            BinaryReader reader,
+            ushort saveVersion)
         {
             PersistentEntityRecord entity = new()
             {
@@ -278,6 +282,17 @@ namespace Project.Scripts.Persistence
                 existenceState = (EntityExistenceState)reader.ReadByte(),
                 lastSimulatedTick = reader.ReadInt64()
             };
+
+            if (saveVersion >= 5)
+            {
+                entity.respawnAtTick = reader.ReadInt64();
+                entity.respawnInsideTownInfluence = reader.ReadBoolean();
+                if (entity.respawnAtTick < 0)
+                {
+                    throw new InvalidDataException(
+                        $"Invalid respawn tick {entity.respawnAtTick}.");
+                }
+            }
 
             if (!Enum.IsDefined(typeof(EntityPersistenceKind), entity.persistenceKind) ||
                 !Enum.IsDefined(typeof(EntityExistenceState), entity.existenceState))

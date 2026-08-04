@@ -19,6 +19,7 @@ namespace Project.Scripts
         public float[] temperature;
         public BiomeBlend[] biomeData;
         public TileData[] floorTiles;
+        public TerrainKind[] terrainKinds;
 
         public IsCliff[] isCliff;
         public bool[] isRoad;
@@ -55,6 +56,7 @@ namespace Project.Scripts
             isTrail = new bool[ChunkSize * ChunkSize];
             biomeData = new BiomeBlend[ChunkSize * ChunkSize];
             floorTiles = new TileData[ChunkSize * ChunkSize];
+            terrainKinds = new TerrainKind[ChunkSize * ChunkSize];
         }
 
         public int GetTileIndex(int x, int y)
@@ -70,6 +72,7 @@ namespace Project.Scripts
                 height = heights[GetTileIndex(x, y)],
                 moisture = moisture[GetTileIndex(x, y)],
                 temperature = temperature[GetTileIndex(x, y)],
+                terrainKind = terrainKinds[GetTileIndex(x, y)],
 
                 isCliff = isCliff[GetTileIndex(x, y)],
                 isRoad = isRoad[GetTileIndex(x, y)],
@@ -91,5 +94,7 @@ namespace Project.Scripts
         public TerrainSample terrainSample;
         public EntityPersistenceKind persistenceKind;
         public AccessIdentity accessIdentity;
+        public bool damageImmune;
+        public bool clearReservedAreaCoverage;
     }
 }

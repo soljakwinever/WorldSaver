@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
   m_Name: Pickaxe
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
-  persistentId: WoodenPickaxe
+  persistentId: tools.pickaxe.wood
   description: 
   maxStack: 1
   sprite: {fileID: -4019052279006995309, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
@@ -22,13 +22,14 @@ MonoBehaviour:
   - rid: 7218491099281098755
   goldValue: 12
   fuelValue: 1
+  magicValue: 0
+  tags:
+  - {fileID: 11400000, guid: 87a56f66d863cfa48b50585a9adf051d, type: 2}
+  - {fileID: 11400000, guid: a8384b5e38da94043ab23b67f322ef6f, type: 2}
   valueTags:
   - tag: {fileID: 11400000, guid: b26da7e9b22e43b5aa9894c2cb4c4b01, type: 2}
     intValue: 12
     floatValue: 0
-  tags:
-  - {fileID: 11400000, guid: 87a56f66d863cfa48b50585a9adf051d, type: 2}
-  - {fileID: 11400000, guid: a8384b5e38da94043ab23b67f322ef6f, type: 2}
   references:
     version: 2
     RefIds:

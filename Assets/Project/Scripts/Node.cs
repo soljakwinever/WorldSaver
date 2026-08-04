@@ -28,6 +28,7 @@ public class Node : MonoBehaviour, INode
     
     private NodeData _nodeData;
     public NodeData NodeData => _nodeData;
+    public bool ClearReservedAreaCoverage { get; private set; }
 
     private GameObject _overrideVisual;
     
@@ -38,13 +39,16 @@ public class Node : MonoBehaviour, INode
         ClearPersistentComponents();
         
         _nodeData = nodeData;
+        ClearReservedAreaCoverage = spawnData.clearReservedAreaCoverage;
         _persistentEntity.SetNodeData(nodeData);
         
         _persistentEntity.Initialize(nodeId, spawnData.persistenceKind, archetypeId);
         
         name = $"{nodeData.name} ({nodeId})";
         
-        transform.position = spawnData.position;
+        transform.position = SpaceReservationUtility.GetEntityPosition(
+            nodeData,
+            spawnData.position);
         transform.localScale = new Vector3(spawnData.scale, spawnData.scale, 1);
 
         // A pooled Node may previously have represented a sprite-based prop or
@@ -81,6 +85,7 @@ public class Node : MonoBehaviour, INode
             nodeData,
             _persistentEntity,
             health);
+        damageReceiver.SetDamageImmune(spawnData.damageImmune);
 
         EntityDamageVisual damageVisual =
             GetComponent<EntityDamageVisual>();

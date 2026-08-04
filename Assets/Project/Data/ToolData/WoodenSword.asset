@@ -18,3 +18,5 @@ MonoBehaviour:
   _attackType: 0
   _staminaCost: 0
   _actions: []
+  _damageTags: []
+  _weaponSwing: {fileID: 11400000, guid: c36e9c3b1ff34893862190619d4bb0ab, type: 2}

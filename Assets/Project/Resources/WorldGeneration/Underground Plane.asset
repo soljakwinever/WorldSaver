@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1000000000000000000000000000001, type: 3}
+  m_Name: Underground Plane
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.PlaneData
+  persistentId: underground
+  generationPreset: {fileID: 11400000, guid: d5000000000000000000000000000005, type: 2}
+  participatesInDayNightCycle: 0
+  ambientColor: {r: 0.22, g: 0.3, b: 0.4, a: 1}
+  validWeather:
+  - {fileID: 11400000, guid: 1c4bc95275b04287a21eb1d2e5bc2d97, type: 2}
+  - {fileID: 11400000, guid: b365491ef1e64b73862cb76c81d69b31, type: 2}

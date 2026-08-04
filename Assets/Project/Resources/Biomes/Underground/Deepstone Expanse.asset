@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Deepstone Expanse
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Deepstone Expanse
+  temperature: 0.34
+  temperatureVariance: 0.12
+  moisture: 0.26
+  moistureVariance: 0.12
+  height: 0.48
+  heightVariance: 0.2
+  heightOffset: 0
+  heightMultiplier: 0.7
+  erosionStrength: 1.1
+  mountainStrength: 0.65
+  valleyStrength: 0.65
+  roughnessStrength: 1.15
+  hillStrength: 0.015
+  hillScale: 40
+  bumpStrength: 0.03
+  bumpScale: 8
+  cliffChance: 0.3
+  cliffStrength: 0.08
+  cliffScale: 14
+  crevasseStrength: 0.65
+  lakeStrength: 0.6
+  SmallPoolsStrength: 1
+  volcanoChance: 0
+  craterChance: 0.05
+  mesaChance: 0
+  townChance: 0
+  groundColor: {r: 0.20, g: 0.20, b: 0.21, a: 1}
+  dirtColor: {r: 0.16, g: 0.15, b: 0.15, a: 1}
+  pathColor: {r: 0.28, g: 0.27, b: 0.25, a: 1}
+  waterColor: {r: 0.16, g: 0.23, b: 0.28, a: 1}
+  cliffColor: {r: 0.12, g: 0.12, b: 0.13, a: 1}
+  beachColor: {r: 0.38, g: 0.36, b: 0.32, a: 1}
+  springTint: {r: 1, g: 1, b: 1, a: 1}
+  summerTint: {r: 1, g: 1, b: 1, a: 1}
+  fallTint: {r: 1, g: 1, b: 1, a: 1}
+  winterTint: {r: 1, g: 1, b: 1, a: 1}
+  SeasonColorEffectMod: 0
+  overrideGroundTile: {fileID: 0}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}
+  overrideMinedTileReplacement: {fileID: 0}

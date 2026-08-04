@@ -129,6 +129,88 @@ namespace Project.Editor.AI
     }
 
     [Serializable]
+    internal abstract class AiFloatSpecialVariable : NamedGraphNode
+    {
+        internal const string ValuePortName = "Value";
+        internal abstract AiFloatVariable Variable { get; }
+
+        protected override void OnDefinePorts(IPortDefinitionContext context)
+        {
+            ApplyDisplayName();
+            context.AddOutputPort<float>(ValuePortName)
+                .WithDisplayName(string.Empty)
+                .Build();
+        }
+    }
+
+    [Serializable]
+    internal sealed class MovementSpeedVariable : AiFloatSpecialVariable
+    {
+        protected override string DefaultDisplayName => "Movement Speed";
+        internal override AiFloatVariable Variable =>
+            AiFloatVariable.MovementSpeed;
+    }
+
+    [Serializable]
+    internal sealed class SprintMultiplierVariable : AiFloatSpecialVariable
+    {
+        protected override string DefaultDisplayName => "Sprint Multiplier";
+        internal override AiFloatVariable Variable =>
+            AiFloatVariable.SprintMultiplier;
+    }
+
+    [Serializable]
+    internal sealed class AccuracyVariable : AiFloatSpecialVariable
+    {
+        protected override string DefaultDisplayName => "Accuracy";
+        internal override AiFloatVariable Variable =>
+            AiFloatVariable.Accuracy;
+    }
+
+    [Serializable]
+    internal sealed class FloatMath : NamedGraphNode
+    {
+        internal const string LeftPortName = "Left";
+        internal const string RightPortName = "Right";
+        internal const string ValuePortName = "Value";
+        private const string OperationOptionName = "Operation";
+
+        internal AiFloatOperation Operation
+        {
+            get
+            {
+                GetNodeOptionByName(OperationOptionName)
+                    .TryGetValue(out AiFloatOperation operation);
+                return operation;
+            }
+        }
+
+        protected override string DefaultDisplayName => "Float Math";
+
+        protected override void OnDefineOptions(IOptionDefinitionContext context)
+        {
+            base.OnDefineOptions(context);
+            context.AddOption<AiFloatOperation>(OperationOptionName)
+                .WithDisplayName("Operation")
+                .WithDefaultValue(AiFloatOperation.Add);
+        }
+
+        protected override void OnDefinePorts(IPortDefinitionContext context)
+        {
+            ApplyDisplayName();
+            context.AddInputPort<float>(LeftPortName)
+                .WithDefaultValue(0f)
+                .Build();
+            context.AddInputPort<float>(RightPortName)
+                .WithDefaultValue(0f)
+                .Build();
+            context.AddOutputPort<float>(ValuePortName)
+                .WithDisplayName(string.Empty)
+                .Build();
+        }
+    }
+
+    [Serializable]
     internal sealed class Root : BehaviourTreeGraphNode
     {
         internal const string ChildPortName = "Child";

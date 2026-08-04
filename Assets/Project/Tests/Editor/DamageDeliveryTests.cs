@@ -357,6 +357,47 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void DamageImmuneEntityRejectsDamage()
+        {
+            GameObject rootObject = new("Chunk Root");
+            GameObject entityObject = new("Damage Immune Entity");
+            NodeData nodeData = ScriptableObject.CreateInstance<NodeData>();
+            try
+            {
+                ChunkPersistenceRoot root =
+                    rootObject.AddComponent<ChunkPersistenceRoot>();
+                root.BeginRestore(Vector2Int.zero);
+                PersistentEntity entity =
+                    entityObject.AddComponent<PersistentEntity>();
+                entity.Initialize(
+                    new NodeId(789),
+                    EntityPersistenceKind.Procedural);
+                root.RegisterGeneratedEntity(entity);
+                root.CompleteRestore();
+
+                EntityDamageReceiver receiver =
+                    entityObject.AddComponent<EntityDamageReceiver>();
+                receiver.Initialize(nodeData, entity, health: null);
+                receiver.SetDamageImmune(true);
+
+                int delivered = receiver.TakeDamage(new AttackContext(
+                    _attacker,
+                    null,
+                    2,
+                    EntityDamageSource.Enemy));
+
+                Assert.That(delivered, Is.Zero);
+                Assert.That(entityObject.activeSelf, Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(entityObject);
+                UnityEngine.Object.DestroyImmediate(rootObject);
+                UnityEngine.Object.DestroyImmediate(nodeData);
+            }
+        }
+
+        [Test]
         public void TransientTargetIsKnockedAwayFromAttacker()
         {
             _attacker.transform.position = Vector3.left;
@@ -495,10 +536,29 @@ namespace Project.Tests.EditMode
                 Assert.That(player.Level, Is.EqualTo(3));
                 Assert.That(player.Experience, Is.EqualTo(25));
                 Assert.That(player.UnspentStatPoints, Is.EqualTo(10));
+                Assert.That(player.MaxHunger, Is.EqualTo(104));
+                Assert.That(player.MaxEnergy, Is.EqualTo(104));
             }
             finally
             {
                 UnityEngine.Object.DestroyImmediate(playerObject);
+            }
+        }
+
+        [Test]
+        public void NeedCapacityCurveIsSlowAndIncreasesEveryLevel()
+        {
+            Assert.That(PlayerDataController.GetNeedCapacityLevelBonus(1), Is.Zero);
+            Assert.That(PlayerDataController.GetNeedCapacityLevelBonus(10), Is.EqualTo(15));
+            Assert.That(PlayerDataController.GetNeedCapacityLevelBonus(25), Is.EqualTo(33));
+            Assert.That(PlayerDataController.GetNeedCapacityLevelBonus(50), Is.EqualTo(63));
+
+            int previous = 0;
+            for (int level = 2; level <= 100; level++)
+            {
+                int current = PlayerDataController.GetNeedCapacityLevelBonus(level);
+                Assert.That(current, Is.GreaterThan(previous));
+                previous = current;
             }
         }
 

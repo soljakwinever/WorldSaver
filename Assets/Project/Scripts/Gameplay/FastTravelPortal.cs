@@ -18,6 +18,7 @@ namespace Project.Scripts.Gameplay
         private float _distance;
         private float _duration;
         private Vector3 _destination;
+        private PlaneData _destinationPlane;
         private Vector3 _initialScale;
         private float _whiteAlpha;
         private bool _travelling;
@@ -52,12 +53,14 @@ namespace Project.Scripts.Gameplay
         public void Initialize(
             EventPortalEffect effect,
             Transform player,
-            IChunkLoader chunkloader)
+            IChunkLoader chunkloader,
+            PlaneData destinationPlane = null)
         {
             _player = player;
             _playerBody = player != null ? player.GetComponent<Rigidbody2D>() : null;
             _chunkloader = chunkloader;
             _destination = effect.destinationWorldPosition;
+            _destinationPlane = destinationPlane;
             _distance = Mathf.Max(0.1f, effect.activationDistance);
             _duration = Mathf.Max(0.05f, effect.transitionDuration);
             _creationDuration = Mathf.Max(0.1f, effect.creationDuration);
@@ -84,19 +87,23 @@ namespace Project.Scripts.Gameplay
             GL.Clear(true, true, Color.black);
             RenderTexture.active = previous;
 
-            GameObject target = new("Portal Target");
-            target.transform.SetParent(transform, false);
-            target.transform.position = new Vector3(_destination.x, _destination.y, -10f);
-            _targetCamera = target.AddComponent<Camera>();
-            _targetCamera.orthographic = true;
-            _targetCamera.orthographicSize = 6f;
-            _targetCamera.targetTexture = _texture;
-            _targetCamera.clearFlags = CameraClearFlags.SolidColor;
-            _targetCamera.backgroundColor = Color.black;
-            _targetCamera.enabled = false;
+            if (_destinationPlane == null)
+            {
+                GameObject target = new("Portal Target");
+                target.transform.SetParent(transform, false);
+                target.transform.position = new Vector3(_destination.x, _destination.y, -10f);
+                _targetCamera = target.AddComponent<Camera>();
+                _targetCamera.orthographic = true;
+                _targetCamera.orthographicSize = 6f;
+                _targetCamera.targetTexture = _texture;
+                _targetCamera.clearFlags = CameraClearFlags.SolidColor;
+                _targetCamera.backgroundColor = Color.black;
+                _targetCamera.enabled = false;
+            }
 
             ConfigureParticleMask();
-            _chunkloader?.SetPortalPreview(_destination, true);
+            if (_destinationPlane == null)
+                _chunkloader?.SetPortalPreview(_destination, true);
             CacheAndClearEmission();
             SpawnOneShot(_startOneShot);
             StartCoroutine(BuildPortal());
@@ -230,6 +237,17 @@ namespace Project.Scripts.Gameplay
                 yield return null;
             }
 
+            if (_destinationPlane != null)
+            {
+                DisableTarget();
+                foreach (Renderer renderer in GetComponentsInChildren<Renderer>(true))
+                    renderer.enabled = false;
+                foreach (Collider2D portalCollider in GetComponentsInChildren<Collider2D>(true))
+                    portalCollider.enabled = false;
+                TravelAcrossPlane();
+                yield break;
+            }
+
             if (_playerBody != null)
             {
                 _playerBody.linearVelocity = Vector2.zero;
@@ -252,6 +270,30 @@ namespace Project.Scripts.Gameplay
                 _whiteAlpha = 1f - Mathf.Clamp01(elapsed / _duration);
                 yield return null;
             }
+            _whiteAlpha = 0f;
+            gameObject.SetActive(false);
+        }
+
+        private async void TravelAcrossPlane()
+        {
+            try
+            {
+                PlayerDataController player =
+                    _player != null
+                        ? _player.GetComponentInParent<PlayerDataController>()
+                        : null;
+                if (player != null &&
+                    await player.TravelToPlaneAsync(
+                        _destinationPlane,
+                        _destination))
+                    return;
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogException(exception, this);
+            }
+
+            Debug.LogError("Plane portal could not complete its transition.", this);
             _whiteAlpha = 0f;
             gameObject.SetActive(false);
         }
@@ -339,7 +381,8 @@ namespace Project.Scripts.Gameplay
 
         private void DisableTarget()
         {
-            _chunkloader?.SetPortalPreview(_destination, false);
+            if (_destinationPlane == null)
+                _chunkloader?.SetPortalPreview(_destination, false);
             if (_targetCamera != null)
                 _targetCamera.gameObject.SetActive(false);
         }

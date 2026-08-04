@@ -13,10 +13,14 @@ MonoBehaviour:
   m_Name: Dust Devil
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
   hp: 20
+  attack: 1
   defense: 4
   experienceValue: 25
   visual: {fileID: 2119611675089420321, guid: 087113794f8f56047ab3f9edd98caf88, type: 3}
   behaviourTree: {fileID: -7413323278554932356, guid: 838bea4ca14a7e340822b9bbdf575d01, type: 3}
+  NormalAttack: {fileID: 11400000, guid: 8447a4314ce74b75b1d3400779bf5232, type: 2}
+  conditionalSkills: []
+  damageTags: []
   drops:
   - item: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
     dropChance: 0.3

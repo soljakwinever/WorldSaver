@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using Project.Scripts.Core;
+using Project.Scripts.Interface;
 using UnityEngine;
 
 namespace Project.Scripts.Gameplay
@@ -13,6 +15,7 @@ namespace Project.Scripts.Gameplay
         private readonly List<PersistentHealth> _healthTargets = new();
         private readonly HashSet<PersistentHealth> _uniqueHealthTargets = new();
         private readonly List<ITownTileRepairSource> _tileSources = new();
+        private readonly Collider2D[] _entityResults = new Collider2D[128];
 
         public override TownEffectExecution Apply(
             TownCore town,
@@ -106,17 +109,79 @@ namespace Project.Scripts.Gameplay
                 PersistentHealth[] healthComponents =
                     building.GetComponentsInChildren<PersistentHealth>();
                 foreach (PersistentHealth health in healthComponents)
-                {
-                    // A destroyed entity is not resurrected by maintenance.
-                    if (health != null &&
-                        health.Health > 0 &&
-                        health.Health < health.MaxHealth &&
-                        _uniqueHealthTargets.Add(health))
-                    {
-                        _healthTargets.Add(health);
-                    }
-                }
+                    TryAddHealthTarget(health);
             }
+
+            int entityCount = Physics2D.OverlapCircleNonAlloc(
+                town.Position,
+                town.TownRadius,
+                _entityResults);
+            for (int i = 0; i < entityCount; i++)
+            {
+                Collider2D collider = _entityResults[i];
+                PersistentHealth health = collider != null
+                    ? collider.GetComponentInParent<PersistentHealth>()
+                    : null;
+                if (health == null ||
+                    !town.ContainsTownPosition(health.transform.position) ||
+                    !BelongsToPlayerOrTown(health, town))
+                    continue;
+
+                TryAddHealthTarget(health);
+            }
+        }
+
+        private void TryAddHealthTarget(PersistentHealth health)
+        {
+            // A destroyed entity is not resurrected by maintenance.
+            if (health != null &&
+                health.Health > 0 &&
+                health.Health < health.MaxHealth &&
+                _uniqueHealthTargets.Add(health))
+            {
+                _healthTargets.Add(health);
+            }
+        }
+
+        private static bool BelongsToPlayerOrTown(
+            PersistentHealth health,
+            TownCore town)
+        {
+            if (health.GetComponentInParent<PlayerDataController>() != null)
+                return true;
+
+            IPersistentEntity entity =
+                health.GetComponentInParent<IPersistentEntity>();
+            IPersistentEntity townEntity =
+                town.GetComponentInParent<IPersistentEntity>();
+            if (entity != null &&
+                (entity == townEntity ||
+                 IsTownResident(town, entity.Id.ToString())))
+                return true;
+
+            IAiPathingAgent pathingAgent =
+                health.GetComponentInParent<IAiPathingAgent>();
+            if (pathingAgent == null || townEntity == null)
+                return false;
+
+            return string.Equals(
+                pathingAgent.CapturePathFindingQuery().VillageId,
+                townEntity.Id.ToString(),
+                StringComparison.Ordinal);
+        }
+
+        private static bool IsTownResident(TownCore town, string entityId)
+        {
+            foreach (string residentId in town.ResidentIds)
+            {
+                if (string.Equals(
+                        residentId,
+                        entityId,
+                        StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
         }
 
 #if UNITY_EDITOR

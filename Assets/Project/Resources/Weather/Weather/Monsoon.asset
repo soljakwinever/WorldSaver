@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Monsoon
   m_EditorClassIdentifier: 
   weatherId: rain.heavy
+  watersPlants: 1
   displayName: Heavy Rain
   selectionWeight: 1.1
   seasons: 2

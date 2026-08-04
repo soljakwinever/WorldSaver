@@ -9,7 +9,7 @@ using Zenject;
 
 namespace Project.Scripts
 {
-    public sealed class DataController : MonoBehaviour
+    public sealed class DataController : MonoBehaviour, IWorldSaveService
     {
         [Inject] private IRegionRepository _regions;
         [Inject] private IRegionSimulationService _regionSimulation;

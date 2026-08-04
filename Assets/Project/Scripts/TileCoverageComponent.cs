@@ -28,16 +28,55 @@ namespace Project.Scripts
             public float AccumulationMultiplier = 1f;
             public float Amount;
             public bool Initialized;
+
+            public void Reset(
+                ushort localIndex,
+                float terrainTemperature,
+                float accumulationMultiplier)
+            {
+                LocalIndex = localIndex;
+                TerrainTemperature = terrainTemperature;
+                AccumulationMultiplier = accumulationMultiplier;
+                Amount = 0f;
+                Initialized = false;
+            }
         }
 
         private sealed class LayerState
         {
             public CoverageData Data;
-            public readonly Dictionary<ushort, CellState> Cells = new();
+            public readonly Dictionary<ushort, CellState> Cells =
+                new(MaximumSavedCells);
+            private readonly CellState[] _cellPool =
+                new CellState[MaximumSavedCells];
+
+            public CellState AcquireCell(
+                ushort localIndex,
+                float terrainTemperature,
+                float accumulationMultiplier)
+            {
+                if (Cells.TryGetValue(localIndex, out CellState existing))
+                    return existing;
+
+                CellState cell = _cellPool[localIndex] ??= new CellState();
+                cell.Reset(
+                    localIndex,
+                    terrainTemperature,
+                    accumulationMultiplier);
+                Cells.Add(localIndex, cell);
+                return cell;
+            }
+
+            public void PrepareForPool()
+            {
+                Data = null;
+                Cells.Clear();
+            }
         }
 
         private readonly Dictionary<string, LayerState> _layers =
             new(StringComparer.Ordinal);
+        private readonly Stack<LayerState> _layerPool = new();
         private readonly CoverageData[] _displayedData =
             new CoverageData[MaximumSavedCells];
         private readonly byte[] _displayedAlpha =
@@ -113,7 +152,7 @@ namespace Project.Scripts
             _chunk = chunk;
             _ready = false;
             _displayedMaterialData = null;
-            _layers.Clear();
+            RecycleLayers();
             Array.Clear(_displayedData, 0, _displayedData.Length);
             Array.Clear(_displayedAlpha, 0, _displayedAlpha.Length);
             Array.Clear(_indoorCells, 0, _indoorCells.Length);
@@ -138,7 +177,10 @@ namespace Project.Scripts
                             data.CoverageId,
                             out LayerState layer))
                     {
-                        layer = new LayerState { Data = data };
+                        layer = _layerPool.Count > 0
+                            ? _layerPool.Pop()
+                            : new LayerState();
+                        layer.Data = data;
                         _layers.Add(data.CoverageId, layer);
                     }
                     else if (layer.Data != data)
@@ -149,13 +191,10 @@ namespace Project.Scripts
                         continue;
                     }
 
-                    layer.Cells.TryAdd(index, new CellState
-                    {
-                        LocalIndex = index,
-                        TerrainTemperature = build.temperature[index],
-                        AccumulationMultiplier =
-                            CalculateAccumulationMultiplier(data, index)
-                    });
+                    layer.AcquireCell(
+                        index,
+                        build.temperature[index],
+                        CalculateAccumulationMultiplier(data, index));
                 }
             }
         }
@@ -640,10 +679,21 @@ namespace Project.Scripts
             }
             _ready = false;
             _displayedMaterialData = null;
-            _layers.Clear();
+            RecycleLayers();
             Array.Clear(_indoorCells, 0, _indoorCells.Length);
             _chunk?.ClearCoverageVisuals();
             _chunk = null;
+        }
+
+        private void RecycleLayers()
+        {
+            foreach (LayerState layer in _layers.Values)
+            {
+                layer.PrepareForPool();
+                _layerPool.Push(layer);
+            }
+
+            _layers.Clear();
         }
 
         public void WriteState(BinaryWriter writer)

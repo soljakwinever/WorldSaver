@@ -126,7 +126,9 @@ namespace Project.Scripts.Gameplay
                 : 1f;
 
             _player.Hunger -=
-                _player.HungerDrainRate * hungerWorldRate * deltaTime;
+                _player.HungerDrainRate *
+                100f / _player.MaxHunger *
+                hungerWorldRate * deltaTime;
             _player.Energy -=
                 _player.EnergyDrainRate *
                 movementMultiplier *

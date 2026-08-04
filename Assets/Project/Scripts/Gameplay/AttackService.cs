@@ -21,14 +21,17 @@ namespace Project.Scripts.Gameplay
 
         public int CalculateDamage(AttackContext context)
         {
-            int baseDamage =
-                checked(context.Force + (context.Weapon?.Power ?? 0) +
-                        (context.Skill?.power ?? 0));
+            int baseDamage = checked(context.Force + (context.Weapon?.Power ?? 0));
             PlayerDataController player =
                 context.Attacker.GetComponentInParent<PlayerDataController>();
             int statBonus =
                 player?.GetAttackDamageBonus(context.AttackType) ?? 0;
-            return checked(baseDamage + statBonus);
+            int attackDamage = checked(baseDamage + statBonus);
+            if (context.Skill == null)
+                return attackDamage;
+            return context.SkillPowerMode == SkillPowerMode.Multiplier
+                ? checked(attackDamage * Mathf.Max(0, context.Skill.power))
+                : checked(attackDamage + context.Skill.power);
         }
 
         public int Attack(IDamageable target, AttackContext context)

@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1a2463b7e1b4078b5bc6fd7263a44ca, type: 3}
+  m_Name: plants.ManaBlossom
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.PlantData
+  plantableTileTags:
+  - {fileID: 11400000, guid: 603591ec643a1cb4da3baf10afa0bfc7, type: 2}
+  growingSeasons: 0100000000000000
+  hoursToMature: 48
+  waterPointsPerHour: 10
+  maximumWaterPoints: 24
+  maximumHealth: 100
+  healthLostPerDryHour: 1
+  healthLostPerInvalidSeasonHour: 1
+  growthStages:
+  - progress: 0
+    sprite: {fileID: -6186672724252846097, guid: 7bbc1a932090cf8428048ad6ccc3da0e, type: 3}
+  - progress: 0.2
+    sprite: {fileID: 4140736417263544742, guid: 7bbc1a932090cf8428048ad6ccc3da0e, type: 3}
+  - progress: 0.4
+    sprite: {fileID: -5277911581303883326, guid: 7bbc1a932090cf8428048ad6ccc3da0e, type: 3}
+  - progress: 0.6
+    sprite: {fileID: 8243356241797845907, guid: 7bbc1a932090cf8428048ad6ccc3da0e, type: 3}
+  - progress: 1
+    sprite: {fileID: 8299125880177946521, guid: 7bbc1a932090cf8428048ad6ccc3da0e, type: 3}
+  wiltedSprite: {fileID: -4353881964596868064, guid: 7757fcc7772a8cc4493a9084295d0f0c, type: 3}
+  yields:
+  - item: {fileID: 11400000, guid: e7e9b7f07def6be4497a2b69dea31ad3, type: 2}
+    minimumQuantity: 3
+    maximumQuantity: 8
+  - item: {fileID: 11400000, guid: bdef7f892a6c6d948954548225268bd4, type: 2}
+    minimumQuantity: 1
+    maximumQuantity: 3
+  multipleHarvests: 0
+  progressAfterHarvest: 0.5

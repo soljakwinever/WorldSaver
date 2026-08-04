@@ -55,11 +55,17 @@ namespace Project.Scripts
         [SerializeField]
         private float _staminaCost;
         [SerializeField]
+        [Tooltip("When enabled, using this tool skips entity attacks and targets its configured tool actions directly.")]
+        private bool _ignoreEntities;
+        [SerializeField]
         [Tooltip("Ordered actions this tool can perform. The first applicable action is used.")]
         private ToolAction[] _actions = Array.Empty<ToolAction>();
         [SerializeField]
         [Tooltip("Tags supplied by this tool when entity damage rules are evaluated.")]
         private EntityTag[] _damageTags = Array.Empty<EntityTag>();
+        [SerializeField]
+        [Tooltip("Optional shared weapon swing used by direct player attacks.")]
+        private WeaponSwingAnimation _weaponSwing;
 
         public string ToolName => _toolName;
 
@@ -71,9 +77,12 @@ namespace Project.Scripts
 
         public float StaminaCost => _staminaCost;
 
+        public bool IgnoreEntities => _ignoreEntities;
+
         public IReadOnlyList<ToolAction> Actions => _actions;
         public IReadOnlyList<EntityTag> DamageTags =>
             _damageTags ?? Array.Empty<EntityTag>();
+        public WeaponSwingAnimation WeaponSwing => _weaponSwing;
         public bool HasActions
         {
             get

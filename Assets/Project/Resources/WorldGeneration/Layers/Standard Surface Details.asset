@@ -13,4 +13,5 @@ MonoBehaviour:
   m_Name: Standard Surface Details
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.SurfaceDetailLayerData
   grassHeightNoiseScale: 10
+  useLegacyWorldPropRules: 1
   propSpawnRules: []

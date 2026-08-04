@@ -31,6 +31,7 @@ namespace Project.Scripts.Core
         private bool _loaded;
 
         public long CurrentTick => currentTick;
+        public float SecondsPerTick => secondsPerTick;
         public string WorldFilePath => GetWorldFilePath();
 
         private void Start()

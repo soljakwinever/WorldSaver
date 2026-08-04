@@ -1,13 +1,8 @@
-using UnityEngine;
-
 namespace Project.Scripts.Interface
 {
-    /// <summary>Optional count display used by hotbar actions.</summary>
-    public interface IDisplayable
+    /// <summary>Tooltip data with a periodically refreshed count display.</summary>
+    public interface IDisplayable : IToolTipData
     {
-        Sprite Sprite { get; }
-        string Label { get; }
-        int Count { get; }
         float Refresh { get; }
         bool DisplayCount { get; }
     }

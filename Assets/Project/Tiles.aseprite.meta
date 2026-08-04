@@ -127,7 +127,7 @@ ScriptedImporter:
   animatedSpriteImportData:
   - name: Tiles
     originalName: 
-    pivot: {x: 1.0666667, y: 0}
+    pivot: {x: 0.51821864, y: 0}
     alignment: 9
     border: {x: 0, y: 0, z: 0, w: 0}
     customData: 
@@ -135,7 +135,7 @@ ScriptedImporter:
       serializedVersion: 2
       x: 4
       y: 4
-      width: 240
+      width: 494
       height: 512
     spriteID: 25b0eca95da1fa946baf3f26ad409fd9
     spriteBone: []
@@ -167,7 +167,7 @@ ScriptedImporter:
       cellRect:
         x: 0
         y: 0
-        width: 240
+        width: 494
         height: 512
       spriteId: 25b0eca95da1fa946baf3f26ad409fd9
     linkedCells: []

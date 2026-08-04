@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b58f2629b454435a2cddccf0ad09e56, type: 3}
+  m_Name: Torch
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.NodeData
+  sprite: {fileID: 8887255329501761466, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  isTrigger: 0
+  sprites: []
+  nodeType: 2
+  toolRequirement: 0
+  overrideMaterial: {fileID: 0}
+  tintColor: {r: 1, g: 0.72, b: 0.4, a: 1}
+  overrideVisual: {fileID: 0}
+  lightness: 1
+  lightnessVariance: 0
+  persistentComponents:
+  - rid: 910000000000000001
+  - rid: 910000000000000002
+  droppedItem: {fileID: 11400000, guid: 83f3152a771e4216ae28798db3dcf985, type: 2}
+  dropChance: 1
+  tags: []
+  valueTags: []
+  damageRules: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 910000000000000001
+      type: {class: PersistentTransformData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 0a23461b9973da2418716857c9662abe, type: 2}
+        alwaysPersist: 1
+    - rid: 910000000000000002
+      type: {class: TorchLightData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 5acdd7dff5e34fcca0017c9bd6be3bdd, type: 2}
+        intensity: 1.5
+        outerRadius: 5
+        color: {r: 1, g: 0.58, b: 0.22, a: 1}
+        shadows: 1

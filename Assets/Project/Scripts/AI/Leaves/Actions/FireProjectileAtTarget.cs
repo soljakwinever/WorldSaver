@@ -29,6 +29,12 @@ namespace Project.Scripts.AI.Leaves.Actions
         [SerializeField, InputPort("Launch Offset")]
         private Vector2 launchOffset;
 
+        [SerializeField, InputPort("Predict Target Movement")]
+        private bool predictTargetMovement = true;
+
+        [SerializeField, Min(0f), InputPort("Maximum Prediction Time")]
+        private float maximumPredictionTime = 2f;
+
         protected override NodeState OnTick()
         {
             GameObject attacker = Blackboard.GetOrDefault(AiKeys.Self);
@@ -48,14 +54,36 @@ namespace Project.Scripts.AI.Leaves.Actions
             if (target == null)
                 return NodeState.Failure;
 
-            Vector3 origin = attacker.transform.TransformPoint(launchOffset);
-            Vector2 direction = target.position - origin;
+            Vector2 initialDirection = predictTargetMovement
+                ? ProjectileAim.PredictDirection(
+                    attacker.transform.position,
+                    target,
+                    projectile.speed,
+                    maximumPredictionTime)
+                : (target.position - attacker.transform.position).normalized;
+            Vector3 origin = ProjectileAim.ResolveDirectionalOrigin(
+                attacker.transform.position,
+                initialDirection,
+                launchOffset);
+            Vector2 direction = predictTargetMovement
+                ? ProjectileAim.PredictDirection(
+                    origin,
+                    target,
+                    projectile.speed,
+                    maximumPredictionTime)
+                : (target.position - origin).normalized;
             float range = Mathf.Max(0f, maximumRange);
+            Vector2 targetDisplacement = target.position - origin;
             if (direction.sqrMagnitude <= Mathf.Epsilon ||
-                direction.sqrMagnitude > range * range)
+                targetDisplacement.sqrMagnitude > range * range)
             {
                 return NodeState.Failure;
             }
+
+            float accuracy = attacker
+                .GetComponentInParent<IProjectileAccuracy>()?
+                .ProjectileAccuracy ?? 1f;
+            direction = ProjectileAim.ApplyAccuracy(direction, accuracy);
 
             ProjectileLaunchContext context = new(
                 projectile,

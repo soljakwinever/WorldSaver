@@ -1,6 +1,7 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Assets/Project/UI/Styles/HotbarSlot.uss?fileID=7433441132597879392&amp;guid=b3b63687d12d97046bc5b72283739c98&amp;type=3#HotbarSlot"/>
     <Style src="project://database/Assets/Project/UI/Styles/DebugUSS.uss?fileID=7433441132597879392&amp;guid=8410b91e7c269ca4cac429041bc83802&amp;type=3#DebugUSS"/>
+    <Style src="project://database/Assets/Project/UI/Styles/PlayerMenu.uss?fileID=7433441132597879392&amp;guid=2a3203da70ca45b59bcae322f541945c&amp;type=3#PlayerMenu"/>
     <ui:VisualElement data-source-type="Project.Scripts.PlayerHUD+BiomeDebugData, Assembly-CSharp" name="DebugPanel" class="debug-panel">
         <ui:VisualElement class="debug-row">
             <ui:Label text="Chunk Position"/>
@@ -143,5 +144,86 @@
     </ui:VisualElement>
     <ui:VisualElement name="Toolbar" style="flex-grow: 1; position: absolute; bottom: 0; left: auto; right: auto; top: auto; height: 72px; background-color: rgb(99, 99, 99); border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; align-self: center; flex-direction: row; padding-top: 4px; padding-right: 4px; padding-bottom: 4px; padding-left: 4px;">
         <Project.Scripts.UI.HotbarSlot/>
+    </ui:VisualElement>
+    <ui:VisualElement name="PlayerMenu" class="player-menu" focusable="true">
+        <ui:VisualElement class="player-menu__window">
+            <ui:VisualElement class="player-menu__header">
+                <ui:Label text="PLAYER" class="player-menu__title"/>
+                <ui:Label text="Tab / Esc to close" class="player-menu__hint"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="player-menu__tabs">
+                <ui:Button name="CharacterTab" text="CHARACTER" class="player-menu__tab"/>
+                <ui:Button name="SkillsTab" text="SKILLS" class="player-menu__tab"/>
+                <ui:Button name="InventoryTab" text="INVENTORY" class="player-menu__tab"/>
+            </ui:VisualElement>
+            <ui:VisualElement class="player-menu__body">
+                <ui:ScrollView name="CharacterPage" class="menu-page">
+                    <ui:VisualElement class="character-heading">
+                        <ui:Label name="CharacterLevel" text="Level 1" class="section-title"/>
+                        <ui:Label name="CharacterExperience" text="0 / 100 EXP"/>
+                    </ui:VisualElement>
+                    <ui:ProgressBar name="CharacterExperienceBar" high-value="100" class="menu-progress"/>
+                    <ui:VisualElement class="character-columns">
+                        <ui:VisualElement class="menu-panel">
+                            <ui:Label text="STATS &amp; NEEDS" class="section-title"/>
+                            <ui:VisualElement class="data-row"><ui:Label text="Health"/><ui:Label name="HealthValue"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Mana"/><ui:Label name="ManaValue"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Energy"/><ui:Label name="EnergyValue"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Hunger"/><ui:Label name="HungerValue"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Strength"/><ui:Label name="StrengthValueMenu"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Constitution"/><ui:Label name="ConstitutionValueMenu"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Dexterity"/><ui:Label name="DexterityValueMenu"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Wisdom"/><ui:Label name="WisdomValueMenu"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Intelligence"/><ui:Label name="IntelligenceValueMenu"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Luck"/><ui:Label name="LuckValueMenu"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Defense"/><ui:Label name="DefenseValueMenu"/></ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="menu-panel">
+                            <ui:Label text="EQUIPMENT" class="section-title"/>
+                            <ui:VisualElement class="data-row"><ui:Label text="Head"/><ui:Label name="EquipmentHead"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Chest"/><ui:Label name="EquipmentChest"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Legs"/><ui:Label name="EquipmentLegs"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Feet"/><ui:Label name="EquipmentFeet"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Hands"/><ui:Label name="EquipmentHands"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Main Hand"/><ui:Label name="EquipmentMainHand"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Off Hand"/><ui:Label name="EquipmentOffHand"/></ui:VisualElement>
+                            <ui:VisualElement class="data-row"><ui:Label text="Accessory"/><ui:Label name="EquipmentAccessory"/></ui:VisualElement>
+                            <ui:Label text="STATUS EFFECTS" class="section-title section-title--spaced"/>
+                            <ui:Label text="No active status effects\n(Coming soon)" class="stub-text"/>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+                <ui:VisualElement name="SkillsPage" class="menu-page skills-page">
+                    <ui:VisualElement class="skills-left">
+                        <ui:Label text="LEARNED SKILLS" class="section-title"/>
+                        <ui:Label text="Hover a skill and press 0–9 to assign it" class="player-menu__hint"/>
+                        <ui:ScrollView name="LearnedSkillsList" class="skills-list"/>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="skill-tree-stub">
+                        <ui:VisualElement class="skill-tree-header">
+                            <ui:Button name="PreviousSkillTree" text="&lt;" class="skill-tree-arrow"/>
+                            <ui:VisualElement class="skill-tree-heading">
+                                <ui:Label name="SkillTreeCategory" text="SKILL TREE" class="section-title"/>
+                                <ui:Label name="SkillPoints" text="1 skill point" class="skill-points"/>
+                            </ui:VisualElement>
+                            <ui:Button name="NextSkillTree" text="&gt;" class="skill-tree-arrow"/>
+                        </ui:VisualElement>
+                        <ui:ScrollView name="SkillTreeScroll" class="skill-tree-scroll">
+                            <ui:VisualElement name="SkillTreeCanvas" class="skill-tree-canvas"/>
+                        </ui:ScrollView>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="InventoryPage" class="menu-page inventory-page">
+                    <ui:VisualElement class="inventory-header">
+                        <ui:Label text="GOLD" class="section-title"/>
+                        <ui:Label name="GoldValue" text="0" class="gold-value"/>
+                        <ui:Label name="InventoryCapacity" class="inventory-capacity"/>
+                    </ui:VisualElement>
+                    <ui:ScrollView class="inventory-scroll">
+                        <ui:VisualElement name="InventoryGrid" class="inventory-grid"/>
+                    </ui:ScrollView>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

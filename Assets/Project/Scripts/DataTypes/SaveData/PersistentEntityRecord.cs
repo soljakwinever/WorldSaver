@@ -24,6 +24,8 @@ namespace Project.Scripts.DataTypes.SaveData
         public EntityPersistenceKind persistenceKind;
         public EntityExistenceState existenceState;
         public long lastSimulatedTick;
+        public long respawnAtTick;
+        public bool respawnInsideTownInfluence;
         public List<PersistenceComponentRecord> components = new();
 
         public bool HasPersistentChanges => components != null && components.Count > 0;
@@ -86,7 +88,9 @@ namespace Project.Scripts.DataTypes.SaveData
                 archetypeId = archetypeId,
                 persistenceKind = persistenceKind,
                 existenceState = existenceState,
-                lastSimulatedTick = lastSimulatedTick
+                lastSimulatedTick = lastSimulatedTick,
+                respawnAtTick = respawnAtTick,
+                respawnInsideTownInfluence = respawnInsideTownInfluence
             };
 
             if (components != null)
@@ -103,7 +107,9 @@ namespace Project.Scripts.DataTypes.SaveData
 
         public static PersistentEntityRecord CreateTombstone(
             NodeId id,
-            EntityPersistenceKind persistenceKind)
+            EntityPersistenceKind persistenceKind,
+            long respawnAtTick = 0,
+            bool respawnInsideTownInfluence = false)
         {
             if (persistenceKind == EntityPersistenceKind.RuntimeSpawned)
             {
@@ -116,7 +122,9 @@ namespace Project.Scripts.DataTypes.SaveData
             {
                 id = id,
                 persistenceKind = persistenceKind,
-                existenceState = EntityExistenceState.Removed
+                existenceState = EntityExistenceState.Removed,
+                respawnAtTick = respawnAtTick,
+                respawnInsideTownInfluence = respawnInsideTownInfluence
             };
         }
     }

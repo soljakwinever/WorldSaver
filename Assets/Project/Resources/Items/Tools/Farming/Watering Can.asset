@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
+  m_Name: Watering Can
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
+  persistentId: items.tools.watering-can.wood
+  description: Waters tilled soil. Stand in a water tile and interact to refill it.
+  maxStack: 1
+  sprite: {fileID: 5985045456876835063, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  projectile: {fileID: 0}
+  action: {fileID: 11400000, guid: ea839d2b8ce21f4408b5d6265f754658, type: 2}
+  actionData:
+  - rid: 810070010001
+  - rid: 810070010002
+  goldValue: 0
+  fuelValue: 1
+  magicValue: 0
+  tags: []
+  valueTags: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 810070010001
+      type: {class: ToolHotbarActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        tool: {fileID: 11400000, guid: a99f3463f9834df196356937897b92d3, type: 2}
+    - rid: 810070010002
+      type: {class: WaterTileToolActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        waterPerUse: 10
+        wateringRadius: 1.5

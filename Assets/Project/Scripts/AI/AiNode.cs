@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace Project.Scripts.AI
 {
@@ -20,6 +21,13 @@ namespace Project.Scripts.AI
 
         [NonSerialized]
         private Action<float> _requestEvaluation;
+
+        [NonSerialized]
+        private List<(FieldInfo field, AiFloatExpression expression)>
+            _runtimeFloatBindings;
+
+        [UnityEngine.SerializeField, UnityEngine.HideInInspector]
+        private List<AiFloatFieldBinding> _floatBindings = new();
 
         public NodeState State => state;
         public bool IsActive => _isActive;
@@ -47,6 +55,7 @@ namespace Project.Scripts.AI
         {
             Blackboard = blackboard ?? throw new ArgumentNullException(nameof(blackboard));
             _requestEvaluation = requestEvaluation;
+            BindFloatExpressions();
 
             foreach (AiNode child in Children)
             {
@@ -59,6 +68,8 @@ namespace Project.Scripts.AI
         
         public NodeState Evaluate()
         {
+            ApplyFloatExpressions();
+
             // A continuation pass advances only the branch selected by the most
             // recent full evaluation. Terminal decision/sensor nodes retain
             // their cached result until the next full pass.
@@ -133,6 +144,69 @@ namespace Project.Scripts.AI
         protected void RequestEvaluation(float delaySeconds = 0f)
         {
             _requestEvaluation?.Invoke(Math.Max(0f, delaySeconds));
+        }
+
+        public void SetFloatBinding(
+            string fieldName,
+            AiFloatExpression expression)
+        {
+            if (string.IsNullOrEmpty(fieldName) || expression == null)
+                return;
+
+            _floatBindings ??= new List<AiFloatFieldBinding>();
+            _floatBindings.RemoveAll(binding => binding.fieldName == fieldName);
+            _floatBindings.Add(new AiFloatFieldBinding(fieldName, expression));
+        }
+
+        private void BindFloatExpressions()
+        {
+            _runtimeFloatBindings = null;
+            if (_floatBindings == null || _floatBindings.Count == 0)
+                return;
+
+            foreach (AiFloatFieldBinding binding in _floatBindings)
+            {
+                if (binding?.expression == null)
+                    continue;
+
+                FieldInfo matchedField = null;
+            for (Type type = GetType();
+                 type != null && type != typeof(object);
+                 type = type.BaseType)
+            {
+                    matchedField = type.GetField(
+                        binding.fieldName,
+                        BindingFlags.Instance |
+                        BindingFlags.Public |
+                        BindingFlags.NonPublic |
+                        BindingFlags.DeclaredOnly);
+                    if (matchedField != null)
+                        break;
+            }
+
+                if (matchedField?.FieldType != typeof(float))
+                    continue;
+
+                _runtimeFloatBindings ??=
+                    new List<(FieldInfo, AiFloatExpression)>();
+                _runtimeFloatBindings.Add(
+                    (matchedField, binding.expression));
+            }
+
+            ApplyFloatExpressions();
+        }
+
+        private void ApplyFloatExpressions()
+        {
+            if (_runtimeFloatBindings == null || Blackboard == null)
+                return;
+
+            foreach (var binding in _runtimeFloatBindings)
+            {
+                binding.field.SetValue(
+                    this,
+                    binding.expression.Evaluate(Blackboard));
+            }
         }
 
         private void AbortActiveChildren()

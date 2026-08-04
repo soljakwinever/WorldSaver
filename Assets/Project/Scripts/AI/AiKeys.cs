@@ -23,6 +23,13 @@ namespace Project.Scripts.AI
         public static readonly BlackboardKey<Transform> Target =
             new BlackboardKey<Transform>("Target");
 
+        /// <summary>
+        /// Allows a running behavior to retain an acquired target beyond the
+        /// sensor's normal acquisition radius.
+        /// </summary>
+        public static readonly BlackboardKey<float> TargetRetentionDistance =
+            new BlackboardKey<float>("Target Retention Distance");
+
         public static readonly BlackboardKey<Vector3> Destination =
             new BlackboardKey<Vector3>("Destination");
 
@@ -39,6 +46,31 @@ namespace Project.Scripts.AI
 
         public static readonly BlackboardKey<EnemySpawnRule> SpawnRule =
             new BlackboardKey<EnemySpawnRule>("Spawn Rule");
+
+        public static readonly BlackboardKey<EnemyData> EnemyData =
+            new BlackboardKey<EnemyData>("Enemy Data");
+
+        public static readonly BlackboardKey<int> Attack =
+            new BlackboardKey<int>("Attack");
+
+        public static readonly BlackboardKey<float> MovementSpeed =
+            new BlackboardKey<float>("Movement Speed");
+
+        public static readonly BlackboardKey<float> SprintMultiplier =
+            new BlackboardKey<float>("Sprint Multiplier");
+
+        public static readonly BlackboardKey<float> Accuracy =
+            new BlackboardKey<float>("Accuracy");
+
+
+        public static readonly BlackboardKey<SkillData> ConditionalSkill =
+            new BlackboardKey<SkillData>("Conditional Skill");
+
+        public static readonly BlackboardKey<ProjectileData> ConditionalProjectile =
+            new BlackboardKey<ProjectileData>("Conditional Projectile");
+
+        public static readonly BlackboardKey<WeaponSwingAnimation> ConditionalWeaponSwing =
+            new BlackboardKey<WeaponSwingAnimation>("Conditional Weapon Swing");
 
         public static readonly BlackboardKey<ITimeController> TimeController =
             new BlackboardKey<ITimeController>("Time Controller");
@@ -83,6 +115,9 @@ namespace Project.Scripts.AI
             if (!blackboard.ContainsLocal(Target))
                 blackboard.Set<Transform>(Target, null);
 
+            if (!blackboard.ContainsLocal(TargetRetentionDistance))
+                blackboard.Set(TargetRetentionDistance, 0f);
+
             if (!blackboard.ContainsLocal(Destination))
             {
                 Vector3 initialDestination =
@@ -95,6 +130,15 @@ namespace Project.Scripts.AI
 
             if (!blackboard.ContainsLocal(SpawnRule))
                 blackboard.Set<EnemySpawnRule>(SpawnRule, null);
+
+            if (!blackboard.ContainsLocal(MovementSpeed))
+                blackboard.Set(MovementSpeed, 2f);
+
+            if (!blackboard.ContainsLocal(SprintMultiplier))
+                blackboard.Set(SprintMultiplier, 1.5f);
+
+            if (!blackboard.ContainsLocal(Accuracy))
+                blackboard.Set(Accuracy, 1f);
         }
     }
 }

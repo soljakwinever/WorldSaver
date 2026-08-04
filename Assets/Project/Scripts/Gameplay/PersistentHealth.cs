@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Project.Scripts.Gameplay
 {
     public sealed class PersistentHealth : MonoBehaviour, IHasHealth, IDamageable,
-        IPersistentComponent
+        IPersistentComponent, IEntityRespawnHandler
     {
         public event Action Died;
         public event Action<int, int> HealthChanged;
@@ -147,6 +147,14 @@ namespace Project.Scripts.Gameplay
                 ? Mathf.Min(maxHealth, health + increase)
                 : Mathf.Clamp(health, 0, maxHealth);
             HealthChanged?.Invoke(health, maxHealth);
+        }
+
+        public void OnRespawned()
+        {
+            int previousHealth = health;
+            maxHealth = _baselineMaxHealth > 0 ? _baselineMaxHealth : maxHealth;
+            health = maxHealth;
+            RaiseHealthChanged(previousHealth);
         }
 
         private void RaiseHealthChanged(int previousHealth)

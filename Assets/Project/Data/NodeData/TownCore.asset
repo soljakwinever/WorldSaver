@@ -29,6 +29,8 @@ MonoBehaviour:
   droppedItem: {fileID: 0}
   dropChance: 1
   tags: []
+  valueTags: []
+  damageRules: []
   references:
     version: 2
     RefIds:
@@ -66,5 +68,5 @@ MonoBehaviour:
         componentDefinition: {fileID: 11400000, guid: d50bbd4f86d1460ea2680d9ac2f163d4, type: 2}
         width: 2
         height: 2
-        xOffset: 0
-        yOffset: 0
+        xOffset: -1
+        yOffset: -1

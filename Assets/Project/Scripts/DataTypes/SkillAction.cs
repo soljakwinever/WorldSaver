@@ -10,30 +10,54 @@ namespace Project.Scripts.DataTypes
         public Vector3 TargetPosition { get; }
         public SkillData Skill { get; }
         public int ActionIndex { get; }
+        public int AttackPotential { get; }
         public Func<GameObject, AttackContext, int> DealDamage { get; }
         public Action<AnimationClip> PlayAnimation { get; }
         public Action<EquipmentStat, int, float, string> ApplyModifier { get; }
         public Action<string> RemoveModifier { get; }
+        public Action<ChargeSkillActionData, SkillActionContext> StartCharge { get; }
+        public Action<DashSkillActionData, SkillActionContext> StartDash { get; }
+        public Action<float, float> RevealFeatures { get; }
+        public ProjectileData Projectile { get; }
+        public Func<bool> ConsumeProjectile { get; }
 
         public string EffectKey => $"{Skill?.persistentId}:{ActionIndex}";
+
+        public SkillActionContext AtPosition(Vector3 position) => new(
+            User, Target, position, Skill, ActionIndex, AttackPotential,
+            DealDamage, PlayAnimation, ApplyModifier, RemoveModifier,
+            StartCharge, StartDash, RevealFeatures, Projectile,
+            ConsumeProjectile);
 
         public SkillActionContext(
             GameObject user, GameObject target, Vector3 targetPosition,
             SkillData skill, int actionIndex,
+            int attackPotential,
             Func<GameObject, AttackContext, int> dealDamage,
             Action<AnimationClip> playAnimation,
             Action<EquipmentStat, int, float, string> applyModifier,
-            Action<string> removeModifier)
+            Action<string> removeModifier,
+            Action<ChargeSkillActionData, SkillActionContext> startCharge,
+            Action<DashSkillActionData, SkillActionContext> startDash,
+            Action<float, float> revealFeatures,
+            ProjectileData projectile = null,
+            Func<bool> consumeProjectile = null)
         {
             User = user;
             Target = target;
             TargetPosition = targetPosition;
             Skill = skill;
             ActionIndex = actionIndex;
+            AttackPotential = Mathf.Max(0, attackPotential);
             DealDamage = dealDamage;
             PlayAnimation = playAnimation;
             ApplyModifier = applyModifier;
             RemoveModifier = removeModifier;
+            StartCharge = startCharge;
+            StartDash = startDash;
+            RevealFeatures = revealFeatures;
+            Projectile = projectile;
+            ConsumeProjectile = consumeProjectile;
         }
     }
 

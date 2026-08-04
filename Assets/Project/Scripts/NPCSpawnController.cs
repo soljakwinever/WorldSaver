@@ -671,7 +671,7 @@ namespace Project.Scripts
         }
 
         public static bool IsNavigableSpawn(TerrainSample sample) =>
-            !sample.isWater && !sample.isCliff;
+            sample.IsWalkable;
 
         private bool AllowsCurrentWorldState(EnemySpawnRule rule)
         {
@@ -710,13 +710,14 @@ namespace Project.Scripts
         private IEnumerable<EnemySpawnRule> EnumerateRules()
         {
             HashSet<EnemySpawnRule> visited = new();
-            if (_worldData.enemySpawnRules == null)
-                yield break;
-            foreach (EnemySpawnRule root in _worldData.enemySpawnRules)
+            foreach (EnemySpawnRule root in _worldGeneration.EnemySpawnRules)
                 foreach (EnemySpawnRule rule in Traverse(root, visited))
                     yield return rule;
-            if (_events?.ActiveEnemySpawnRules == null)
+            if (!_worldGeneration.AllowEventNPCSpawnRules ||
+                _events?.ActiveEnemySpawnRules == null)
+            {
                 yield break;
+            }
             foreach (EnemySpawnRule root in _events.ActiveEnemySpawnRules)
                 foreach (EnemySpawnRule rule in Traverse(root, visited))
                     yield return rule;

@@ -28,6 +28,17 @@ namespace Project.Scripts.DataTypes
         public ToolData tool;
     }
 
+    /// <summary>Skill and presentation supplied by a usable item.</summary>
+    [Serializable]
+    public sealed class UseSkillItemActionData : ItemActionData
+    {
+        public SkillData skill;
+        [Tooltip("Optional projectile supplied to projectile skill actions.")]
+        public ProjectileData projectile;
+        [Tooltip("Overrides the sprite on weapon swing animations used by this skill. Leave empty to use the animation asset's sprite.")]
+        public Sprite weaponSpriteOverride;
+    }
+
     /// <summary>Needs restored by <c>IncreaseNeedsItemAction</c>.</summary>
     [Serializable]
     public sealed class IncreaseNeedsActionData : ItemActionData
@@ -66,6 +77,26 @@ namespace Project.Scripts.DataTypes
         public EntityTag[] mineableTags = Array.Empty<EntityTag>();
     }
 
+    /// <summary>Turns a tagged tile into another registered tile.</summary>
+    [Serializable]
+    public sealed class TransformTaggedTileToolActionData : ItemActionData
+    {
+        public PersistentTileLayer layer = PersistentTileLayer.Ground;
+        [Tooltip("Only tiles carrying this tag can be transformed.")]
+        public EntityTag requiredTag;
+        public TileData replacementTile;
+    }
+
+    [Serializable]
+    public sealed class WaterTileToolActionData : ItemActionData
+    {
+        [Min(1), Tooltip("Durability (stored water) removed from the watering can per use, regardless of how many tiles are watered.")]
+        public byte waterPerUse = 1;
+
+        [Min(0f), Tooltip("Radius in tiles around the targeted tile that will be fully saturated. Zero waters only the targeted tile.")]
+        public float wateringRadius;
+    }
+
     /// <summary>
     /// Per-item coverage removal used by <c>MineCoverageToolAction</c>.
     /// </summary>
@@ -82,6 +113,33 @@ namespace Project.Scripts.DataTypes
     public sealed class PlacePersistentNodeItemActionData : ItemActionData
     {
         public NodeData node;
+        [Tooltip("Require every cell in the configured area to be walkable before placement.")]
+        public bool requireWalkableArea;
+        public Vector2Int walkableAreaSize = Vector2Int.one;
+        public Vector2Int walkableAreaOffset;
+    }
+
+    [Serializable]
+    public sealed class WaterPlantItemActionData : ItemActionData
+    {
+        [Min(0.01f)] public float waterPoints = 1f;
+    }
+
+    /// <summary>
+    /// Converts one selected item into another while the player directly
+    /// interacts from a matching world tile.
+    /// </summary>
+    [Serializable]
+    public sealed class ConvertItemOnTileActionData : ItemActionData
+    {
+        [Tooltip("Layer checked on the cell occupied by the player.")]
+        public PersistentTileLayer layer = PersistentTileLayer.Water;
+
+        [Tooltip("The tile required on that layer.")]
+        public TileData requiredTile;
+
+        [Tooltip("Item added after one of the selected items is removed.")]
+        public ItemData replacementItem;
     }
 
     [Serializable]

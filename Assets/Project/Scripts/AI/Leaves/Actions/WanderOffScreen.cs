@@ -129,6 +129,8 @@ namespace Project.Scripts.AI.Leaves.Actions
                     path[waypointIndex],
                     pathQuery))
                 return NodeState.Failure;
+            if (self.GetComponentInChildren<IMovementLock>()?.IsMovementLocked == true)
+                return NodeState.Running;
             self.position = Vector3.MoveTowards(
                 self.position,
                 waypoint,

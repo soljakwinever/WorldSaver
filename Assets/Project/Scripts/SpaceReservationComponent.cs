@@ -14,8 +14,6 @@ namespace Project.Scripts
         private Transform _target;
         private int _width;
         private int _height;
-        private int _xOffset;
-        private int _yOffset;
         private Vector2Int _registeredOrigin;
         private bool _isRegistered;
 
@@ -40,16 +38,12 @@ namespace Project.Scripts
         public void Initialize(
             Transform target,
             int width,
-            int height,
-            int xOffset,
-            int yOffset)
+            int height)
         {
             ReleaseReservation();
             _target = target != null ? target : transform;
             _width = Mathf.Max(1, width);
             _height = Mathf.Max(1, height);
-            _xOffset = xOffset;
-            _yOffset = yOffset;
             RefreshReservation();
         }
 
@@ -97,10 +91,15 @@ namespace Project.Scripts
 
         private Vector2Int GetOrigin()
         {
-            Vector2Int cell = _target != null
-                ? Vector2Int.FloorToInt(_target.position)
-                : Vector2Int.zero;
-            return cell + new Vector2Int(_xOffset, _yOffset);
+            if (_target == null)
+                return Vector2Int.zero;
+
+            // The entity is positioned at the exact center of its reserved
+            // footprint. Subtracting its half-size recovers the tile origin,
+            // including for even-sized and negatively positioned footprints.
+            Vector2 origin = (Vector2)_target.position -
+                             new Vector2(_width * 0.5f, _height * 0.5f);
+            return Vector2Int.RoundToInt(origin);
         }
     }
 }

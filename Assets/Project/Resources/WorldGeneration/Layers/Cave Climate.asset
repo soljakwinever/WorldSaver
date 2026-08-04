@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52000000000000000000000000000002, type: 3}
+  m_Name: Cave Climate
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ClimateLayerData
+  useLegacyResourceBiomes: 0
+  biomes:
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000001, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000002, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000003, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000004, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000005, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000006, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000007, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000008, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000009, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe00000000000000000000000a, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe00000000000000000000000b, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe00000000000000000000000c, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe00000000000000000000000d, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe00000000000000000000000e, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe00000000000000000000000f, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000010, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000011, type: 2}
+  - {fileID: 11400000, guid: a7d0cafe000000000000000000000012, type: 2}
+  continentalNoiseScale: 128
+  moistureNoiseScale: 72
+  temperatureNoiseScale: 96
+  blendSampleRadius: 1

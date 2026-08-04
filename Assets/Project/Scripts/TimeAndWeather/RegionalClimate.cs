@@ -303,6 +303,7 @@ namespace Project.Scripts.TimeAndWeather
             out WeatherSample sample);
         float GetAmbientTemperature(Vector2 worldPosition);
         bool IsWeatherActive(Vector2 worldPosition, string weatherId);
+        bool DoesWeatherWaterPlants(Vector2 worldPosition);
         void SetGlobalTemperatureOffset(float offset);
         Awaitable<bool> TryStartWeatherAsync(
             Vector2Int region,

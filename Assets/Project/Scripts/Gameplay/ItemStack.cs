@@ -1,6 +1,8 @@
 using System;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
+using Project.Scripts.Utility;
+using UnityEngine;
 
 namespace Project.Scripts.Gameplay
 {
@@ -15,6 +17,10 @@ namespace Project.Scripts.Gameplay
         public int Capacity => Item.maxStack;
         public int RemainingCapacity => Capacity - Count;
         public bool IsFull => Count == Capacity;
+        public string DisplayName => Item != null ? Item.name : string.Empty;
+        public string Description => Item?.description ?? string.Empty;
+        public Color Color => ItemRarityUtility.GetRarityColor(Rarity);
+        public Sprite Sprite => Item != null ? Item.sprite : null;
 
         public ItemStack(
             ItemData item,

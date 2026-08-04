@@ -19,6 +19,13 @@ namespace Project.Scripts.Interface
             float minHeight = 0.075f,
             float maxHeight = 0.7f);
 
+        public bool TryFindSafePortalPosition(
+            PlaneData destinationPlane,
+            Vector2Int requestedCell,
+            out Vector2Int safeCell,
+            int searchRadius = 64,
+            int clearanceRadius = 2);
+
         public ChunkBuildResult.IsCliff IsSmallCliff(int x, int y);
     }
 }

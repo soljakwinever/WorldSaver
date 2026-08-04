@@ -10,6 +10,12 @@ namespace Project.Scripts.DataTypes
         public string persistentId = "feature";
         [Min(0f)] public float selectionWeight = 1f;
 
+        [Header("Sense")]
+        public bool canBeSensed;
+        public Sprite senseIcon;
+        [Tooltip("Optional label shown by Sense. The asset name is used when empty.")]
+        public string senseName;
+
         [Header("Footprint")]
         [Min(1f)] public float minimumRadius = 24f;
         [Min(1f)] public float maximumRadius = 64f;
@@ -78,10 +84,136 @@ namespace Project.Scripts.DataTypes
     [Serializable]
     public abstract class FeatureGenerator
     {
-        public abstract void Generate(
+        public virtual void Generate(
             ref TerrainGenerationState terrain,
             in FeatureGenerationContext context,
-            float strength);
+            float strength)
+        {
+        }
+
+        public virtual float EntityReach => 0f;
+
+        public virtual bool ClearsEntity(Vector2 featureLocalPosition) =>
+            false;
+
+        public virtual bool TryGetEntityPlacement(
+            out FeatureEntityPlacement placement)
+        {
+            placement = default;
+            return false;
+        }
+    }
+
+    [Serializable]
+    public sealed class ClearEntitiesCircleFeatureGenerator : FeatureGenerator
+    {
+        public Vector2 offset;
+        [Min(0.5f)] public float radius = 4f;
+
+        public override float EntityReach =>
+            offset.magnitude + Mathf.Max(0.5f, radius);
+
+        public override bool ClearsEntity(Vector2 featureLocalPosition) =>
+            (featureLocalPosition - offset).sqrMagnitude <=
+            Mathf.Pow(Mathf.Max(0.5f, radius), 2f);
+    }
+
+    [Serializable]
+    public sealed class ClearEntitiesRectangleFeatureGenerator : FeatureGenerator
+    {
+        public Vector2 offset;
+        public Vector2 size = new(8f, 8f);
+
+        public override float EntityReach =>
+            offset.magnitude + GetHalfExtents().magnitude;
+
+        public override bool ClearsEntity(Vector2 featureLocalPosition)
+        {
+            Vector2 point = featureLocalPosition - offset;
+            Vector2 halfExtents = GetHalfExtents();
+            return Mathf.Abs(point.x) <= halfExtents.x &&
+                   Mathf.Abs(point.y) <= halfExtents.y;
+        }
+
+        private Vector2 GetHalfExtents() => new(
+            Mathf.Max(0.5f, Mathf.Abs(size.x) * 0.5f),
+            Mathf.Max(0.5f, Mathf.Abs(size.y) * 0.5f));
+    }
+
+    [Serializable]
+    public sealed class PlaceEntityFeatureGenerator : FeatureGenerator
+    {
+        [Tooltip("Stable identifier used to create the entity's deterministic NodeId.")]
+        public string persistentId = "Feature Entity";
+        public NodeData entity;
+        [Tooltip("Exact offset from the feature center, in feature-local world cells.")]
+        public Vector2 offset;
+        [Min(0.01f)] public float scale = 1f;
+        public bool flipX;
+        public bool damageImmune;
+        [Tooltip("Clear tile coverage inside the entity's space reservation after restore.")]
+        public bool clearReservedAreaCoverage;
+        [Tooltip("Require every cell in the configured area to be generated as walkable.")]
+        public bool requireWalkableArea;
+        public Vector2Int walkableAreaSize = Vector2Int.one;
+        public Vector2Int walkableAreaOffset;
+
+        public override float EntityReach => offset.magnitude;
+
+        public override bool TryGetEntityPlacement(
+            out FeatureEntityPlacement placement)
+        {
+            placement = new FeatureEntityPlacement(
+                persistentId,
+                entity,
+                offset,
+                Mathf.Max(0.01f, scale),
+                flipX,
+                damageImmune,
+                clearReservedAreaCoverage,
+                requireWalkableArea,
+                walkableAreaSize,
+                walkableAreaOffset);
+            return entity != null;
+        }
+    }
+
+    public readonly struct FeatureEntityPlacement
+    {
+        public readonly string persistentId;
+        public readonly NodeData entity;
+        public readonly Vector2 offset;
+        public readonly float scale;
+        public readonly bool flipX;
+        public readonly bool damageImmune;
+        public readonly bool clearReservedAreaCoverage;
+        public readonly bool requireWalkableArea;
+        public readonly Vector2Int walkableAreaSize;
+        public readonly Vector2Int walkableAreaOffset;
+
+        public FeatureEntityPlacement(
+            string persistentId,
+            NodeData entity,
+            Vector2 offset,
+            float scale,
+            bool flipX,
+            bool damageImmune,
+            bool clearReservedAreaCoverage,
+            bool requireWalkableArea,
+            Vector2Int walkableAreaSize,
+            Vector2Int walkableAreaOffset)
+        {
+            this.persistentId = persistentId;
+            this.entity = entity;
+            this.offset = offset;
+            this.scale = scale;
+            this.flipX = flipX;
+            this.damageImmune = damageImmune;
+            this.clearReservedAreaCoverage = clearReservedAreaCoverage;
+            this.requireWalkableArea = requireWalkableArea;
+            this.walkableAreaSize = walkableAreaSize;
+            this.walkableAreaOffset = walkableAreaOffset;
+        }
     }
 
     [Serializable]

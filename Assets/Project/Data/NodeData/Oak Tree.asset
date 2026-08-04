@@ -24,5 +24,14 @@ MonoBehaviour:
   lightness: 1
   lightnessVariance: 2
   persistentComponents: []
-  resourceType: 0
+  droppedItem: {fileID: 0}
+  dropChance: 1
   tags: []
+  valueTags: []
+  damageRules:
+  - sources: 2
+    sourceTags:
+    - {fileID: 11400000, guid: 9ee1c0bbfddea4d51c3e09ab02369609, type: 2}
+  references:
+    version: 2
+    RefIds: []

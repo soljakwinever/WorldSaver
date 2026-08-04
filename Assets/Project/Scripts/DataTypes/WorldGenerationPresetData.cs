@@ -27,6 +27,21 @@ namespace Project.Scripts.DataTypes
         public FeatureCellLayerData features;
         public SurfaceDetailLayerData surfaceDetails;
 
+        [Header("NPC Spawning")]
+        [Tooltip("Compatibility switch for presets that still use WorldData NPC spawn rules.")]
+        public bool useLegacyWorldNPCSpawnRules = true;
+        [Tooltip("Baseline NPC populations allowed on maps using this preset. Rule-set children are included automatically.")]
+        public EnemySpawnRule[] enemySpawnRules =
+            System.Array.Empty<EnemySpawnRule>();
+        [Tooltip("Allow active world events to add temporary NPC spawn rules on this map.")]
+        public bool allowEventNPCSpawnRules = true;
+
+        [Header("Optional Layout")]
+        [Tooltip("When assigned, replaces surface elevation shaping with an underground cave layout.")]
+        public CaveLayoutLayerData caveLayout;
+        [Tooltip("Optional deterministic cellular biome map used only with a cave layout. Leave empty to use climate-nearest biome selection.")]
+        public CaveBiomeMapLayerData caveBiomeMap;
+
         public string PersistentId => persistentId?.Trim() ?? string.Empty;
         public string DisplayName =>
             string.IsNullOrWhiteSpace(displayName) ? name : displayName.Trim();

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
+using Project.Scripts.DataTypes;
 using UnityEngine;
 
 namespace Project.Scripts.Persistence
@@ -9,14 +10,26 @@ namespace Project.Scripts.Persistence
     public sealed class FileRegionDiskStore : IRegionDiskStore
     {
         private readonly string _regionDirectory;
+        public string RegionDirectory => _regionDirectory;
 
-        public FileRegionDiskStore()
+        public FileRegionDiskStore(PlaneSelection planeSelection)
         {
             _regionDirectory = Path.Combine(
                 Application.persistentDataPath,
                 "Worlds",
                 PlayerPrefs.GetString("WorldSaver.ActiveWorld", "default"),
+                "planes",
+                SanitizePathSegment(planeSelection.PlaneId),
                 "regions");
+        }
+
+        private static string SanitizePathSegment(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new InvalidDataException("Plane ID cannot be empty.");
+            foreach (char invalid in Path.GetInvalidFileNameChars())
+                value = value.Replace(invalid, '_');
+            return value.Trim();
         }
 
         public async Awaitable<RegionSaveData> LoadAsync(

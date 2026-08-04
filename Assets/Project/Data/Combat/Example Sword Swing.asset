@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e52cdaf8dd9417f8b83f94df701572a, type: 3}
+  m_Name: Example Sword Swing
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.WeaponSwingAnimation
+  displayMode: 0
+  weaponSprite: {fileID: 1126344992095758660, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  spriteAngleOffset: 135
+  sortingOrder: 10
+  targetLayers:
+    m_Bits: 4294967295
+  frames:
+  - duration: 0.1
+    position: {x: 0.3, y: 0}
+    scale: {x: 1, y: 1}
+    rotation: -70
+    hurtBox:
+      center: {x: 0.3, y: 0}
+      size: {x: 0.65, y: 0.35}
+    hurtBoxActive: 0
+    canMoveWhileSwinging: 0
+    releaseAttack: 0
+  - duration: 0.06
+    position: {x: 0.38, y: 0}
+    scale: {x: 1, y: 1}
+    rotation: -30
+    hurtBox:
+      center: {x: 0.34, y: 0}
+      size: {x: 0.75, y: 0.42}
+    hurtBoxActive: 1
+    canMoveWhileSwinging: 0
+    releaseAttack: 0
+  - duration: 0.08
+    position: {x: 0.42, y: 0}
+    scale: {x: 1.08, y: 1.08}
+    rotation: 15
+    hurtBox:
+      center: {x: 0.38, y: 0}
+      size: {x: 0.85, y: 0.48}
+    hurtBoxActive: 1
+    canMoveWhileSwinging: 0
+    releaseAttack: 0
+  - duration: 0.07
+    position: {x: 0.38, y: 0}
+    scale: {x: 1, y: 1}
+    rotation: 60
+    hurtBox:
+      center: {x: 0.34, y: 0}
+      size: {x: 0.75, y: 0.42}
+    hurtBoxActive: 1
+    canMoveWhileSwinging: 0
+    releaseAttack: 0
+  - duration: 0.12
+    position: {x: 0.28, y: 0}
+    scale: {x: 0.95, y: 0.95}
+    rotation: 85
+    hurtBox:
+      center: {x: 0.3, y: 0}
+      size: {x: 0.65, y: 0.35}
+    hurtBoxActive: 0
+    canMoveWhileSwinging: 1
+    releaseAttack: 0

@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1000000000000000000000000000001, type: 3}
+  m_Name: Cave Layout
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.CaveLayoutLayerData
+  cellularCellSize: 1
+  initialWallChance: 0.47
+  cellularIterations: 5
+  wallBirthLimit: 5
+  wallSurvivalLimit: 4
+  chamberScale: 72
+  chamberInfluence: 0.16
+  warpScale: 96
+  warpStrength: 24
+  regionSize: 256
+  corridorHalfWidth: 5
+  protectedRouteMargin: 4
+  crevasseCellSize: 42
+  crevasseWidth: 0.075
+  crevasseDensity: 0.55
+  floorHeight: 0.45
+  wallHeight: 0.85
+  crevasseHeight: 0.05
+  wallTile: {fileID: 11400000, guid: 5b6b6f693bca44442b9ebae853537215, type: 2}
+  crevasseTile: {fileID: 11400000, guid: a73e3699deeb0bd40b15ce2fb77b9046, type: 2}

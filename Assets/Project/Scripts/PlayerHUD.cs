@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Project.Scripts.Bus;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes.SaveData;
@@ -13,7 +14,7 @@ using Zenject;
 namespace Project.Scripts
 {
     [RequireComponent(typeof(PanelRenderer))]
-    public class PlayerHUD : MonoBehaviour, IWorldActionUiBlocker
+    public class PlayerHUD : MonoBehaviour, IWorldActionUiBlocker, ISenseService
     {
         private PanelRenderer _uiDocument;
     
@@ -22,10 +23,21 @@ namespace Project.Scripts
         [Inject] private IInputManager inputManager;
         [Inject] private IRegionalWeatherService regionalWeatherService;
         [Inject] private Grid gameGrid;
+        [Inject] private SkillCatalog skillCatalog;
+        [Inject] private MapSignalBus mapSignalBus;
+        [Inject] private Chunkloader chunkloader;
+        [Inject] private WorldTilemapRenderer worldTilemapRenderer;
         
         private PlayerToolbarController toolbarController;
         private PlayerNeedsController needsController;
         private PlayerBus playerBus;
+        private PlayerMenuController playerMenu;
+        private WorldMapScreenController worldMapScreen;
+        private UniversalToolTip universalToolTip;
+        private InventoryDebugUI inventoryMenu;
+        private VisualElement senseLayer;
+        private readonly System.Collections.Generic.List<SenseIndicator> senseIndicators = new();
+        private float senseExpiresAt;
         private Label levelLabel;
         private Label experienceLabel;
         private ProgressBar experienceBar;
@@ -39,6 +51,12 @@ namespace Project.Scripts
             statValueLabels = new();
         private readonly System.Collections.Generic.List<Button>
             statButtons = new();
+
+        private sealed class SenseIndicator
+        {
+            public IFeatureData Feature;
+            public VisualElement View;
+        }
         
         private HotbarSlot[] hotbarSlots =
             new HotbarSlot[PlayerToolbarController.SlotCount];
@@ -72,6 +90,10 @@ namespace Project.Scripts
 
         private void OnDestroy()
         {
+            ClearSenseIndicators();
+            playerMenu?.Dispose();
+            worldMapScreen?.Dispose();
+            universalToolTip?.Dispose();
             if (playerBus == null)
                 return;
             playerBus.hotbarIndexChanged -= PlayerBusOnhotbarIndexChanged;
@@ -132,6 +154,7 @@ namespace Project.Scripts
                 playerDataController.GetComponent<PlayerToolbarController>();
             needsController =
                 playerDataController.GetComponent<PlayerNeedsController>();
+            inventoryMenu = FindFirstObjectByType<InventoryDebugUI>();
             fps = GetComponent<Fps>();
             mainCamera = Camera.main;
         }
@@ -147,7 +170,10 @@ namespace Project.Scripts
 
         private void Update()
         {
+            worldMapScreen?.PollKeyboard();
+            playerMenu?.PollKeyboard();
             RefreshResourceUI();
+            UpdateSenseIndicators();
             poll--;
             if (poll <= 0)
             {
@@ -198,6 +224,11 @@ namespace Project.Scripts
 
         private void ReloadCallback(PanelRenderer panel, VisualElement root)
         {
+            playerMenu?.Dispose();
+            worldMapScreen?.Dispose();
+            universalToolTip?.Dispose();
+            universalToolTip = new UniversalToolTip(root);
+            CreateSenseLayer(root);
             root.Q("NeedsDisplay").dataSource = playerDataController;
             toolbarController ??=
                 playerDataController.GetComponent<PlayerToolbarController>();
@@ -220,6 +251,158 @@ namespace Project.Scripts
             HandleHotBar(toolbarController.SelectedIndex);
             BindProgressionUI(root);
             RefreshProgressionUI();
+            playerMenu = new PlayerMenuController(
+                root,
+                playerDataController,
+                skillCatalog,
+                inputManager);
+            worldMapScreen = new WorldMapScreenController(
+                root,
+                mapSignalBus,
+                chunkloader,
+                worldTilemapRenderer,
+                playerDataController);
+        }
+
+        public bool CanSense(GameObject user) =>
+            user != null && worldGeneration is IFeatureSenseSource &&
+            senseLayer?.panel != null;
+
+        public void Reveal(GameObject user, float radius, float duration)
+        {
+            if (!CanSense(user) || radius <= 0f || duration <= 0f)
+                return;
+
+            ClearSenseIndicators();
+            IReadOnlyList<IFeatureData> features =
+                ((IFeatureSenseSource)worldGeneration).FindFeatures(
+                    user.transform.position,
+                    radius);
+            foreach (IFeatureData feature in features)
+            {
+                if (feature == null)
+                    continue;
+                VisualElement view = CreateSenseIndicator(feature);
+                senseLayer.Add(view);
+                senseIndicators.Add(new SenseIndicator
+                {
+                    Feature = feature,
+                    View = view
+                });
+            }
+            senseExpiresAt = Time.time + duration;
+            UpdateSenseIndicators();
+        }
+
+        private void CreateSenseLayer(VisualElement root)
+        {
+            ClearSenseIndicators();
+            senseLayer?.RemoveFromHierarchy();
+            senseLayer = new VisualElement
+            {
+                name = "SenseIndicators",
+                pickingMode = PickingMode.Ignore
+            };
+            senseLayer.style.position = Position.Absolute;
+            senseLayer.style.left = 0f;
+            senseLayer.style.right = 0f;
+            senseLayer.style.top = 0f;
+            senseLayer.style.bottom = 0f;
+            root.Add(senseLayer);
+            senseLayer.BringToFront();
+        }
+
+        private static VisualElement CreateSenseIndicator(IFeatureData feature)
+        {
+            var view = new VisualElement { pickingMode = PickingMode.Ignore };
+            view.style.position = Position.Absolute;
+            view.style.alignItems = Align.Center;
+            view.style.width = 96f;
+
+            if (feature.Icon != null)
+            {
+                var icon = new Image
+                {
+                    sprite = feature.Icon,
+                    scaleMode = ScaleMode.ScaleToFit,
+                    pickingMode = PickingMode.Ignore
+                };
+                icon.style.width = 36f;
+                icon.style.height = 36f;
+                view.Add(icon);
+            }
+            else
+            {
+                var marker = new Label("◆") { pickingMode = PickingMode.Ignore };
+                marker.style.fontSize = 24f;
+                marker.style.color = new Color(0.55f, 0.9f, 1f);
+                view.Add(marker);
+            }
+
+            if (!string.IsNullOrWhiteSpace(feature.Name))
+            {
+                var label = new Label(feature.Name) { pickingMode = PickingMode.Ignore };
+                label.style.unityTextAlign = TextAnchor.MiddleCenter;
+                label.style.color = Color.white;
+                label.style.unityFontStyleAndWeight = FontStyle.Bold;
+                view.Add(label);
+            }
+            return view;
+        }
+
+        private void UpdateSenseIndicators()
+        {
+            if (senseIndicators.Count == 0)
+                return;
+            if (Time.time >= senseExpiresAt)
+            {
+                ClearSenseIndicators();
+                return;
+            }
+            mainCamera ??= Camera.main;
+            if (mainCamera == null || senseLayer?.panel == null)
+                return;
+
+            const float margin = 52f;
+            foreach (SenseIndicator indicator in senseIndicators)
+            {
+                Vector3 projected = mainCamera.WorldToScreenPoint(indicator.Feature.Position);
+                Vector2 edgeScreen = GetSenseEdgeScreenPosition(
+                    projected,
+                    new Vector2(Screen.width, Screen.height),
+                    margin);
+                Vector2 panelPosition = RuntimePanelUtils.ScreenToPanel(
+                    senseLayer.panel,
+                    edgeScreen);
+                indicator.View.style.left = panelPosition.x - 48f;
+                indicator.View.style.top = panelPosition.y - 28f;
+            }
+        }
+
+        public static Vector2 GetSenseEdgeScreenPosition(
+            Vector2 featureScreenPosition,
+            Vector2 screenSize,
+            float margin)
+        {
+            Vector2 center = screenSize * 0.5f;
+            Vector2 half = new(
+                Mathf.Max(1f, center.x - Mathf.Max(0f, margin)),
+                Mathf.Max(1f, center.y - Mathf.Max(0f, margin)));
+            Vector2 direction = featureScreenPosition - center;
+            if (direction.sqrMagnitude < 0.0001f)
+                direction = Vector2.up;
+            float scale = Mathf.Min(
+                half.x / Mathf.Max(0.0001f, Mathf.Abs(direction.x)),
+                half.y / Mathf.Max(0.0001f, Mathf.Abs(direction.y)));
+            return center + direction * scale;
+        }
+
+        private void ClearSenseIndicators()
+        {
+            foreach (SenseIndicator indicator in senseIndicators)
+                indicator.View?.RemoveFromHierarchy();
+            senseIndicators.Clear();
+            senseExpiresAt = 0f;
         }
 
         private void BindProgressionUI(VisualElement root)
@@ -268,16 +451,30 @@ namespace Project.Scripts
                     $"{playerDataController.MaxMana}";
             }
 
-            RefreshNormalizedBar(
+            RefreshCapacityBar(
                 hungerBar,
-                needsController != null
-                    ? needsController.Hunger
-                    : playerDataController.Hunger);
-            RefreshNormalizedBar(
+                needsController != null ? needsController.Hunger : playerDataController.Hunger,
+                playerDataController.MaxHunger);
+            RefreshCapacityBar(
                 energyBar,
-                needsController != null
-                    ? needsController.Energy
-                    : playerDataController.Energy);
+                needsController != null ? needsController.Energy : playerDataController.Energy,
+                playerDataController.MaxEnergy);
+        }
+
+        private static void RefreshCapacityBar(
+            ProgressBar progressBar,
+            float normalizedValue,
+            int maximum)
+        {
+            if (progressBar == null)
+                return;
+            float value = Mathf.Clamp01(normalizedValue);
+            int safeMaximum = Mathf.Max(1, maximum);
+            progressBar.lowValue = 0f;
+            progressBar.highValue = safeMaximum;
+            progressBar.value = Mathf.RoundToInt(value * safeMaximum);
+            progressBar.title =
+                $"{Mathf.RoundToInt(value * safeMaximum)} / {safeMaximum}";
         }
 
         private static void RefreshNormalizedBar(
@@ -304,7 +501,9 @@ namespace Project.Scripts
             SetPickingModeRecursive(
                 root.Q("ProgressionDisplay"),
                 PickingMode.Ignore);
-            SetPickingModeRecursive(root.Q("Toolbar"), PickingMode.Ignore);
+            VisualElement toolbar = root.Q("Toolbar");
+            if (toolbar != null)
+                toolbar.pickingMode = PickingMode.Ignore;
 
             if (levelUpPanel == null)
                 return;
@@ -315,6 +514,13 @@ namespace Project.Scripts
 
         public bool IsPointerOverBlockingUi(Vector2 screenPosition)
         {
+            inventoryMenu ??= FindFirstObjectByType<InventoryDebugUI>();
+            if (inventoryMenu?.IsPointerOverBlockingUi(screenPosition) == true)
+                return true;
+            if (playerMenu?.IsVisible == true)
+                return true;
+            if (worldMapScreen?.IsVisible == true)
+                return true;
             if (levelUpPanel == null || levelUpPanel.panel == null ||
                 levelUpPanel.resolvedStyle.display == DisplayStyle.None)
             {

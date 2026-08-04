@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
+  m_Name: Tiny Magic Potion
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
+  persistentId: items.potions.tinymppotion
+  description: Increases mana by {hpValue}.
+  maxStack: 24
+  sprite: {fileID: 2959826883323455076, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  projectile: {fileID: 0}
+  action: {fileID: 11400000, guid: 6bf49c34d7ebe614fb736d8d39c326f0, type: 2}
+  actionData:
+  - rid: 1367514975385420111
+  goldValue: 32
+  fuelValue: 1
+  magicValue: 32
+  tags:
+  - {fileID: 11400000, guid: bd9b24a138e1738bacf836b108d1ef27, type: 2}
+  - {fileID: 11400000, guid: ab56150a8a61c0744ba66cfaadc20558, type: 2}
+  - {fileID: 11400000, guid: 93d79fb2a00019044466d32255cae878, type: 2}
+  valueTags:
+  - tag: {fileID: 11400000, guid: b26da7e9b22e43b5aa9894c2cb4c4b01, type: 2}
+    intValue: 32
+    floatValue: 0
+  - tag: {fileID: 11400000, guid: b26da7e9b22e43b5aa9894c2cb4c4b02, type: 2}
+    intValue: 0
+    floatValue: 32
+  references:
+    version: 2
+    RefIds:
+    - rid: 1367514975385420111
+      type: {class: IncreaseHealthManaActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        health: 0
+        mana: 25

@@ -151,6 +151,13 @@ namespace Project.Editor.AI.Generated
     }
 
     [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Attack With Conditional Skill")]
+    internal sealed class Project_Scripts_AI_Leaves_Actions_AttackWithConditionalSkill_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Actions.AttackWithConditionalSkill);
+    }
+
+    [Serializable]
     [global::Unity.GraphToolkit.Editor.Node("Actions", null, "Break Pathing Obstacle")]
     internal sealed class Project_Scripts_AI_Leaves_Actions_BreakPathingObstacle_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
@@ -218,6 +225,13 @@ namespace Project.Editor.AI.Generated
     internal sealed class Project_Scripts_AI_Leaves_Sensors_DetectNearby_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {
         internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.DetectNearby);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Evaluate Conditional Skills")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_EvaluateConditionalSkills_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.EvaluateConditionalSkills);
     }
 
     [Serializable]

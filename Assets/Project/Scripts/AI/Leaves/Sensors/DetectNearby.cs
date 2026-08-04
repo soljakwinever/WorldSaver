@@ -24,6 +24,19 @@ namespace Project.Scripts.AI.Leaves.Sensors
                 self == null)
                 throw new InvalidOperationException();
 
+            float retentionDistance = Mathf.Max(
+                Mathf.Max(0f, distance),
+                Blackboard.GetOrDefault(AiKeys.TargetRetentionDistance));
+            Transform retainedTarget =
+                Blackboard.GetOrDefault(AiKeys.Target);
+            if (retainedTarget != null &&
+                IsMatchingTarget(retainedTarget.gameObject) &&
+                (retainedTarget.position - self.transform.position)
+                    .sqrMagnitude <= retentionDistance * retentionDistance)
+            {
+                return state = NodeState.Success;
+            }
+
             int resultCount = Physics2D.OverlapCircleNonAlloc(self.transform.position, distance, _results, layerMask);
             GameObject nearest = null;
             float nearestDistanceSquared = float.PositiveInfinity;
@@ -46,8 +59,7 @@ namespace Project.Scripts.AI.Leaves.Sensors
                         ? candidate.attachedRigidbody.gameObject
                         : candidate.gameObject;
 
-                if (!string.IsNullOrWhiteSpace(tag) &&
-                    !candidateObject.CompareTag(tag))
+                if (!IsMatchingTarget(candidateObject))
                     continue;
 
                 float candidateDistanceSquared =
@@ -72,5 +84,9 @@ namespace Project.Scripts.AI.Leaves.Sensors
             state = NodeState.Failure;
             return state;
         }
+
+        private bool IsMatchingTarget(GameObject candidate) =>
+            candidate != null &&
+            (string.IsNullOrWhiteSpace(tag) || candidate.CompareTag(tag));
     }
 }

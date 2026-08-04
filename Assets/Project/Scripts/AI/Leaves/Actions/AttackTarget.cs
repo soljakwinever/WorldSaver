@@ -2,6 +2,7 @@ using System;
 using Project.Scripts.AI.GraphEditor;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
+using Project.Scripts.Gameplay;
 using UnityEngine;
 
 namespace Project.Scripts.AI.Leaves.Actions
@@ -12,12 +13,6 @@ namespace Project.Scripts.AI.Leaves.Actions
         [SerializeField, InputPort("Target")]
         private AiKeys.Key targetKey = AiKeys.Key.Target;
 
-        [SerializeField, Min(0), InputPort("Force")]
-        private int force = 1;
-
-        [SerializeField, InputPort("Weapon")]
-        private ToolData weapon;
-
         [SerializeField, Min(0f), InputPort("Maximum Range")]
         private float maximumRange = 1f;
 
@@ -27,7 +22,8 @@ namespace Project.Scripts.AI.Leaves.Actions
                     targetKey,
                     maximumRange,
                     out GameObject attacker,
-                    out IDamageable target) ||
+                    out _,
+                    out GameObject targetObject) ||
                 !Blackboard.TryGet(
                     AiKeys.AttackService,
                     out IAttackService attackService) ||
@@ -36,26 +32,40 @@ namespace Project.Scripts.AI.Leaves.Actions
                 return NodeState.Failure;
             }
 
-            attackService.Attack(
-                target,
-                new AttackContext(
-                    attacker,
-                    weapon,
-                    Mathf.Max(0, force),
-                    EntityDamageSource.Enemy,
-                    attacker.GetComponentInParent<IEntityDamageSource>()?
-                        .DamageTags));
-            return NodeState.Success;
+            if (!Blackboard.TryGet(AiKeys.EnemyData, out EnemyData enemyData) ||
+                enemyData?.NormalAttack == null)
+                return NodeState.Failure;
+
+            int attackPotential = Mathf.Max(
+                0,
+                Blackboard.GetOrDefault(AiKeys.Attack));
+
+            ISkillRuntime skillRuntime =
+                attacker.GetComponentInParent<ISkillRuntime>();
+            if (skillRuntime == null)
+                return NodeState.Failure;
+
+            return skillRuntime.TryUseWithWeaponPresentation(
+                enemyData.NormalAttack,
+                targetObject,
+                targetObject.transform.position,
+                enemyData.BasicAttackWeaponSwing,
+                null,
+                attackPotential)
+                ? NodeState.Success
+                : NodeState.Failure;
         }
 
         internal bool TryResolveAttack(
             AiKeys.Key key,
             float range,
             out GameObject attacker,
-            out IDamageable damageable)
+            out IDamageable damageable,
+            out GameObject targetObject)
         {
             attacker = Blackboard.GetOrDefault(AiKeys.Self);
             damageable = null;
+            targetObject = null;
             if (attacker == null ||
                 !Blackboard.TryGetValue(
                     AiKeys.Resolve(key),
@@ -74,7 +84,13 @@ namespace Project.Scripts.AI.Leaves.Actions
 
             damageable = target.GetComponentInParent<IDamageable>() ??
                          target.GetComponentInChildren<IDamageable>();
-            return damageable != null;
+            if (damageable == null)
+                return false;
+
+            targetObject = damageable is Component component
+                ? component.gameObject
+                : target.gameObject;
+            return true;
         }
 
         internal static Transform ResolveTransform(object value)

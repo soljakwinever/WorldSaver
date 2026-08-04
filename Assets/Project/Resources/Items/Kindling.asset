@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
-  m_Name: Kindling
+  m_Name: Wooden Stick
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
   persistentId: Kindling
-  description: Kindling
+  description: A basic wooden stick used for crafting and fuel.
   maxStack: 32
   sprite: {fileID: 8887255329501761466, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
   action: {fileID: 0}

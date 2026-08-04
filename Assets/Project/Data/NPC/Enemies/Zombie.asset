@@ -13,10 +13,15 @@ MonoBehaviour:
   m_Name: Zombie
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
   hp: 20
+  attack: 30
   defense: 0
   experienceValue: 15
   visual: {fileID: 2119611675089420321, guid: dd90672a05bae2d4980af5765d4dd76d, type: 3}
   behaviourTree: {fileID: -7413323278554932356, guid: b5d79ad69b2acc94ebebf986cf706f28, type: 3}
+  NormalAttack: {fileID: 11400000, guid: 8447a4314ce74b75b1d3400779bf5232, type: 2}
+  conditionalSkills: []
+  damageTags:
+  - {fileID: 11400000, guid: b21753a0f8d38832f40c17f0ac19860e, type: 2}
   drops:
   - item: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
     dropChance: 0.3

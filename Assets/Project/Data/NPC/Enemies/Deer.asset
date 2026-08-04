@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b319666b71c34b71aaf4935c3ee02487, type: 3}
+  m_Name: Deer
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
+  hp: 5
+  attack: 1
+  defense: 0
+  experienceValue: 1
+  accuracy: 1
+  movementSpeed: 3
+  sprintMultiplier: 4
+  visual: {fileID: 2119611675089420321, guid: 69393cccc18ba69469d34b433ea237ee, type: 3}
+  behaviourTree: {fileID: -7413323278554932356, guid: 81c430f02d381614bbd4a9a8ca5a1f19, type: 3}
+  NormalAttack: {fileID: 0}
+  conditionalSkills: []
+  damageTags: []
+  drops:
+  - item: {fileID: 11400000, guid: fc691d1ab1b190e45905b143509d9c63, type: 2}
+    dropChance: 0.3
+    rolls: 4
+    minimumAmount: 1
+    maximumAmount: 1
+  dropExplosionImpulse: 32
+  dropExplosionVariation: 0.25

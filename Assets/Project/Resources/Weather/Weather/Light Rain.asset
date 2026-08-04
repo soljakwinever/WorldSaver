@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Light Rain
   m_EditorClassIdentifier: 
   weatherId: rain.light
+  watersPlants: 1
   displayName: Light Rain
   selectionWeight: 2
   seasons: 255

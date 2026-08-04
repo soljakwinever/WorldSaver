@@ -40,6 +40,17 @@ namespace Project.Scripts.UI
             AttackContext context,
             int damageDelivered)
         {
+            // Entity receivers use their damage rules to express immunity to
+            // particular sources, tools, and source tags. Do not present an
+            // immune attack as a blocked hit; zero damage from mitigation still
+            // receives the normal blocked feedback below.
+            if (damageDelivered == 0 &&
+                target is EntityDamageReceiver receiver &&
+                !receiver.CanReceiveDamage(context))
+            {
+                return;
+            }
+
             Vector3 position = target is Component component
                 ? component.transform.position
                 : context.Attacker.transform.position;

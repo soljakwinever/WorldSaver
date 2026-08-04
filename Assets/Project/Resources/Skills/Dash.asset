@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e996484f0cf3ae44b4149f00db3d127, type: 3}
+  m_Name: Dash
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.SkillData
+  persistentId: skill.dash
+  description: Surge forward at high speed, leaving fading afterimages in your wake.
+  sprite: {fileID: -446430286, guid: bc44a96900c93ea47aec035073b7ba9e, type: 3}
+  category: 0
+  element: 0
+  targetMode: 0
+  staminaCost: 8
+  manaCost: 0
+  power: 0
+  duration: 3
+  cooldown: 6
+  tags: []
+  actionData:
+  - rid: 8262519483701041001
+  references:
+    version: 2
+    RefIds:
+    - rid: 8262519483701041001
+      type: {class: DashSkillActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        action: {fileID: 11400000, guid: 91857e745f8b49cf86ca5f8b16cdfdcb, type: 2}
+        mode: 0
+        durationOverride: -1
+        speedMultiplier: 2.5
+        afterimageInterval: 0.08
+        afterimageFadeDuration: 0.35
+        afterimageTint: {r: 0.45, g: 0.85, b: 1, a: 0.65}

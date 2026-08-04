@@ -6,5 +6,6 @@ namespace Project.Scripts.Interface.Decorator
         int MaxMana { get; }
 
         void RestoreMana(int amount);
+        bool TrySpendMana(float amount);
     }
 }

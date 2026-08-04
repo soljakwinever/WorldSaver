@@ -20,5 +20,18 @@ MonoBehaviour:
   toolRequirement: 0
   overrideMaterial: {fileID: 2100000, guid: b92cef41cc5e98940a34a2711c9948bf, type: 2}
   tintColor: {r: 1, g: 1, b: 1, a: 1}
+  overrideVisual: {fileID: 0}
   lightness: 1
   lightnessVariance: 2
+  persistentComponents: []
+  droppedItem: {fileID: 0}
+  dropChance: 1
+  tags: []
+  valueTags: []
+  damageRules:
+  - sources: 2
+    sourceTags:
+    - {fileID: 11400000, guid: 9ee1c0bbfddea4d51c3e09ab02369609, type: 2}
+  references:
+    version: 2
+    RefIds: []

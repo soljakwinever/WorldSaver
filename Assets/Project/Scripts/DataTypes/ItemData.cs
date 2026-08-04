@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using Project.Scripts.Interface;
 
 namespace Project.Scripts.DataTypes
 {
@@ -9,7 +10,7 @@ namespace Project.Scripts.DataTypes
     /// behavior for this item.
     /// </summary>
     [CreateAssetMenu(fileName = "New Item Data", menuName = "Data/Item Data", order = 0)]
-    public class ItemData : ScriptableObject
+    public class ItemData : ScriptableObject, IToolTipData
     {
         public const int FuelUnitsPerBaseValue = 4;
         public const string GoldValueTagId = "gold-value";
@@ -24,6 +25,15 @@ namespace Project.Scripts.DataTypes
         public int maxStack;
         
         public Sprite sprite;
+
+        [Tooltip("Optional projectile supplied when this item is used as skill ammunition.")]
+        public ProjectileData projectile;
+
+        public string DisplayName => name;
+        public string Description => description;
+        public Color Color => Color.white;
+        public int Count => 0;
+        public Sprite Sprite => sprite;
 
         [Tooltip("Optional action performed when this item is used from the HotBar.")]
         public ItemAction action;

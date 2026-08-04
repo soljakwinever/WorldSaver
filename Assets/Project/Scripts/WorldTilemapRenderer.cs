@@ -37,6 +37,10 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         Vector2Int.down,
         Vector2Int.up
     };
+    private static readonly int WaterHeightId =
+        Shader.PropertyToID("_WaterHeight");
+    private static readonly int WaterEmissionDataId =
+        Shader.PropertyToID("_WaterEmissionData");
 
     [SerializeField] private Material _groundMaterial;
     [SerializeField] private Material _waterMaterial;
@@ -52,6 +56,11 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
     [Inject] private Grid _grid;
 
     private readonly Dictionary<Vector2Int, ChunkRenderData> _chunks = new();
+    private readonly Vector4[] _waterEmissionData =
+        new Vector4[WaterTilePayload.MaxTextureIndex + 1];
+    private readonly bool[] _waterEmissionAssigned =
+        new bool[WaterTilePayload.MaxTextureIndex + 1];
+    private readonly HashSet<int> _waterEmissionConflictWarnings = new();
     private readonly HashSet<Vector2Int> _dirtyBakeChunks = new();
     private readonly HashSet<Vector2Int> _runningBakeChunks = new();
     private readonly ConcurrentQueue<ChunkBakeOutput> _completedBakes = new();
@@ -312,7 +321,18 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             ? _waterMaterial
             : _groundMaterial;
         if (material != null)
+        {
             renderer.sharedMaterial = material;
+            if (layer == PersistentTileLayer.Water && _worldGeneration != null)
+            {
+                material.SetFloat(
+                    WaterHeightId,
+                    _worldGeneration.Elevation.waterHeight);
+                material.SetVectorArray(
+                    WaterEmissionDataId,
+                    _waterEmissionData);
+            }
+        }
 
         if (collider != null)
         {
@@ -374,6 +394,7 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             : AcquireChunkRenderData();
         chunk.Reset(owner, chunkPosition, NextBakeVersion());
         CopyCells(chunkPosition, (int)PersistentTileLayer.Ground, groundTiles, chunk);
+        RegisterWaterEmissionData(waterTiles);
         CopyCells(chunkPosition, (int)PersistentTileLayer.Water, waterTiles, chunk);
         CopyCells(chunkPosition, (int)PersistentTileLayer.Wall, wallTiles, chunk);
         CopyCells(chunkPosition, (int)PersistentTileLayer.Ceiling, ceilingTiles, chunk);
@@ -624,13 +645,18 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         if (candidate == null || winner == null)
             return candidateColor;
 
+        Color surfaceColor = WaterTilePayload.DecodeSurfaceColor(candidateColor);
         Color source = candidate.Color;
         Color target = winner.Color;
-        return new Color(
-            RemapColorChannel(candidateColor.r, source.r, target.r),
-            RemapColorChannel(candidateColor.g, source.g, target.g),
-            RemapColorChannel(candidateColor.b, source.b, target.b),
-            RemapColorChannel(candidateColor.a, source.a, target.a));
+        Color remappedSurface = new(
+            RemapColorChannel(surfaceColor.r, source.r, target.r),
+            RemapColorChannel(surfaceColor.g, source.g, target.g),
+            RemapColorChannel(surfaceColor.b, source.b, target.b),
+            1f);
+        return WaterTilePayload.Encode(
+            remappedSurface,
+            WaterTilePayload.DecodeDepth(candidateColor),
+            winner.waterTextureIndex);
     }
 
     private static float RemapColorChannel(
@@ -658,6 +684,67 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         return TryGetTileData(layer, worldCell, out _);
     }
 
+    /// <summary>
+    /// Copies the visible ground, water, and wall colors for one chunk into a
+    /// single map layer. This avoids UI code querying 3,072 cells through the
+    /// public world-cell API or reading back rendered tilemap textures.
+    /// </summary>
+    public bool CopyMapColors(
+        Vector2Int chunkPosition,
+        Color32[] destination)
+    {
+        if (destination == null || destination.Length < CellCount)
+            throw new ArgumentException(
+                $"A map color buffer must contain at least {CellCount} cells.",
+                nameof(destination));
+
+        if (!_chunks.TryGetValue(chunkPosition, out ChunkRenderData chunk))
+            return false;
+
+        LogicalCell[] ground =
+            chunk.Layers[(int)PersistentTileLayer.Ground];
+        LogicalCell[] water =
+            chunk.Layers[(int)PersistentTileLayer.Water];
+        LogicalCell[] walls =
+            chunk.Layers[(int)PersistentTileLayer.Wall];
+
+        for (int index = 0; index < CellCount; index++)
+        {
+            LogicalCell cell = ground[index];
+            bool isWater = false;
+            if (water[index].Tile != null)
+            {
+                cell = water[index];
+                isWater = true;
+            }
+            if (walls[index].Tile != null)
+            {
+                cell = walls[index];
+                isWater = false;
+            }
+            if (chunk.TransientWalls[index].HasValue)
+            {
+                cell = chunk.TransientWalls[index].Value;
+                isWater = false;
+            }
+
+            if (cell.Tile == null)
+            {
+                destination[index] = new Color32(0, 0, 0, 0);
+                continue;
+            }
+
+            Color32 mapColor = isWater
+                ? WaterTilePayload.DecodeSurfaceColor(cell.Color)
+                : cell.Color;
+            if (isWater)
+                mapColor.a = byte.MaxValue;
+            destination[index] = mapColor;
+        }
+
+        return true;
+    }
+
     public void SetTile(
         PersistentTileLayer layer,
         Vector3Int worldCell,
@@ -674,8 +761,51 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             return;
         }
 
+        if (layer == PersistentTileLayer.Water)
+            RegisterWaterEmissionData(tile);
         chunk.Layers[(int)layer][index] = new LogicalCell(tile, color);
         RebakeCellAndNeighbors(layer, worldCell);
+    }
+
+    private void RegisterWaterEmissionData(IReadOnlyList<CellData> cells)
+    {
+        for (int i = 0; i < (cells?.Count ?? 0); i++)
+            RegisterWaterEmissionData(cells[i].Tile);
+    }
+
+    private void RegisterWaterEmissionData(TileData tile)
+    {
+        if (tile == null || _waterMaterial == null)
+            return;
+
+        int index = Mathf.Clamp(
+            tile.waterTextureIndex,
+            0,
+            WaterTilePayload.MaxTextureIndex);
+        Color emission = tile.waterEmissionColor;
+        Vector4 value = new(
+            emission.r,
+            emission.g,
+            emission.b,
+            Mathf.Max(0f, tile.waterEmissionStrength));
+        if (_waterEmissionAssigned[index])
+        {
+            if (_waterEmissionData[index] != value &&
+                _waterEmissionConflictWarnings.Add(index))
+            {
+                Debug.LogWarning(
+                    $"Water tiles sharing texture index {index} must also share emission settings. " +
+                    $"Keeping the first registered settings; '{tile.name}' differs.",
+                    tile);
+            }
+            return;
+        }
+
+        _waterEmissionAssigned[index] = true;
+        _waterEmissionData[index] = value;
+        _waterMaterial.SetVectorArray(
+            WaterEmissionDataId,
+            _waterEmissionData);
     }
 
     /// <summary>
@@ -748,6 +878,29 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
             layer,
             IndexToLocalCell(index),
             color);
+    }
+
+    public void SetTint(
+        PersistentTileLayer layer,
+        Vector3Int worldCell,
+        Color color)
+    {
+        if ((uint)layer >= PersistentLayerCount ||
+            !TryGetChunkAndIndex(
+                worldCell,
+                out Vector2Int chunkPosition,
+                out int index) ||
+            !_chunks.TryGetValue(chunkPosition, out ChunkRenderData chunk))
+        {
+            return;
+        }
+
+        LogicalCell cell = chunk.Layers[(int)layer][index];
+        if (cell.Tile == null)
+            return;
+
+        chunk.Layers[(int)layer][index] = new LogicalCell(cell.Tile, color);
+        chunk.Owner.SetBakedTint(layer, IndexToLocalCell(index), color);
     }
 
     private void MarkChunkAndLoadedNeighborsDirty(Vector2Int chunkPosition)

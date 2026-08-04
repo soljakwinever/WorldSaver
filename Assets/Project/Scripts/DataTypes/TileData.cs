@@ -35,6 +35,33 @@ namespace Project.Scripts.DataTypes
         [Tooltip("Optional tile placed on the ceiling layer while this wall exists.")]
         public TileData ceilingTile;
 
+        [Header("Soil Moisture")]
+        [Tooltip("Opt in to hourly saturation simulation and dry-to-saturated tinting. Disabled tiles are never recolored by moisture.")]
+        public bool usesMoistureTint;
+        public Color dryColor = Color.white;
+        public Color saturatedColor = Color.white;
+        [Min(0.01f)] public float maximumWaterPoints = 10f;
+        [Min(0f)] public float waterPointsLostPerHour = 1f;
+        [Min(0f)] public float rainWaterPointsPerHour = 1f;
+
+        /// <summary>Returns a multiplicative tint; white preserves the base tile color.</summary>
+        public Color GetMoistureColor(float waterPoints) =>
+            Color.Lerp(
+                dryColor,
+                saturatedColor,
+                Mathf.Clamp01(waterPoints / Mathf.Max(0.01f, maximumWaterPoints)));
+
+        [Header("Water Rendering")]
+        [Range(0, WaterTilePayload.MaxTextureIndex)]
+        [Tooltip("Texture2DArray slice used when this tile is rendered as water. Connected generated pools use the index from their resolved liquid tile.")]
+        public int waterTextureIndex;
+        [ColorUsage(true, true)]
+        [Tooltip("Emission color used when this tile is rendered as water.")]
+        public Color waterEmissionColor = Color.black;
+        [Min(0f)]
+        [Tooltip("Emission intensity used when this tile is rendered as water.")]
+        public float waterEmissionStrength;
+
         [Header("AI Pathing")]
         [Tooltip("Additional traversal hint used by AI path searches.")]
         public AiPathingTerrain pathingTerrain;
@@ -43,6 +70,11 @@ namespace Project.Scripts.DataTypes
         public float pathingCost = 1f;
         [Tooltip("Stable immunity ID required to safely cross a hazard. Non-immune AI treats the tile as blocked.")]
         public string hazardImmunityId;
+
+        [Header("Player Hazard")]
+        [Min(0)]
+        [Tooltip("Environmental damage dealt to the player for each full second spent on this tile. Zero makes the tile harmless to the player.")]
+        public int damagePerSecond;
 
         [Header("Wall Durability")]
         [Tooltip("Baseline hit points for this wall. Runtime HP is persisted only after it changes.")]

@@ -1,6 +1,7 @@
 ﻿using Project.Scripts.Bus;
 using Project.Scripts.DataTypes;
 using System;
+using System.Collections.Generic;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using Project.Scripts.Utility;
@@ -31,6 +32,7 @@ namespace Project.Scripts.Gameplay
         [SerializeField] private RecipeList craftingRecipeList;
         
         [Inject] private PlayerBus _playerBus;
+        [InjectOptional] private IWaterTileQuery _waterTileQuery;
         
         private bool _inputSubscribed;
         
@@ -234,12 +236,51 @@ namespace Project.Scripts.Gameplay
         
         private void TryDirectInteract()
         {
+            if (TryPerformSelectedDirectTileAction())
+                return;
+
+            if (TryRefillSelectedWateringCan())
+                return;
+
             if (focusedInteractable == null)
                 return;
 
             InteractionContext context = CreateDirectInteractionContext();
             if (focusedInteractable.CanInteract(context))
                 focusedInteractable.Interact(context);
+        }
+
+        private bool TryPerformSelectedDirectTileAction()
+        {
+            if (_toolbarController?.SelectedItemAction is not
+                ItemActionBinding
+                {
+                    PerformsOnDirectTileInteraction: true
+                } binding)
+            {
+                return false;
+            }
+
+            ActionContext context = new(
+                gameObject,
+                transform.position,
+                spawnItemDrop: SpawnItemDrop);
+            return binding.CanPerform(context) && binding.Perform(context);
+        }
+
+        private bool TryRefillSelectedWateringCan()
+        {
+            if (_toolbarController?.SelectedItemAction is not ItemActionBinding binding ||
+                binding.ItemData == null ||
+                !binding.ItemData.TryGetActionData(out WaterTileToolActionData _) ||
+                _inventory == null)
+            {
+                return false;
+            }
+
+            Vector3Int cell = Vector3Int.FloorToInt(transform.position);
+            return _waterTileQuery?.IsWaterTile(cell) == true &&
+                   _inventory.TryRefillDurability(binding.ItemData);
         }
 
         public bool CanPerformSelectedAction()
@@ -361,15 +402,36 @@ namespace Project.Scripts.Gameplay
                 closestTarget = candidate;
             }
 
-            if (closestTarget == null)
+            ToolData selectedTool = GetSelectedTool();
+            if (closestTarget == null && selectedTool?.WeaponSwing == null)
                 return false;
 
-            int delivered = _attackService.Attack(
-                closestTarget,
-                new AttackContext(
-                    gameObject,
-                    GetSelectedTool(),
-                    attackForce));
+            AttackContext attack = new(
+                gameObject,
+                selectedTool,
+                attackForce);
+            if (selectedTool?.WeaponSwing != null)
+            {
+                WeaponSwingController swing =
+                    GetComponent<WeaponSwingController>() ??
+                    gameObject.AddComponent<WeaponSwingController>();
+                HashSet<IDamageable> damaged = new();
+                return swing.TryPlay(
+                    selectedTool.WeaponSwing,
+                    facingPoint != null
+                        ? facingPoint.position
+                        : transform.position + (Vector3)Vector2.down,
+                    hit =>
+                    {
+                        IDamageable target =
+                            hit.GetComponentInParent<IDamageable>() ??
+                            hit.GetComponentInChildren<IDamageable>();
+                        if (target != null && damaged.Add(target))
+                            _attackService.Attack(target, attack);
+                    });
+            }
+
+            int delivered = _attackService.Attack(closestTarget, attack);
             return delivered > 0;
         }
 
@@ -478,12 +540,23 @@ namespace Project.Scripts.Gameplay
 
             if (context.AttackPressed && !IsPointerBlockingWorldAction())
             {
-                bool skillSelected = _toolbarController.SelectedItemAction is SkillActionBinding;
-                if (skillSelected ? TryPerformSelectedAction() : TryAttackDamageable())
+                bool skillSelected =
+                    _toolbarController.SelectedItemAction is SkillActionBinding ||
+                    _toolbarController.SelectedItemAction is ItemActionBinding
+                    {
+                        ItemData: not null
+                    } itemSkill &&
+                    itemSkill.ItemData.TryGetActionData(
+                        out UseSkillItemActionData _);
+                ToolData selectedTool = GetSelectedTool();
+                bool ignoresEntities = selectedTool != null && selectedTool.IgnoreEntities;
+                if (skillSelected || ignoresEntities
+                        ? TryPerformSelectedAction()
+                        : TryAttackDamageable())
                 {
                     _repeatActionBlockedUntilRelease = true;
                 }
-                else if (!skillSelected)
+                else if (!skillSelected && !ignoresEntities)
                 {
                     TryPerformSelectedAction();
 

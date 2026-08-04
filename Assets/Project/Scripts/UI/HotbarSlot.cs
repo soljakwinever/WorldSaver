@@ -15,6 +15,7 @@ namespace Project.Scripts.UI
         public int SlotId { get; set; }
         
         private readonly Label _countLabel;
+        private readonly VisualElement _fillOverlay;
         private IVisualElementScheduledItem _refreshItem;
 
 
@@ -34,28 +35,30 @@ namespace Project.Scripts.UI
                             ? DisplayStyle.Flex : DisplayStyle.None;
 
                     sprite = displayable.Sprite;
-                    tooltip = displayable.Label;
                     RefreshDisplay();
 
-                    if (displayable.Refresh > 0f)
-                    {
-                        long refreshMilliseconds =
-                            Mathf.Max(
-                                1,
-                                Mathf.RoundToInt(displayable.Refresh * 1000f));
-                        _refreshItem = schedule
-                            .Execute(RefreshDisplay)
-                            .Every(refreshMilliseconds);
-                    }
                 }
                 else
                 {
                     _countLabel.style.display = DisplayStyle.None;
-                    tooltip = action?.Tooltip;
+                }
+
+                float refresh = action is IDisplayable refreshedDisplay
+                    ? refreshedDisplay.Refresh
+                    : 0f;
+                if (action is IHotbarFill fill && fill.FillRefresh > 0f)
+                    refresh = refresh > 0f
+                        ? Mathf.Min(refresh, fill.FillRefresh)
+                        : fill.FillRefresh;
+                if (refresh > 0f)
+                {
+                    _refreshItem = schedule.Execute(RefreshDisplay).Every(
+                        Mathf.Max(1, Mathf.RoundToInt(refresh * 1000f)));
                 }
 
                 sprite = action?.Icon;
                 _countLabel.visible  = value != null;
+                RefreshDisplay();
             }
         }
 
@@ -63,6 +66,17 @@ namespace Project.Scripts.UI
         {
             if (action is IDisplayable displayable)
                 _countLabel.text = displayable.Count.ToString();
+            if (action is IHotbarFill fill && fill.DisplayFill)
+            {
+                _fillOverlay.style.display = DisplayStyle.Flex;
+                _fillOverlay.style.height =
+                    Length.Percent(Mathf.Clamp01(fill.Fill01) * 100f);
+                _fillOverlay.style.backgroundColor = fill.FillColor;
+            }
+            else
+            {
+                _fillOverlay.style.display = DisplayStyle.None;
+            }
         }
 
         private bool isActive;
@@ -82,6 +96,8 @@ namespace Project.Scripts.UI
         public HotbarSlot()
         {
             AddToClassList(UssClassName);
+            pickingMode = PickingMode.Position;
+            UniversalToolTip.Bind(this, () => action);
             
             style.borderBottomLeftRadius 
                 = style.borderBottomRightRadius 
@@ -90,6 +106,19 @@ namespace Project.Scripts.UI
             
             style.width = 64;
             style.aspectRatio = 1;
+            style.overflow = Overflow.Hidden;
+
+            _fillOverlay = new VisualElement
+            {
+                name = "hotbar-slot__fill",
+                pickingMode = PickingMode.Ignore
+            };
+            _fillOverlay.style.position = Position.Absolute;
+            _fillOverlay.style.left = 0;
+            _fillOverlay.style.right = 0;
+            _fillOverlay.style.bottom = 0;
+            _fillOverlay.style.height = 0;
+            _fillOverlay.style.display = DisplayStyle.None;
             
             _countLabel = new Label()
             {
@@ -103,6 +132,7 @@ namespace Project.Scripts.UI
             style.flexDirection = FlexDirection.Row;
             style.marginLeft = style.marginRight = 1;
             
+            hierarchy.Add(_fillOverlay);
             hierarchy.Add(_countLabel);
         }
     }

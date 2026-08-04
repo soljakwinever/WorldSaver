@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Project.Scripts;
+using Project.Scripts.Actions;
 using Project.Scripts.AI;
 using Project.Scripts.AI.Leaves.Actions;
 using Project.Scripts.AI.Leaves.Sensors;
@@ -34,7 +36,7 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
-        public void AttackTargetUsesAttackService()
+        public void AttackTargetUsesEnemyNormalAttackSkill()
         {
             GameObject attacker = CreateGameObject("Attacker");
             GameObject target = CreateGameObject("Target");
@@ -42,17 +44,54 @@ namespace Project.Tests.EditMode
             health.Initialize(10);
             target.transform.position = Vector3.right;
 
+            AttackSkillAction attackAction =
+                CreateScriptableObject<AttackSkillAction>();
+            SkillData normalAttack = CreateScriptableObject<SkillData>();
+            SetField(
+                normalAttack,
+                "actionData",
+                new SkillActionData[]
+                {
+                    new AttackSkillActionData
+                    {
+                        action = attackAction,
+                        mode = SkillActionMode.Active,
+                        baseDamage = 3
+                    }
+                });
+            EnemyData enemyData = CreateScriptableObject<EnemyData>();
+            enemyData.attack = 2;
+            enemyData.NormalAttack = normalAttack;
+            attacker.AddComponent<EnemyRuntime>().Initialize(enemyData);
+            Assert.That(
+                attacker.GetComponent<AiNodeRunner>().Blackboard.GetOrDefault(
+                    AiKeys.Attack),
+                Is.EqualTo(2));
+            Assert.That(
+                attacker.GetComponent<AiNodeRunner>().Blackboard.GetOrDefault(
+                    AiKeys.MovementSpeed),
+                Is.EqualTo(enemyData.movementSpeed));
+            Assert.That(
+                attacker.GetComponent<AiNodeRunner>().Blackboard.GetOrDefault(
+                    AiKeys.SprintMultiplier),
+                Is.EqualTo(enemyData.sprintMultiplier));
+            Assert.That(
+                attacker.GetComponent<AiNodeRunner>().Blackboard.GetOrDefault(
+                    AiKeys.Accuracy),
+                Is.EqualTo(enemyData.accuracy));
+            AttackService attackService = new(new EntityBus());
+            attacker.GetComponent<SkillRuntime>().Initialize(attackService);
+
             AttackTarget node = new();
-            SetField(node, "force", 3);
             SetField(node, "maximumRange", 2f);
             Blackboard blackboard = CreateBlackboard(attacker, target.transform);
-            blackboard.Set(
-                AiKeys.AttackService,
-                new AttackService(new EntityBus()));
+            blackboard.Set(AiKeys.EnemyData, enemyData);
+            blackboard.Set(AiKeys.Attack, enemyData.attack);
+            blackboard.Set(AiKeys.AttackService, attackService);
             node.Bind(blackboard);
 
             Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Success));
-            Assert.That(health.Health, Is.EqualTo(7));
+            Assert.That(health.Health, Is.EqualTo(5));
         }
 
         [Test]
@@ -65,7 +104,6 @@ namespace Project.Tests.EditMode
             target.transform.position = Vector3.right * 3f;
 
             AttackTarget node = new();
-            SetField(node, "force", 3);
             SetField(node, "maximumRange", 2f);
             Blackboard blackboard = CreateBlackboard(attacker, target.transform);
             blackboard.Set(
@@ -75,6 +113,66 @@ namespace Project.Tests.EditMode
 
             Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Failure));
             Assert.That(health.Health, Is.EqualTo(10));
+        }
+
+        [Test]
+        public void ConditionalSkillEvaluatorSelectsFirstValidSkill()
+        {
+            GameObject enemyObject = CreateGameObject("Enemy");
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = Vector3.right * 1.5f;
+            SkillData charge = CreateScriptableObject<SkillData>();
+            SkillData fallback = CreateScriptableObject<SkillData>();
+            WeaponSwingAnimation basicSwing =
+                CreateScriptableObject<WeaponSwingAnimation>();
+            WeaponSwingAnimation chargeSwing =
+                CreateScriptableObject<WeaponSwingAnimation>();
+            EnemyData enemy = CreateScriptableObject<EnemyData>();
+            enemy.BasicAttackWeaponSwing = basicSwing;
+            enemy.conditionalSkills = new[]
+            {
+                new ConditionalEnemySkill
+                {
+                    skill = charge,
+                    weaponSwing = chargeSwing,
+                    condition = new EnemySkillCondition
+                    {
+                        type = EnemySkillConditionType.DistanceToTarget,
+                        distance = 2f
+                    }
+                },
+                new ConditionalEnemySkill
+                {
+                    skill = fallback,
+                    condition = new EnemySkillCondition
+                    {
+                        type = EnemySkillConditionType.Always
+                    }
+                }
+            };
+
+            Blackboard blackboard = CreateBlackboard(
+                enemyObject, target.transform);
+            blackboard.Set(AiKeys.EnemyData, enemy);
+            EvaluateConditionalSkills node = new();
+            node.Bind(blackboard);
+
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Success));
+            Assert.That(
+                blackboard.GetOrDefault(AiKeys.ConditionalSkill),
+                Is.SameAs(charge));
+            Assert.That(
+                blackboard.GetOrDefault(AiKeys.ConditionalWeaponSwing),
+                Is.SameAs(chargeSwing));
+
+            target.transform.position = Vector3.right * 3f;
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Success));
+            Assert.That(
+                blackboard.GetOrDefault(AiKeys.ConditionalSkill),
+                Is.SameAs(fallback));
+            Assert.That(
+                blackboard.GetOrDefault(AiKeys.ConditionalWeaponSwing),
+                Is.SameAs(basicSwing));
         }
 
         [Test]
@@ -105,6 +203,31 @@ namespace Project.Tests.EditMode
             Assert.That(
                 projectileService.LastContext.Direction,
                 Is.EqualTo(Vector2.right));
+        }
+
+        [Test]
+        public void FloatMathBindingUsesLiveBlackboardValues()
+        {
+            Blackboard blackboard = new();
+            blackboard.Set(AiKeys.MovementSpeed, 3f);
+            blackboard.Set(AiKeys.SprintMultiplier, 2f);
+            FloatBindingNode node = new();
+            node.SetFloatBinding(
+                "value",
+                new AiFloatMathExpression(
+                    new AiFloatVariableExpression(
+                        AiFloatVariable.MovementSpeed),
+                    new AiFloatVariableExpression(
+                        AiFloatVariable.SprintMultiplier),
+                    AiFloatOperation.Multiply));
+            node.Bind(blackboard);
+
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Success));
+            Assert.That(node.Value, Is.EqualTo(6f));
+
+            blackboard.Set(AiKeys.MovementSpeed, 4f);
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Success));
+            Assert.That(node.Value, Is.EqualTo(8f));
         }
 
         [Test]
@@ -238,6 +361,26 @@ namespace Project.Tests.EditMode
             Assert.That(blackboard.GetOrDefault(AiKeys.Target), Is.Null);
         }
 
+        [Test]
+        public void DetectNearbyRetainsFleeTargetBeyondAcquisitionRange()
+        {
+            GameObject self = CreateGameObject("Self");
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = Vector3.right * 10f;
+
+            DetectNearby node = new();
+            SetField(node, "distance", 3f);
+            SetField(node, "tag", string.Empty);
+            Blackboard blackboard = CreateBlackboard(self, target.transform);
+            blackboard.Set(AiKeys.TargetRetentionDistance, 12f);
+            node.Bind(blackboard);
+
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Success));
+            Assert.That(
+                blackboard.GetOrDefault(AiKeys.Target),
+                Is.SameAs(target.transform));
+        }
+
         private Blackboard CreateBlackboard(
             GameObject self,
             Transform target)
@@ -286,6 +429,14 @@ namespace Project.Tests.EditMode
                 LastContext = context;
                 return true;
             }
+        }
+
+        private sealed class FloatBindingNode : AiNode
+        {
+            private float value;
+            public float Value => value;
+
+            protected override NodeState OnTick() => NodeState.Success;
         }
 
         private sealed class WalkableMap : IPathFindingMap

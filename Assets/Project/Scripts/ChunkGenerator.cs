@@ -15,8 +15,15 @@ namespace Project.Scripts
         public bool IsRunning { get; private set; }
         
         private readonly Queue<Vector2Int> pendingChunks = new Queue<Vector2Int>();
-        private readonly List<Task<ChunkBuildResult>> runningTasks = new List<Task<ChunkBuildResult>>();
+        private readonly List<RunningChunkTask> runningTasks = new();
         private readonly Queue<ChunkBuildResult> completedChunks = new ();
+
+        private sealed class RunningChunkTask
+        {
+            public Vector2Int Position;
+            public Task<ChunkBuildResult> Task;
+            public CancellationTokenSource Cancellation;
+        }
         
         public int maxConcurrentTasks = 2;
         public int maxChunksAppliedPerFrame = 1;
@@ -49,6 +56,7 @@ namespace Project.Scripts
             IsRunning = true;
             do
             {
+                CancelDistantTasks();
                 StartPendingTasks(cancellationToken);
                 CollectCompletedTasks();
 
@@ -57,17 +65,21 @@ namespace Project.Scripts
                 while (completedChunks.Count > 0 && applied < maxChunksAppliedPerFrame && !cancellationToken.IsCancellationRequested)
                 {
                     var result = completedChunks.Dequeue();
-                    applied++;
-
                     if(cancellationToken.IsCancellationRequested) break;
+
+                    if (!_chunkLoader.ShouldLoadChunk(result.chunkPosition))
+                    {
+                        queuedOrRunning.Remove(result.chunkPosition);
+                        continue;
+                    }
+
+                    applied++;
                     
                     mapSignalBus.RaiseChunkBuilt(result);
                     //chunkloader.ReportSpawn(chunk);
                     
                     completed.Add(result.chunkPosition);
                     queuedOrRunning.Remove(result.chunkPosition);
-
-                    applied++;
                 }
 
                 await Awaitable.NextFrameAsync(cancellationToken);
@@ -77,20 +89,39 @@ namespace Project.Scripts
             {
                 for (int i = runningTasks.Count - 1; i >= 0; i--)
                 {
-                    Task<ChunkBuildResult> task = runningTasks[i];
+                    RunningChunkTask running = runningTasks[i];
+                    Task<ChunkBuildResult> task = running.Task;
                     
                     if(!task.IsCompleted)
                         continue;
                     
                     runningTasks.RemoveAt(i);
 
+                    running.Cancellation.Dispose();
+
                     if (task.IsFaulted)
                     {
                         Debug.LogException(task.Exception);
+                        queuedOrRunning.Remove(running.Position);
+                        continue;
+                    }
+                    if (task.IsCanceled ||
+                        !_chunkLoader.ShouldLoadChunk(running.Position))
+                    {
+                        queuedOrRunning.Remove(running.Position);
                         continue;
                     }
                     
                     completedChunks.Enqueue(task.Result);
+                }
+            }
+
+            void CancelDistantTasks()
+            {
+                foreach (RunningChunkTask running in runningTasks)
+                {
+                    if (!_chunkLoader.ShouldLoadChunk(running.Position))
+                        running.Cancellation.Cancel();
                 }
             }
         }
@@ -103,9 +134,19 @@ namespace Project.Scripts
 
         private void StartPendingTasks(CancellationToken cancellationToken = default)
         {
-            if (pendingChunks.Count > 0 && runningTasks.Count < maxConcurrentTasks)
+            // Fill every available worker slot immediately. Starting at most one
+            // task per frame left cores idle between completions and made the
+            // initial ring of chunks take noticeably longer to become ready.
+            while (pendingChunks.Count > 0 &&
+                   runningTasks.Count < Mathf.Max(1, maxConcurrentTasks))
             {
                 var chunkPosition = pendingChunks.Dequeue();
+                if (_chunkLoader == null ||
+                    !_chunkLoader.ShouldLoadChunk(chunkPosition))
+                {
+                    queuedOrRunning.Remove(chunkPosition);
+                    continue;
+                }
                 
                 //Todo: World Snapshot
 
@@ -113,13 +154,27 @@ namespace Project.Scripts
                     .ShuffleXY(chunkPosition.x, chunkPosition.y)
                     .ToArray();
                 
-                Task<ChunkBuildResult> task = Task.Run(() => BuildChunk(chunkPosition, worldGeneration, propSpawnRules, cancellationToken), cancellationToken);
+                CancellationTokenSource chunkCancellation =
+                    CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken);
+                Task<ChunkBuildResult> task = Task.Run(
+                    () => BuildChunk(
+                        chunkPosition,
+                        worldGeneration,
+                        propSpawnRules,
+                        chunkCancellation.Token),
+                    chunkCancellation.Token);
 
-                runningTasks.Add(task);
+                runningTasks.Add(new RunningChunkTask
+                {
+                    Position = chunkPosition,
+                    Task = task,
+                    Cancellation = chunkCancellation
+                });
             }
         }
 
-        private static async Task<ChunkBuildResult> BuildChunk(Vector2Int position, WorldGeneration worldGeneration, IEnumerable<PropSpawnRule> propSpawnRules, CancellationToken cancellationToken = default)
+        private static ChunkBuildResult BuildChunk(Vector2Int position, WorldGeneration worldGeneration, IEnumerable<PropSpawnRule> propSpawnRules, CancellationToken cancellationToken = default)
         {
             ChunkBuildResult result = new ChunkBuildResult(position);
 
@@ -135,14 +190,16 @@ namespace Project.Scripts
                     
                     int index = result.GetTileIndex(x, y);
 
-                    int tileIndex = worldGeneration.GetTile(
+                    int tileIndex = worldGeneration.GetTileForChunk(
                         worldX,
                         worldY,
                         out result.biomeData[index],
                         out result.heights[index],
                         out result.moisture[index],
                         out result.temperature[index],
-                        out result.floorTiles[index]);
+                        out result.floorTiles[index],
+                        out result.terrainKinds[index],
+                        out result.isCliff[index]);
                     
                     result.tileIndexes[index] = tileIndex;
                     
@@ -153,26 +210,92 @@ namespace Project.Scripts
                     break;
             }
 
-            for (int y = 0; y < IChunk.ChunkSize; y++)
-            {
-                for (int x = 0; x < IChunk.ChunkSize; x++)
-                {
-                    int index = result.GetTileIndex(x, y);
+            cancellationToken.ThrowIfCancellationRequested();
 
-                    result.isCliff[index] = worldGeneration.IsSmallCliff(offsetX+x, offsetY+y);
-                    
-                    if(cancellationToken.IsCancellationRequested)
+            if (!worldGeneration.UsesCaveLayout)
+            {
+                // IsSmallCliff samples the center and five neighbors. Calling it
+                // independently for every cell repeated almost all terrain work
+                // six times. Cache this chunk plus the narrow halo needed by the
+                // classifier, then reuse those heights for every cell.
+                const int horizontalPadding = 1;
+                const int bottomPadding = 1;
+                const int topPadding = 2;
+                int sampleWidth = IChunk.ChunkSize + horizontalPadding * 2;
+                int sampleHeight = IChunk.ChunkSize + bottomPadding + topPadding;
+                float[] cliffHeights = new float[sampleWidth * sampleHeight];
+
+                for (int sampleY = -bottomPadding;
+                     sampleY < IChunk.ChunkSize + topPadding;
+                     sampleY++)
+                {
+                    for (int sampleX = -horizontalPadding;
+                         sampleX < IChunk.ChunkSize + horizontalPadding;
+                         sampleX++)
+                    {
+                        int sampleIndex =
+                            sampleX + horizontalPadding +
+                            (sampleY + bottomPadding) * sampleWidth;
+                        bool isInside =
+                            (uint)sampleX < IChunk.ChunkSize &&
+                            (uint)sampleY < IChunk.ChunkSize;
+                        if (isInside)
+                        {
+                            cliffHeights[sampleIndex] =
+                                result.heights[result.GetTileIndex(sampleX, sampleY)];
+                        }
+                        else
+                        {
+                            worldGeneration.GetTile(
+                                offsetX + sampleX,
+                                offsetY + sampleY,
+                                out _,
+                                out cliffHeights[sampleIndex],
+                                out _,
+                                out _,
+                                out _);
+                        }
+
+                        if (cancellationToken.IsCancellationRequested)
+                            break;
+                    }
+                    if (cancellationToken.IsCancellationRequested)
                         break;
                 }
-                if(cancellationToken.IsCancellationRequested)
-                    break;
+
+                for (int y = 0; y < IChunk.ChunkSize; y++)
+                for (int x = 0; x < IChunk.ChunkSize; x++)
+                {
+                    int center = x + horizontalPadding +
+                                 (y + bottomPadding) * sampleWidth;
+                    float height = cliffHeights[center];
+                    float right = cliffHeights[center + 1];
+                    float left = cliffHeights[center - 1];
+                    float up = cliffHeights[center + sampleWidth];
+                    float down = cliffHeights[center - sampleWidth];
+                    float upTwo = cliffHeights[center + sampleWidth * 2];
+                    float highestNeighbor =
+                        Mathf.Max(right, left, up, Mathf.Max(down, upTwo));
+                    float upwardJump = highestNeighbor - height;
+                    result.isCliff[result.GetTileIndex(x, y)] =
+                        new ChunkBuildResult.IsCliff(
+                            upwardJump > worldGeneration.Elevation.cliffHeight &&
+                            height > worldGeneration.Elevation.waterHeight + 0.04f,
+                            Mathf.Approximately(highestNeighbor, down) ||
+                            Mathf.Approximately(highestNeighbor, up));
+                }
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
             
             HashSet<Vector2Int> propPositions = new HashSet<Vector2Int>();
             result.props = GeneratePropsForChunk(position, propSpawnRules, propPositions);
+            cancellationToken.ThrowIfCancellationRequested();
             AddFeatureBuildings(result);
-            RemoveSpawnPlatformConflicts(result);
-            AddSpawnPlatform(result);
+            worldGeneration.ApplyFeatureEntityGenerators(
+                position,
+                result.props);
+            cancellationToken.ThrowIfCancellationRequested();
             
             return result;
 
@@ -187,38 +310,6 @@ namespace Project.Scripts
                 }
             }
 
-            void RemoveSpawnPlatformConflicts(ChunkBuildResult chunkResult)
-            {
-                NodeData platform = worldGeneration.SpawnPlatformNode;
-                if (platform == null ||
-                    !SpaceReservationUtility.TryGetArea(
-                        platform,
-                        worldGeneration.WorldSpawnPosition,
-                        out RectInt area))
-                {
-                    return;
-                }
-
-                chunkResult.props.RemoveAll(candidate =>
-                    area.Contains(candidate.worldPosition));
-            }
-
-            void AddSpawnPlatform(ChunkBuildResult chunkResult)
-            {
-                if (!TryCreateSpawnPlatformData(
-                        worldGeneration,
-                        position,
-                        out PropSpawnData platformData))
-                {
-                    return;
-                }
-
-                chunkResult.props.RemoveAll(candidate =>
-                    candidate.worldPosition ==
-                    platformData.worldPosition);
-                chunkResult.props.Insert(0, platformData);
-            }
-
             List<PropSpawnData> GeneratePropsForChunk(Vector2Int chunkPosition, IEnumerable<PropSpawnRule> rules, HashSet<Vector2Int> propPositions)
             {
                 List<PropSpawnData> props = new List<PropSpawnData>();
@@ -228,6 +319,7 @@ namespace Project.Scripts
 
                 foreach (var rule in propSpawnRules)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     ProcessPropRule(rule, startX, staryY, props, propPositions);
                 }
                 
@@ -248,6 +340,7 @@ namespace Project.Scripts
 
                 for (int cy = minCellY, i = 0; cy < maxCellY; cy++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     for (int cx = minCellX; cx < maxCellX; cx++,i++)
                     {
                         TrySpawnPropInCell(i,rule, cx, cy, cellSize, startX, startY, props);
@@ -328,6 +421,8 @@ namespace Project.Scripts
             {
                 if(rule.avoidWater && sample.isWater)
                     return false;
+                if(sample.terrainKind != TerrainKind.Floor)
+                    return false;
                 if(rule.avoidCliffs && sample.isCliff)
                     return false;
                 if(rule.avoidRoads && sample.isRoad)
@@ -366,44 +461,5 @@ namespace Project.Scripts
             }
         }
 
-        public static bool TryCreateSpawnPlatformData(
-            WorldGeneration worldGeneration,
-            Vector2Int chunkPosition,
-            out PropSpawnData spawnData)
-        {
-            spawnData = default;
-            if (worldGeneration == null ||
-                worldGeneration.SpawnPlatformNode == null)
-            {
-                return false;
-            }
-
-            Vector2Int spawnPosition =
-                worldGeneration.WorldSpawnPosition;
-            if (WorldPartition.WorldToChunk(spawnPosition) != chunkPosition)
-                return false;
-
-            const string generatorName = "World Spawn Platform";
-            ushort generatorType =
-                NodeId.CreateGeneratorType(generatorName);
-            spawnData = new PropSpawnData
-            {
-                NodeId = NodeId.Create(
-                    worldGeneration.Seed,
-                    spawnPosition,
-                    generatorType,
-                    slot: 0),
-                worldPosition = spawnPosition,
-                propName = generatorName,
-                nodeData = worldGeneration.SpawnPlatformNode,
-                position = spawnPosition,
-                scale = 1f,
-                terrainSample = worldGeneration.GetTerrainSample(
-                    spawnPosition.x,
-                    spawnPosition.y),
-                persistenceKind = EntityPersistenceKind.Procedural
-            };
-            return true;
-        }
     }
 }

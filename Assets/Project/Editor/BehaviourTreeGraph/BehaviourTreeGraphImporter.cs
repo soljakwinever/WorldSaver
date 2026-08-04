@@ -133,6 +133,15 @@ namespace Project.Editor.AI
                     field,
                     attribute.Name);
                 IPort port = graphNode.GetInputPortByName(portName);
+                if (field.FieldType == typeof(float) &&
+                    TryBuildFloatExpression(
+                        port,
+                        new HashSet<INode>(),
+                        out AiFloatExpression expression))
+                {
+                    runtimeNode.SetFloatBinding(field.Name, expression);
+                    continue;
+                }
                 object value = GetPortValue(port, field.FieldType);
                 field.SetValue(runtimeNode, value);
             }
@@ -235,6 +244,52 @@ namespace Project.Editor.AI
 
             key = default;
             return false;
+        }
+
+        private static bool TryBuildFloatExpression(
+            IPort inputPort,
+            HashSet<INode> visiting,
+            out AiFloatExpression expression)
+        {
+            expression = null;
+            if (inputPort?.IsConnected != true)
+                return false;
+
+            INode source = inputPort.FirstConnectedPort.GetNode();
+            if (source == null || !visiting.Add(source))
+                return false;
+
+            switch (source)
+            {
+                case AiFloatSpecialVariable variable:
+                    expression = new AiFloatVariableExpression(
+                        variable.Variable);
+                    break;
+                case FloatMath math:
+                    AiFloatExpression left = BuildFloatOperand(
+                        math.GetInputPortByName(FloatMath.LeftPortName),
+                        visiting);
+                    AiFloatExpression right = BuildFloatOperand(
+                        math.GetInputPortByName(FloatMath.RightPortName),
+                        visiting);
+                    expression = new AiFloatMathExpression(
+                        left,
+                        right,
+                        math.Operation);
+                    break;
+            }
+
+            visiting.Remove(source);
+            return expression != null;
+        }
+
+        private static AiFloatExpression BuildFloatOperand(
+            IPort port,
+            HashSet<INode> visiting)
+        {
+            return TryBuildFloatExpression(port, visiting, out var expression)
+                ? expression
+                : new AiFloatConstantExpression(GetPortValue<float>(port));
         }
     }
 }

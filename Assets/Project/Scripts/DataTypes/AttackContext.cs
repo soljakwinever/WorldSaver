@@ -12,6 +12,12 @@ namespace Project.Scripts.DataTypes
         Magic = 2
     }
 
+    public enum SkillPowerMode : byte
+    {
+        Additive,
+        Multiplier
+    }
+
     [Flags]
     public enum EntityDamageSource
     {
@@ -61,6 +67,7 @@ namespace Project.Scripts.DataTypes
         public EntityDamageSource Source { get; }
         public IReadOnlyList<EntityTag> SourceTags { get; }
         public PlayerAttackType AttackType { get; }
+        public SkillPowerMode SkillPowerMode { get; }
 
         public AttackContext(GameObject attacker, ToolData weapon, int force)
             : this(
@@ -92,6 +99,7 @@ namespace Project.Scripts.DataTypes
             Source = source;
             Skill = null;
             AttackType = weapon != null ? weapon.AttackType : PlayerAttackType.Melee;
+            SkillPowerMode = SkillPowerMode.Additive;
             SourceTags = sourceTags?
                 .Where(tag => tag != null)
                 .Distinct()
@@ -101,7 +109,8 @@ namespace Project.Scripts.DataTypes
         public AttackContext(
             GameObject attacker, ToolData weapon, int force,
             EntityDamageSource source, IEnumerable<EntityTag> sourceTags,
-            SkillData skill, PlayerAttackType attackType)
+            SkillData skill, PlayerAttackType attackType,
+            SkillPowerMode skillPowerMode = SkillPowerMode.Additive)
         {
             if (attacker == null) throw new ArgumentNullException(nameof(attacker));
             if (force < 0) throw new ArgumentOutOfRangeException(nameof(force));
@@ -111,6 +120,7 @@ namespace Project.Scripts.DataTypes
             Source = source;
             Skill = skill;
             AttackType = attackType;
+            SkillPowerMode = skillPowerMode;
             SourceTags = sourceTags?.Where(tag => tag != null).Distinct().ToArray()
                          ?? Array.Empty<EntityTag>();
         }

@@ -30,6 +30,7 @@ namespace Project.Scripts.TimeAndWeather
         private readonly MapSignalBus _mapSignals;
         private readonly WeatherBus _weatherBus;
         private readonly IClimateCoreWeatherSource _climateCores;
+        private readonly PlaneData _plane;
         private float _globalTemperatureOffset;
         private readonly Dictionary<Vector2Int, ActiveRegion> _active = new();
         private readonly Dictionary<string, WeatherData> _weatherById =
@@ -406,7 +407,8 @@ namespace Project.Scripts.TimeAndWeather
             MapSignalBus mapSignals,
             WeatherBus weatherBus,
             WorldData worldData,
-            IClimateCoreWeatherSource climateCores)
+            IClimateCoreWeatherSource climateCores,
+            PlaneSelection planeSelection)
         {
             _climate = climate;
             _settings = settings;
@@ -415,6 +417,7 @@ namespace Project.Scripts.TimeAndWeather
             _mapSignals = mapSignals;
             _weatherBus = weatherBus;
             _climateCores = climateCores;
+            _plane = planeSelection.Plane;
             _globalTemperatureOffset =
                 Mathf.Clamp(worldData.globalTemperatureOffset, -2f, 2f);
 
@@ -577,7 +580,8 @@ namespace Project.Scripts.TimeAndWeather
                         sample.Region,
                         _clock.CurrentTick,
                         out string touchingWeatherId,
-                        out _))
+                        out _) &&
+                    IsWeatherAllowed(touchingWeatherId))
                 {
                     // The core touches this region but not this exact point.
                     // Remove its region-level presentation so particle
@@ -601,6 +605,9 @@ namespace Project.Scripts.TimeAndWeather
             }
 
             WeatherData weather = GetWeather(weatherId);
+            if (weather != null && !IsWeatherAllowed(weather.WeatherId))
+                return sample;
+
             if (weather == null || weather.Phases.Count == 0)
             {
                 // A configured core override remains authoritative even when
@@ -737,7 +744,9 @@ namespace Project.Scripts.TimeAndWeather
 
             state = GetForcedSampleState(region, state, tick);
 
-            WeatherData weather = GetWeather(state.WeatherId);
+            WeatherData weather = IsWeatherAllowed(state.WeatherId)
+                ? GetWeather(state.WeatherId)
+                : null;
             WeatherPhaseData phase = GetPhase(weather, state.PhaseIndex);
             float phaseProgress = GetPhaseProgress(state, tick);
             float ambient = climate.Temperature;
@@ -775,7 +784,7 @@ namespace Project.Scripts.TimeAndWeather
                 climate,
                 weather?.WeatherId,
                 phase?.PhaseId,
-                state.Intensity,
+                phase == null ? 0f : state.Intensity,
                 ambient,
                 ambientColorTint,
                 state.PuddleAccumulation,
@@ -799,13 +808,22 @@ namespace Project.Scripts.TimeAndWeather
                    StringComparison.Ordinal);
         }
 
+        public bool DoesWeatherWaterPlants(Vector2 worldPosition)
+        {
+            WeatherSample sample = Sample(worldPosition);
+            return sample.Intensity > 0f &&
+                   GetWeather(sample.WeatherId)?.WatersPlants == true;
+        }
+
         public async Awaitable<bool> TryStartWeatherAsync(
             Vector2Int region,
             string weatherId)
         {
             string normalizedId = weatherId?.Trim();
             WeatherData weather = GetWeather(normalizedId);
-            if (weather == null || weather.Phases.Count == 0)
+            if (weather == null ||
+                weather.Phases.Count == 0 ||
+                !IsWeatherAllowed(weather.WeatherId))
                 return false;
 
             long tick = _clock.CurrentTick;
@@ -921,7 +939,9 @@ namespace Project.Scripts.TimeAndWeather
 
             foreach (WeatherData definition in _settings.Weather)
             {
-                if (definition == null || definition.Phases.Count == 0)
+                if (definition == null ||
+                    definition.Phases.Count == 0 ||
+                    !IsWeatherAllowed(definition.WeatherId))
                     continue;
 
                 KernelWeather kernel = BakeWeather(
@@ -1170,8 +1190,25 @@ namespace Project.Scripts.TimeAndWeather
             long toTick,
             bool emitEvents)
         {
+            if (!IsWeatherAllowed(state.WeatherId))
+            {
+                string previousWeather = state.WeatherId;
+                if (emitEvents)
+                    StopEffects(region, state, fromTick);
+
+                SelectWeather(region, state, fromTick, previousWeather);
+                if (emitEvents)
+                {
+                    NotifyTransition(region, previousWeather, state, fromTick);
+                    StartEffects(region, state, fromTick);
+                }
+            }
+
             if (toTick <= fromTick)
+            {
+                state.LastWeatherTick = toTick;
                 return;
+            }
 
             long cursor = fromTick;
             int transitionGuard = 0;
@@ -1195,7 +1232,9 @@ namespace Project.Scripts.TimeAndWeather
                         toTick);
                     StartEffects(region, state, toTick);
                 }
-                WeatherData weather = GetWeather(state.WeatherId);
+                WeatherData weather = IsWeatherAllowed(state.WeatherId)
+                    ? GetWeather(state.WeatherId)
+                    : null;
                 WeatherPhaseData phase = GetPhase(weather, state.PhaseIndex);
 
                 if (phase == null)
@@ -1328,7 +1367,9 @@ namespace Project.Scripts.TimeAndWeather
                     out float influence))
             {
                 WeatherData forced = GetWeather(forcedWeatherId);
-                if (forced != null && forced.Phases.Count > 0)
+                if (forced != null &&
+                    forced.Phases.Count > 0 &&
+                    IsWeatherAllowed(forced.WeatherId))
                 {
                     state.WeatherId = forced.WeatherId;
                     state.PhaseIndex = SelectForcedPhaseIndex(
@@ -1350,7 +1391,9 @@ namespace Project.Scripts.TimeAndWeather
 
             foreach (WeatherData weather in _settings.Weather)
             {
-                if (weather == null || weather.Phases.Count == 0)
+                if (weather == null ||
+                    weather.Phases.Count == 0 ||
+                    !IsWeatherAllowed(weather.WeatherId))
                     continue;
 
                 float weight = weather.GetSelectionWeight(climate);
@@ -1413,7 +1456,9 @@ namespace Project.Scripts.TimeAndWeather
             }
 
             WeatherData weather = GetWeather(weatherId);
-            if (weather == null || weather.Phases.Count == 0)
+            if (weather == null ||
+                weather.Phases.Count == 0 ||
+                !IsWeatherAllowed(weather.WeatherId))
                 return state;
             WeatherRegionState forced = state.Clone();
             forced.WeatherId = weather.WeatherId;
@@ -1445,7 +1490,9 @@ namespace Project.Scripts.TimeAndWeather
             }
 
             WeatherData weather = GetWeather(weatherId);
-            if (weather == null || weather.Phases.Count == 0)
+            if (weather == null ||
+                weather.Phases.Count == 0 ||
+                !IsWeatherAllowed(weather.WeatherId))
                 return false;
 
             state.WeatherId = weather.WeatherId;
@@ -1649,6 +1696,11 @@ namespace Project.Scripts.TimeAndWeather
 
             _weatherById.TryGetValue(weatherId, out WeatherData weather);
             return weather;
+        }
+
+        private bool IsWeatherAllowed(string weatherId)
+        {
+            return _plane == null || _plane.AllowsWeather(weatherId);
         }
 
         private static WeatherPhaseData GetPhase(

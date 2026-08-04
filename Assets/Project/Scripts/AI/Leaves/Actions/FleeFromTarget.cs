@@ -63,6 +63,9 @@ namespace Project.Scripts.AI.Leaves.Actions
             if (self != null && map != null && pathFinder != null &&
                 TryGetThreatPosition(out Vector3 threatPosition))
             {
+                Blackboard.Set(
+                    AiKeys.TargetRetentionDistance,
+                    Mathf.Max(0f, safeDistance));
                 lastThreatPosition = threatPosition;
                 StartNextPathRequest();
             }
@@ -136,6 +139,8 @@ namespace Project.Scripts.AI.Leaves.Actions
                     path[waypointIndex],
                     pathQuery))
                 return NodeState.Failure;
+            if (self.GetComponentInChildren<IMovementLock>()?.IsMovementLocked == true)
+                return NodeState.Running;
             self.position = Vector3.MoveTowards(
                 self.position,
                 waypoint,
@@ -151,6 +156,7 @@ namespace Project.Scripts.AI.Leaves.Actions
 
         protected override void OnAbort()
         {
+            ClearTargetRetention();
             CancelPendingPath();
             path.Clear();
             waypointIndex = 0;
@@ -158,7 +164,14 @@ namespace Project.Scripts.AI.Leaves.Actions
 
         protected override void OnExit()
         {
+            ClearTargetRetention();
             CancelPendingPath();
+        }
+
+        private void ClearTargetRetention()
+        {
+            if (Blackboard != null)
+                Blackboard.Set(AiKeys.TargetRetentionDistance, 0f);
         }
 
         private bool StartNextPathRequest()

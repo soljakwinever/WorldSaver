@@ -47,12 +47,20 @@ namespace Project.Scripts.DataTypes
         public AttackContext Attack { get; }
         public Vector3 Origin { get; }
         public Vector2 Direction { get; }
+        public Vector3? Destination { get; }
+        public Action<Vector3> OnImpact { get; }
+        public GameObject TravelEffectPrefab { get; }
+        public bool DealDirectDamageOnImpact { get; }
 
         public ProjectileLaunchContext(
             ProjectileData projectile,
             AttackContext attack,
             Vector3 origin,
-            Vector2 direction)
+            Vector2 direction,
+            Vector3? destination = null,
+            Action<Vector3> onImpact = null,
+            GameObject travelEffectPrefab = null,
+            bool dealDirectDamageOnImpact = true)
         {
             Projectile = projectile != null
                 ? projectile
@@ -69,6 +77,10 @@ namespace Project.Scripts.DataTypes
             Attack = attack;
             Origin = origin;
             Direction = direction.normalized;
+            Destination = destination;
+            OnImpact = onImpact;
+            TravelEffectPrefab = travelEffectPrefab;
+            DealDirectDamageOnImpact = dealDirectDamageOnImpact;
         }
     }
 }

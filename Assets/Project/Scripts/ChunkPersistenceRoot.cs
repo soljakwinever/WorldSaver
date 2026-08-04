@@ -3,13 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
+using Project.Scripts.Gameplay;
 using UnityEngine;
+using Zenject;
 
 namespace Project.Scripts.Core
 {
     public sealed class ChunkPersistenceRoot : MonoBehaviour
     {
         private readonly Dictionary<NodeId, PersistentEntity> _entities = new();
+        private readonly Dictionary<NodeId, PersistentEntity> _suppressedEntities = new();
         private readonly Dictionary<NodeId, PersistentEntityRecord> _tombstones = new();
         private readonly Dictionary<int, TileOverrideData> _tileOverrides = new();
         private readonly Dictionary<int, WallHealthData> _wallHealth = new();
@@ -17,6 +20,9 @@ namespace Project.Scripts.Core
         private Vector2Int _chunkPosition;
         private bool _restoreCompleted;
         private Func<PersistentEntityRecord, PersistentEntity> _runtimeEntityFactory;
+
+        [InjectOptional] private IWorldClock _worldClock;
+        [InjectOptional] private WorldData _worldData;
 
         public Vector2Int ChunkPosition => _chunkPosition;
         public bool RestoreCompleted => _restoreCompleted;
@@ -35,9 +41,22 @@ namespace Project.Scripts.Core
             _chunkPosition = chunkPosition;
             _restoreCompleted = false;
             _entities.Clear();
+            _suppressedEntities.Clear();
             _tombstones.Clear();
             _tileOverrides.Clear();
             _wallHealth.Clear();
+            PersistentTileWater water = GetComponent<PersistentTileWater>();
+            if (water == null)
+                water = gameObject.AddComponent<PersistentTileWater>();
+            float ticksPerHour = Mathf.Max(
+                1f,
+                (_worldData?.minutesPerDay ?? 24f) * 60f / 24f /
+                (_worldClock is WorldClock clock ? clock.SecondsPerTick : 1f));
+            water.Initialize(
+                chunkPosition,
+                GetComponent<IPlantTileContext>(),
+                _worldClock?.CurrentTick ?? 0,
+                ticksPerHour);
         }
 
         // Registration is explicit because the node pool is not parented under
@@ -121,8 +140,54 @@ namespace Project.Scripts.Core
         {
             _restoreCompleted = true;
 
+            if (_worldClock != null)
+                ProcessRespawns(_worldClock.CurrentTick);
+            GetComponent<PersistentTileWater>()?.RefreshAllColors();
+
             foreach (PersistentEntity entity in _entities.Values)
                 entity.SetPersistenceReady(true);
+        }
+
+        private void Update()
+        {
+            if (_restoreCompleted && _worldClock != null)
+            {
+                ProcessRespawns(_worldClock.CurrentTick);
+                GetComponent<PersistentTileWater>()?.Tick(_worldClock.CurrentTick);
+            }
+        }
+
+        public void ProcessRespawns(long currentTick)
+        {
+            if (!_restoreCompleted || _tombstones.Count == 0)
+                return;
+
+            List<NodeId> ready = null;
+            foreach (KeyValuePair<NodeId, PersistentEntityRecord> pair in _tombstones)
+            {
+                PersistentEntityRecord tombstone = pair.Value;
+                if (tombstone.respawnAtTick <= 0 ||
+                    currentTick < tombstone.respawnAtTick ||
+                    !_suppressedEntities.TryGetValue(pair.Key, out PersistentEntity entity))
+                {
+                    continue;
+                }
+
+                if (!tombstone.respawnInsideTownInfluence &&
+                    IsInsideTownInfluence(entity.transform.position))
+                {
+                    continue;
+                }
+
+                ready ??= new List<NodeId>();
+                ready.Add(pair.Key);
+            }
+
+            if (ready == null)
+                return;
+
+            foreach (NodeId id in ready)
+                Respawn(id);
         }
 
         public void SimulateOffline(
@@ -291,10 +356,24 @@ namespace Project.Scripts.Core
             {
                 case EntityPersistenceKind.Procedural:
                 case EntityPersistenceKind.Authored:
+                    IGeneratedEntityRespawn respawn = null;
+                    foreach (MonoBehaviour behaviour in entity.GetComponentsInChildren<MonoBehaviour>(true))
+                    {
+                        if (behaviour is IGeneratedEntityRespawn candidate)
+                        {
+                            respawn = candidate;
+                            break;
+                        }
+                    }
+
+                    long removedAtTick = _worldClock?.CurrentTick ?? 0;
                     _tombstones[entity.Id] =
                         PersistentEntityRecord.CreateTombstone(
                             entity.Id,
-                            entity.PersistenceKind);
+                            entity.PersistenceKind,
+                            respawn?.GetRespawnTick(removedAtTick) ?? 0,
+                            respawn?.RespawnInsideTownInfluence ?? false);
+                    _suppressedEntities[entity.Id] = entity;
                     break;
 
                 case EntityPersistenceKind.RuntimeSpawned:
@@ -317,7 +396,14 @@ namespace Project.Scripts.Core
                 entity.ClearOwner(this);
             }
 
+            foreach (PersistentEntity entity in _suppressedEntities.Values)
+            {
+                entity.SetPersistenceReady(false);
+                entity.ClearOwner(this);
+            }
+
             _entities.Clear();
+            _suppressedEntities.Clear();
             _tombstones.Clear();
             _tileOverrides.Clear();
             _wallHealth.Clear();
@@ -434,7 +520,39 @@ namespace Project.Scripts.Core
                 return;
 
             entity.SetPersistenceReady(false);
+            _suppressedEntities[record.id] = entity;
             entity.SuppressFromPersistentRestore();
+        }
+
+        private void Respawn(NodeId id)
+        {
+            if (!_suppressedEntities.Remove(id, out PersistentEntity entity))
+                return;
+
+            _tombstones.Remove(id);
+            _entities.Add(id, entity);
+            foreach (MonoBehaviour behaviour in entity.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour is IEntityRespawnHandler handler)
+                    handler.OnRespawned();
+            }
+
+            entity.gameObject.SetActive(true);
+            entity.SetPersistenceReady(true);
+        }
+
+        private static bool IsInsideTownInfluence(Vector3 position)
+        {
+            foreach (TownCore town in TownCoreRegistry.All)
+            {
+                if (town != null && town.IsAvailable &&
+                    town.ContainsTownPosition(position))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void RestoreExistingEntity(PersistentEntityRecord record)

@@ -17,6 +17,21 @@ MonoBehaviour:
   AutoTile: {fileID: 11400000, guid: 587340f245a1f354395fff459bd3418a, type: 2}
   Color: {r: 1, g: 1, b: 1, a: 1}
   Flags: 1
+  IsWall: 0
+  ceilingTile: {fileID: 0}
+  waterTextureIndex: 0
+  waterEmissionColor: {r: 0, g: 0, b: 0, a: 1}
+  waterEmissionStrength: 0
+  pathingTerrain: 0
+  pathingCost: 1
+  hazardImmunityId: 
+  damagePerSecond: 0
+  wallHealth: 100
+  hardness: 0
+  destroyedTile: {fileID: 0}
+  burnedTile: {fileID: 0}
   droppedItem: {fileID: 0}
   dropChance: 1
-  tags: []
+  tags:
+  - {fileID: 11400000, guid: 49b4c956dc64f9181c8acde671c7679c, type: 2}
+  valueTags: []

@@ -13,4 +13,15 @@ namespace Project.Scripts.Interface
     {
         void OnRemovedFromWorld();
     }
+
+    public interface IGeneratedEntityRespawn
+    {
+        long GetRespawnTick(long removedAtTick);
+        bool RespawnInsideTownInfluence { get; }
+    }
+
+    public interface IEntityRespawnHandler
+    {
+        void OnRespawned();
+    }
 }

@@ -51,6 +51,8 @@ namespace Project.Scripts.Gameplay
         public void SetHotbarAction(int hotbarIndex, IHotbarAction action)
         {
             ValidateIndex(hotbarIndex);
+            if (action is IHotbarFillBinding fillBinding)
+                fillBinding.BindFillSource(gameObject);
             _hotbarActions[hotbarIndex] = action;
             _playerBus?.RaiseHotbarActionSet(hotbarIndex, action);
         }

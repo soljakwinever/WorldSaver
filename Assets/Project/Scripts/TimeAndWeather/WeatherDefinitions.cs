@@ -24,6 +24,7 @@ namespace Project.Scripts.TimeAndWeather
         Tornado,
         Temperature,
         PuddleAccumulation,
-        SnowAccumulation
+        SnowAccumulation,
+        Earthquake
     }
 }

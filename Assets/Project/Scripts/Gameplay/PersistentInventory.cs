@@ -8,7 +8,8 @@ using Zenject;
 
 namespace Project.Scripts.Gameplay
 {
-    public sealed class PersistentInventory : MonoBehaviour, IInventory, IPersistentComponent
+    public sealed class PersistentInventory : MonoBehaviour, IInventory,
+        IPersistentComponent, IItemDurabilityProvider
     {
         public const ushort TypeId = 7;
         private const ushort CurrentVersion = 2;
@@ -90,6 +91,55 @@ namespace Project.Scripts.Gameplay
         {
             ValidateStack(stack);
             return GetInventory().TryRemove(stack);
+        }
+
+        public bool HasDurability(ItemData item, byte amount)
+        {
+            if (item == null || amount == 0) return false;
+            foreach (IItemStack stack in GetInventory().Stacks)
+                if (stack.Item == item && stack.Durability >= amount) return true;
+            return false;
+        }
+
+        public bool TryGetDurability(ItemData item, out byte durability)
+        {
+            if (item != null)
+            {
+                foreach (IItemStack stack in GetInventory().Stacks)
+                {
+                    if (stack.Item != item) continue;
+                    durability = stack.Durability;
+                    return true;
+                }
+            }
+            durability = 0;
+            return false;
+        }
+
+        public bool TryConsumeDurability(ItemData item, byte amount)
+        {
+            if (item == null || amount == 0) return false;
+            foreach (IItemStack stack in GetInventory().Stacks)
+            {
+                if (stack.Item != item || stack.Durability < amount || stack is not ItemStack mutable)
+                    continue;
+                mutable.ApplyDurabilityDamage(amount);
+                return true;
+            }
+            return false;
+        }
+
+        public bool TryRefillDurability(ItemData item)
+        {
+            if (item == null) return false;
+            foreach (IItemStack stack in GetInventory().Stacks)
+            {
+                if (stack.Item != item || stack is not ItemStack mutable ||
+                    mutable.Durability == byte.MaxValue) continue;
+                mutable.SetDurability(byte.MaxValue);
+                return true;
+            }
+            return false;
         }
 
         public bool TryRemove(EntityTag tag, int count)

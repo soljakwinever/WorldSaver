@@ -24,6 +24,7 @@ namespace Project.Scripts
         public float valleyStrength = 1f;
         public float roughnessStrength = 1f;
             
+        [Tooltip("Surface hill strength. In cave layouts this also increases chamber openness.")]
         public float hillStrength = 0.08f;
         public float hillScale = 28f;
 
@@ -33,6 +34,11 @@ namespace Project.Scripts
         public float cliffChance = 0.15f;
         public float cliffStrength = 0.08f;
         public float cliffScale = 18f;
+
+        [Header("Cave Layout")]
+        [Min(0f)]
+        [Tooltip("Multiplier for cave crevasse width and density. Zero disables crevasses; one uses the cave layer defaults.")]
+        public float crevasseStrength = 1f;
 
         public float lakeStrength = 0.25f;
         [Min(0f)]
@@ -62,8 +68,10 @@ namespace Project.Scripts
         
         public TileData overrideGroundTile;
         public TileData overridePathTile;
+        [Tooltip("Biome water tile. Assigning this on a cave biome enables underground water in sufficiently low floor terrain.")]
         public TileData overrideWaterTile;
         public TileData overrideCliffTile;
+        [Tooltip("Biome beach tile. Assigning this on a cave biome enables beach terrain around underground lakes and pools.")]
         public TileData overrideBeachTile;
 
         [Header("Tile Actions")]

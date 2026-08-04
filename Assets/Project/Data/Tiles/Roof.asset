@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cdc5e0be4c94981ba57dd5d82eaa634, type: 3}
+  m_Name: Roof
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TileData
+  TileId: 14
+  TileBase: {fileID: 11400000, guid: 48e02c033f1e62e419b657c25be7349b, type: 2}
+  AutoTile: {fileID: 11400000, guid: 7f331e4263c1ee74eab16f7fd8a7a75a, type: 2}
+  Color: {r: 1, g: 1, b: 1, a: 1}
+  Flags: 2
+  IsWall: 1
+  ceilingTile: {fileID: 0}
+  pathingTerrain: 0
+  pathingCost: 1
+  hazardImmunityId: 
+  wallHealth: 100
+  hardness: 0
+  destroyedTile: {fileID: 0}
+  burnedTile: {fileID: 0}
+  droppedItem: {fileID: 0}
+  dropChance: 0
+  tags: []
+  valueTags: []

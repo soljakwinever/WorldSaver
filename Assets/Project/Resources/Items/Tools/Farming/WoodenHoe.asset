@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
+  m_Name: WoodenHoe
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
+  persistentId: items.tools.hoe.wood
+  description: 
+  maxStack: 1
+  sprite: {fileID: -7059847332800665623, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  projectile: {fileID: 0}
+  action: {fileID: 11400000, guid: ea839d2b8ce21f4408b5d6265f754658, type: 2}
+  actionData:
+  - rid: 4542294804911096675
+  - rid: 4542294804911096676
+  goldValue: 0
+  fuelValue: 1
+  magicValue: 0
+  tags: []
+  valueTags: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 4542294804911096675
+      type: {class: TransformTaggedTileToolActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        layer: 0
+        requiredTag: {fileID: 11400000, guid: 49b4c956dc64f9181c8acde671c7679c, type: 2}
+        replacementTile: {fileID: 11400000, guid: d43c15ab009b2a44c804bdf477b7fc16, type: 2}
+    - rid: 4542294804911096676
+      type: {class: ToolHotbarActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        tool: {fileID: 11400000, guid: 8cf0ffa14db4f1a4fbe3d6444a0d1a48, type: 2}

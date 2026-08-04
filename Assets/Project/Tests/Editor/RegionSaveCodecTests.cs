@@ -52,6 +52,66 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void RespawningTombstoneSurvivesBinaryRoundTrip()
+        {
+            RegionSaveData original = new();
+            ChunkState chunk = new() { localChunkIndex = 1 };
+            chunk.entities.Add(PersistentEntityRecord.CreateTombstone(
+                new NodeId(77),
+                EntityPersistenceKind.Procedural,
+                respawnAtTick: 12345,
+                respawnInsideTownInfluence: true));
+            original.changedChunks.Add(chunk);
+
+            using MemoryStream stream = new();
+            RegionSaveCodec.Write(stream, original);
+            stream.Position = 0;
+            PersistentEntityRecord restored =
+                RegionSaveCodec.Read(stream).changedChunks[0].entities[0];
+
+            Assert.That(restored.respawnAtTick, Is.EqualTo(12345));
+            Assert.That(restored.respawnInsideTownInfluence, Is.True);
+        }
+
+        [Test]
+        public void DueRespawnRemovesTombstoneAndReactivatesBaselineEntity()
+        {
+            GameObject rootObject = new("Respawn Root");
+            GameObject entityObject = new("Respawning Entity");
+            try
+            {
+                ChunkPersistenceRoot root =
+                    rootObject.AddComponent<ChunkPersistenceRoot>();
+                PersistentEntity entity =
+                    entityObject.AddComponent<PersistentEntity>();
+                entity.Initialize(new NodeId(88), EntityPersistenceKind.Procedural);
+
+                root.BeginRestore(Vector2Int.zero);
+                root.RegisterGeneratedEntity(entity);
+                ChunkState state = new();
+                state.entities.Add(PersistentEntityRecord.CreateTombstone(
+                    entity.Id,
+                    entity.PersistenceKind,
+                    respawnAtTick: 50));
+                root.Restore(state);
+                root.CompleteRestore();
+
+                Assert.That(entityObject.activeSelf, Is.False);
+                root.ProcessRespawns(49);
+                Assert.That(entityObject.activeSelf, Is.False);
+                root.ProcessRespawns(50);
+
+                Assert.That(entityObject.activeSelf, Is.True);
+                Assert.That(root.Capture(50).entities, Is.Empty);
+            }
+            finally
+            {
+                Object.DestroyImmediate(entityObject);
+                Object.DestroyImmediate(rootObject);
+            }
+        }
+
+        [Test]
         public void TileOverridesSurviveBinaryRoundTrip()
         {
             RegionSaveData original = new()

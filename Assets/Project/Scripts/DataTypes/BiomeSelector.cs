@@ -104,6 +104,7 @@ public static class BiomeSelector
             blend.cliffChance += biome.cliffChance * weight;
             blend.cliffStrength += biome.cliffStrength * weight;
             blend.cliffScale += biome.cliffScale * weight;
+            blend.crevasseStrength += biome.crevasseStrength * weight;
             
             blend.hillStrength += biome.hillStrength * weight;
             blend.hillScale += biome.hillScale * weight;
@@ -151,6 +152,10 @@ public static class BiomeSelector
         blend.cliffChance += Mathf.Lerp(biomeA.cliffChance, biomeB.cliffChance, weight);
         blend.cliffStrength += Mathf.Lerp(biomeA.cliffStrength, biomeB.cliffStrength, weight);
         blend.cliffScale += Mathf.Lerp(biomeA.cliffScale, biomeB.cliffScale, weight);
+        blend.crevasseStrength += Mathf.Lerp(
+            biomeA.crevasseStrength,
+            biomeB.crevasseStrength,
+            weight);
         
         blend.hillStrength += Mathf.Lerp(biomeA.hillStrength, biomeB.hillStrength, weight);
         blend.hillScale += Mathf.Lerp(biomeA.hillScale, biomeB.hillScale, weight);
@@ -199,6 +204,15 @@ public static class BiomeSelector
             craterChance = biome.craterChance,
             mesaChance = biome.mesaChance,
             townChance = biome.townChance,
+
+            hillStrength = biome.hillStrength,
+            hillScale = biome.hillScale,
+            bumpStrength = biome.bumpStrength,
+            bumpScale = biome.bumpScale,
+            cliffChance = biome.cliffChance,
+            cliffStrength = biome.cliffStrength,
+            cliffScale = biome.cliffScale,
+            crevasseStrength = biome.crevasseStrength,
 
             groundColor = biome.groundColor,
             dirtColor = biome.dirtColor,
@@ -279,7 +293,7 @@ public static class BiomeSelector
         return validHeight && validMoisture && validTemperature;
     }
 
-    private static float GetBiomeDistance(
+    public static float GetBiomeDistance(
         BiomeData biome,
         float height,
         float moisture,

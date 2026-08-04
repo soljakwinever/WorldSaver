@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Magma Crucible
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Magma Crucible
+  temperature: 1
+  temperatureVariance: 0.12
+  moisture: 0.04
+  moistureVariance: 0.12
+  height: 0.82
+  heightVariance: 0.12
+  heightOffset: 0
+  heightMultiplier: 0.7
+  erosionStrength: 1.1
+  mountainStrength: 0.65
+  valleyStrength: 0.65
+  roughnessStrength: 1.15
+  hillStrength: 0.055
+  hillScale: 70
+  bumpStrength: 0.03
+  bumpScale: 8
+  cliffChance: 0.42
+  cliffStrength: 0.08
+  cliffScale: 14
+  crevasseStrength: 1.7
+  lakeStrength: 2
+  SmallPoolsStrength: 8
+  volcanoChance: 0.9
+  craterChance: 0.16
+  mesaChance: 0
+  townChance: 0
+  groundColor: {r: 0.291, g: 0.10392857, b: 0.05196428, a: 1}
+  dirtColor: {r: 0.34, g: 0.1, b: 0.04, a: 1}
+  pathColor: {r: 0.72, g: 0.2, b: 0.04, a: 1}
+  waterColor: {r: 1, g: 0.18, b: 0.02, a: 1}
+  cliffColor: {r: 0.447, g: 0.09641177, b: 0, a: 1}
+  beachColor: {r: 0.62, g: 0.22, b: 0.06, a: 1}
+  springTint: {r: 1, g: 1, b: 1, a: 1}
+  summerTint: {r: 1, g: 1, b: 1, a: 1}
+  fallTint: {r: 1, g: 1, b: 1, a: 1}
+  winterTint: {r: 1, g: 1, b: 1, a: 1}
+  SeasonColorEffectMod: 0
+  overrideGroundTile: {fileID: 11400000, guid: 80888888888848888888888888888888, type: 2}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 11400000, guid: e686382f1f4f97b488a353a647143eb7, type: 2}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 11400000, guid: 90999999999949998999999999999999, type: 2}
+  overrideMinedTileReplacement: {fileID: 0}

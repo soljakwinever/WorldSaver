@@ -1,4 +1,6 @@
 using Project.Scripts.DataTypes;
+using Project.Scripts.Gameplay;
+using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using UnityEngine;
 
@@ -11,6 +13,10 @@ namespace Project.Scripts.Actions
     public sealed class IncreaseHealthManaItemAction : ItemAction
     {
         public override bool ConsumesItem => true;
+        public override bool DisplayCount => true;
+        public override int GetCount(ItemData item) => GetItemCount(item);
+        
+        private PersistentInventory _playerInventory;
 
         public override bool CanPerform(ActionContext context)
         {
@@ -75,6 +81,34 @@ namespace Project.Scripts.Actions
             return data.mana > 0 &&
                    mana != null &&
                    mana.CurrentMana < mana.MaxMana;
+        }
+        
+        private int GetItemCount(ItemData item)
+        {
+            if (item == null)
+                return 0;
+
+            if (_playerInventory == null)
+            {
+                PlayerInteractionController player =
+                    FindFirstObjectByType<PlayerInteractionController>();
+                if (player != null)
+                    _playerInventory =
+                        player.GetComponent<PersistentInventory>();
+            }
+
+            if (_playerInventory == null)
+                return 0;
+
+            // The count is display-only; consumption is handled by the player.
+            int count = 0;
+            foreach (IItemStack stack in _playerInventory.Stacks)
+            {
+                if (stack.Item == item)
+                    count = checked(count + stack.Count);
+            }
+
+            return count;
         }
     }
 }

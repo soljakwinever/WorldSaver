@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cdc5e0be4c94981ba57dd5d82eaa634, type: 3}
+  m_Name: Acid
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TileData
+  TileId: 4
+  TileBase: {fileID: 11400000, guid: 3c7eeaab93af2ee47a2f094350a4de71, type: 2}
+  AutoTile: {fileID: 11400000, guid: e7d27432116842c498530e1ed784a77f, type: 2}
+  Color: {r: 0.33037105, g: 0.9056604, b: 0.2264151, a: 1}
+  Flags: 0
+  IsWall: 0
+  ceilingTile: {fileID: 0}
+  waterTextureIndex: 2
+  waterEmissionColor: {r: 0, g: 0, b: 0, a: 1}
+  waterEmissionStrength: 0
+  pathingTerrain: 2
+  pathingCost: 4
+  hazardImmunityId: 
+  damagePerSecond: 5
+  wallHealth: 100
+  hardness: 0
+  destroyedTile: {fileID: 0}
+  burnedTile: {fileID: 0}
+  droppedItem: {fileID: 0}
+  dropChance: 1
+  tags: []
+  valueTags: []

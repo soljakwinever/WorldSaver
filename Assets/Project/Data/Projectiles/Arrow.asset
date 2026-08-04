@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2cfcdbe41da7464791aca90506a33a4b, type: 3}
+  m_Name: Arrow
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ProjectileData
+  prefab: {fileID: 7559353429851247362, guid: 7579363d1c498a14b846f6fd49183d8c, type: 3}
+  speed: 8
+  lifetime: 5
+  collisionMask:
+    serializedVersion: 2
+    m_Bits: 65
+  despawnOnEnvironmentHit: 1
+  rotateToDirection: 1

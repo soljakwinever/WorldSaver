@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f97a9b41210567f4fba594c368c743bc, type: 3}
+  m_Name: General
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.SkillTreeData
+  category: 0
+  root:
+    rid: 8074128508930031617
+  references:
+    version: 2
+    RefIds:
+    - rid: 4542294804911096682
+      type: {class: SkillTreeNode, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        skill: {fileID: 11400000, guid: d7d2b78d5d2a47e8a45ce40dfadff69b, type: 2}
+        position: {x: 1, y: 0}
+        connections: []
+    - rid: 8074128508930031617
+      type: {class: SkillTreeNode, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        skill: {fileID: 11400000, guid: f231cb37451245cf963a2d0816316b69, type: 2}
+        position: {x: 0, y: 1}
+        connections:
+        - rid: 4542294804911096682

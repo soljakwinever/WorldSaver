@@ -10,7 +10,7 @@ using Project.Scripts.Interface;
 using Project.Scripts.TimeAndWeather;
 using Project.Scripts.Bus;
 using UnityEngine;
-using UnityEngine.Pool;
+using Unity.Profiling;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Tilemaps;
 using Zenject;
@@ -18,7 +18,7 @@ using TileData = Project.Scripts.DataTypes.TileData;
 
 [RequireComponent(typeof(ChunkPersistenceRoot))]
 [RequireComponent(typeof(TileCoverageComponent))]
-public class Chunk : MonoBehaviour, IChunk
+public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
 {
     [Header("Tilemaps")]
     [SerializeField] private Tilemap _groundTilemap;
@@ -64,22 +64,43 @@ public class Chunk : MonoBehaviour, IChunk
     private readonly Dictionary<CoverageData, Tile> _coverageTiles = new();
     private readonly Dictionary<int, WallDamageVisual> _wallDamageVisuals =
         new();
+    private readonly List<SpaceReservationComponent> _reservationScratch =
+        new();
+    private readonly List<SpaceReservationComponent> _reservations = new();
+    private readonly HashSet<PersistentEntity> _failedReservations = new();
+    private readonly TileChangeData[][] _coverageChangeBatches =
+        new TileChangeData[11][];
     private MaterialPropertyBlock _coveragePropertyBlock;
+    private TilemapRenderer _coverageRenderer;
     private static readonly int CoverageTilingId =
         Shader.PropertyToID("_CoverageTiling");
     private static readonly int WorldOffsetId =
         Shader.PropertyToID("_WorldOffset");
+    private static EntityArchetype[] _resourceArchetypes;
+    private static readonly ProfilerMarker InitMarker =
+        new("Chunk.Init");
+    private static readonly ProfilerMarker InitTilemapsMarker =
+        new("Chunk.Init.Tilemaps");
+    private static readonly ProfilerMarker InitTerrainMarker =
+        new("Chunk.Init.TerrainData");
+    private static readonly ProfilerMarker InitRendererMarker =
+        new("Chunk.Init.RegisterRenderer");
+    private static readonly ProfilerMarker InitPropsMarker =
+        new("Chunk.Init.SpawnProps");
 
     private readonly TileData[][] _baselineTiles = CreateLayerBuffers<TileData>();
     private readonly Color[][] _baselineColors = CreateLayerBuffers<Color>();
     private readonly PersistentTileTint[][] _baselineTints =
         CreateLayerBuffers<PersistentTileTint>();
-    private readonly BiomeBlend[] _biomeBlends =
-        new BiomeBlend[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
+    private readonly SeasonalBiomeColors[] _biomeBlends =
+        new SeasonalBiomeColors[
+            ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
     private readonly int[] _biomeColorRefreshOrder =
         new int[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
     private readonly int[] _biomeColorAppliedDayKeys =
         new int[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
+    private readonly float[] _waterDepths =
+        new float[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
     private bool _tilemapsConfigured;
     private bool _roomTopologyReady;
     private bool _reservationsReady;
@@ -110,9 +131,13 @@ public class Chunk : MonoBehaviour, IChunk
 
     public void Init(ChunkBuildResult data)
     {
-        ClearWallDamageVisuals();
-        EnsureTilemaps();
-        ClearBakedTiles();
+        using ProfilerMarker.AutoScope initScope = InitMarker.Auto();
+        using (InitTilemapsMarker.Auto())
+        {
+            ClearWallDamageVisuals();
+            EnsureTilemaps();
+            ClearBakedTiles();
+        }
         _rooms.Clear();
         _roomTopologyReady = false;
         _reservationsReady = false;
@@ -133,22 +158,38 @@ public class Chunk : MonoBehaviour, IChunk
         int offsetY = Position.y * ChunkBuildResult.ChunkSize;
 
         int cellCount = ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize;
-        List<WorldTilemapRenderer.CellData> changes = new(cellCount);
-        List<WorldTilemapRenderer.CellData> waterTiles = new(cellCount);
-        List<WorldTilemapRenderer.CellData> wallTiles = new(cellCount);
-        List<WorldTilemapRenderer.CellData> ceilingTiles = new(cellCount);
+        List<WorldTilemapRenderer.CellData> changes =
+            UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Get();
+        List<WorldTilemapRenderer.CellData> waterTiles =
+            UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Get();
+        List<WorldTilemapRenderer.CellData> wallTiles =
+            UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Get();
+        List<WorldTilemapRenderer.CellData> ceilingTiles =
+            UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Get();
+        EnsureCapacity(changes, cellCount);
+        EnsureCapacity(waterTiles, cellCount);
+        EnsureCapacity(wallTiles, cellCount);
+        EnsureCapacity(ceilingTiles, cellCount);
 
-        for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
+        using (InitTerrainMarker.Auto())
         {
-            for (int x = 0; x < ChunkBuildResult.ChunkSize; x++)
+            for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
             {
-                int tileIndex = x + y * ChunkBuildResult.ChunkSize;
+                for (int x = 0; x < ChunkBuildResult.ChunkSize; x++)
+                {
+                    int tileIndex = x + y * ChunkBuildResult.ChunkSize;
                 var height = data.heights[tileIndex];
+                _waterDepths[tileIndex] = Mathf.InverseLerp(
+                    0f,
+                    worldGeneration.Elevation.waterHeight,
+                    height);
                 var biome = data.biomeData[tileIndex];
                 var moisture = data.moisture[tileIndex];
                 var temperature = data.temperature[tileIndex];
                 var isCliff = data.isCliff[tileIndex];
-                var isWater = height <= worldGeneration.Elevation.waterHeight;
+                TerrainKind terrainKind = data.terrainKinds[tileIndex];
+                var isWater = terrainKind == TerrainKind.Floor &&
+                              height <= worldGeneration.Elevation.waterHeight;
 
                 Vector3Int tilePosition =
                     new Vector3Int(offsetX + x, offsetY + y, 0);
@@ -165,7 +206,9 @@ public class Chunk : MonoBehaviour, IChunk
                 if (floorTile != null)
                 {
                     tileData = floorTile;
-                    color = Color.white;
+                    color = terrainKind == TerrainKind.Wall
+                        ? biome.cliffColor
+                        : Color.white;
                 }
                 else
                 {
@@ -179,10 +222,41 @@ public class Chunk : MonoBehaviour, IChunk
                         isCliff,
                         out color);
                 }
-                color *= tileData.Color;
-                bool isWall = tileData.IsWall || (floorTile == null && isCliff);
+                color = tileData.usesMoistureTint
+                    ? tileData.Color
+                    : color * tileData.Color;
+                bool isCrevasse = terrainKind == TerrainKind.Crevasse;
+                bool usesCaveGroundBelowBeach =
+                    worldGeneration.UsesCaveLayout &&
+                    terrainKind == TerrainKind.Floor &&
+                    height < worldGeneration.Elevation.beachHeight &&
+                    biome.dominantBiome.overrideBeachTile == null;
+                TileData crevasseGroundTile = null;
+                Color crevasseGroundColor = Color.white;
+                if (isCrevasse)
+                {
+                    crevasseGroundTile =
+                        biome.dominantBiome.overrideGroundTile ?? GroundTile;
+                    crevasseGroundColor =
+                        biome.groundColor * crevasseGroundTile.Color;
+                }
+
+                // Crevasses use the collidable wall tilemap so Rigidbody-driven
+                // actors cannot cross them. Their transparent visual is layered
+                // over the biome ground tile rather than replacing the ground.
+                bool isWall = terrainKind != TerrainKind.Floor ||
+                              tileData.IsWall ||
+                              (floorTile == null && isCliff);
                 if (isWall)
                 {
+                    if (isCrevasse)
+                    {
+                        changes.Add(new WorldTilemapRenderer.CellData(
+                            tilePosition,
+                            crevasseGroundTile,
+                            crevasseGroundColor));
+                    }
+
                     wallTiles.Add(new WorldTilemapRenderer.CellData(
                         tilePosition, tileData, color));
                     if (tileData.ceilingTile != null)
@@ -198,7 +272,7 @@ public class Chunk : MonoBehaviour, IChunk
                     changes.Add(new WorldTilemapRenderer.CellData(
                         tilePosition, tileData, color));
                 }
-                _biomeBlends[tileIndex] = biome;
+                _biomeBlends[tileIndex] = new SeasonalBiomeColors(biome);
                 int scheduledHour = SeasonalBiomeTint.GetScheduledHour(
                     offsetX + x,
                     offsetY + y,
@@ -213,10 +287,15 @@ public class Chunk : MonoBehaviour, IChunk
                             timeController.Year)
                         : 0;
                 _baselineTiles[(int)PersistentTileLayer.Ground][tileIndex] =
-                    isWall ? null : tileData;
-                _baselineColors[(int)PersistentTileLayer.Ground][tileIndex] = color;
+                    isCrevasse
+                        ? crevasseGroundTile
+                        : isWall ? null : tileData;
+                _baselineColors[(int)PersistentTileLayer.Ground][tileIndex] =
+                    isCrevasse ? crevasseGroundColor : color;
                 _baselineTints[(int)PersistentTileLayer.Ground][tileIndex] =
-                    GetGroundTint(height, isCliff);
+                    isCrevasse || usesCaveGroundBelowBeach
+                        ? PersistentTileTint.BiomeGround
+                        : GetGroundTint(height, isCliff);
                 _baselineTiles[(int)PersistentTileLayer.Water][tileIndex] = null;
                 _baselineColors[(int)PersistentTileLayer.Water][tileIndex] = Color.white;
                 _baselineTints[(int)PersistentTileLayer.Water][tileIndex] =
@@ -225,7 +304,9 @@ public class Chunk : MonoBehaviour, IChunk
                     isWall ? tileData : null;
                 _baselineColors[(int)PersistentTileLayer.Wall][tileIndex] = color;
                 _baselineTints[(int)PersistentTileLayer.Wall][tileIndex] =
-                    GetGroundTint(height, isCliff);
+                    isCrevasse
+                        ? PersistentTileTint.TileDefault
+                        : GetGroundTint(height, isCliff);
                 TileData ceiling = isWall ? tileData.ceilingTile : null;
                 _baselineTiles[(int)PersistentTileLayer.Ceiling][tileIndex] = ceiling;
                 _baselineColors[(int)PersistentTileLayer.Ceiling][tileIndex] =
@@ -233,24 +314,21 @@ public class Chunk : MonoBehaviour, IChunk
                 _baselineTints[(int)PersistentTileLayer.Ceiling][tileIndex] =
                     PersistentTileTint.TileDefault;
 
-                if (isWater && floorTile == null &&
+                bool hasConfiguredCaveWater =
+                    !worldGeneration.UsesCaveLayout ||
+                    biome.dominantBiome.overrideWaterTile != null;
+                if (isWater &&
+                    hasConfiguredCaveWater &&
+                    floorTile == null &&
                     !worldGeneration.Preset.heightMapDebug)
                 {
-                    tileData = biome.dominantBiome.overrideWaterTile ?? WaterTile;
-                    Color waterColor = new(
-                        Mathf.InverseLerp(
-                            0,
-                            worldGeneration.Elevation.waterHeight,
-                            height),
-                        Mathf.InverseLerp(
-                            0,
-                            worldGeneration.Elevation.waterHeight,
-                            height),
-                        Mathf.InverseLerp(
-                            0,
-                            worldGeneration.Elevation.waterHeight,
-                            height));
-                    waterColor *= tileData.Color;
+                    tileData = worldGeneration.UsesCaveLayout
+                        ? biome.dominantBiome.overrideWaterTile
+                        : biome.dominantBiome.overrideWaterTile ?? WaterTile;
+                    Color waterColor = WaterTilePayload.Encode(
+                        biome.waterColor * tileData.Color,
+                        _waterDepths[tileIndex],
+                        tileData.waterTextureIndex);
                     waterTiles.Add(new WorldTilemapRenderer.CellData(
                         tilePosition, tileData, waterColor));
                     _baselineTiles[(int)PersistentTileLayer.Water][tileIndex] = tileData;
@@ -258,51 +336,76 @@ public class Chunk : MonoBehaviour, IChunk
                 }
             }
         }
+        }
 
-        worldTilemapRenderer.ApplyChunk(
-            this,
-            Position,
-            changes,
-            waterTiles,
-            wallTiles,
-            ceilingTiles);
+        using (InitRendererMarker.Auto())
+        {
+            worldTilemapRenderer.ApplyChunk(
+                this,
+                Position,
+                changes,
+                waterTiles,
+                wallTiles,
+                ceilingTiles);
+        }
+        UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Release(changes);
+        UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Release(waterTiles);
+        UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Release(wallTiles);
+        UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Release(ceilingTiles);
 
         if (worldGeneration.Preset.heightMapDebug) return;
 
-        foreach (var propSpawnData in data.props)
+        using (InitPropsMarker.Auto())
         {
-            NodeData nodeData = propSpawnData.nodeData;
-            if (nodeData == null)
+            foreach (var propSpawnData in data.props)
             {
-                PropSpawnRule rule = worldGeneration.PropSpawnRules.FirstOrDefault(
-                    candidate => candidate.name == propSpawnData.propName);
-                nodeData = rule?.nodeData;
-            }
-            if (nodeData == null)
-            {
-                Debug.LogError(
-                    $"Generated prop '{propSpawnData.propName}' has no NodeData.",
+                NodeData nodeData = propSpawnData.nodeData;
+                if (nodeData == null)
+                {
+                    IReadOnlyList<PropSpawnRule> rules =
+                        worldGeneration.PropSpawnRules;
+                    for (int i = 0; i < rules.Count; i++)
+                    {
+                        PropSpawnRule candidate = rules[i];
+                        if (candidate.name != propSpawnData.propName)
+                            continue;
+
+                        nodeData = candidate.nodeData;
+                        break;
+                    }
+                }
+                if (nodeData == null)
+                {
+                    Debug.LogError(
+                        $"Generated prop '{propSpawnData.propName}' has no NodeData.",
+                        this);
+                    continue;
+                }
+
+                if (!SpaceReservationUtility.CanPlace(
+                        nodeData,
+                        propSpawnData.position))
+                {
+                    continue;
+                }
+
+                var prop = nodePool.Spawn(propSpawnData.NodeId, propSpawnData, nodeData, propSpawnData.terrainSample,
                     this);
-                continue;
+                prop.transform.SetParent(_nodeTransform);
+
+                props.Add(prop);
+                _persistenceRoot.RegisterGeneratedEntity(
+                    prop.GetComponent<PersistentEntity>());
             }
-
-            if (!SpaceReservationUtility.CanPlace(
-                    nodeData,
-                    propSpawnData.position))
-            {
-                continue;
-            }
-
-            var prop = nodePool.Spawn(propSpawnData.NodeId, propSpawnData, nodeData, propSpawnData.terrainSample,
-                this);
-            prop.transform.SetParent(_nodeTransform);
-
-            props.Add(prop);
-            _persistenceRoot.RegisterGeneratedEntity(
-                prop.GetComponent<PersistentEntity>());
         }
 
         RestorePersistentState();
+    }
+
+    private static void EnsureCapacity<T>(List<T> list, int capacity)
+    {
+        if (list.Capacity < capacity)
+            list.Capacity = capacity;
     }
 
     internal void SetGeneratedLiquidBaseline(
@@ -444,22 +547,59 @@ public class Chunk : MonoBehaviour, IChunk
         NodeData nodeData,
         out EntityArchetype archetype)
     {
-        archetype = worldData.runtimeEntityArchetypes?
-            .FirstOrDefault(candidate =>
-                candidate != null && candidate.NodeData == nodeData);
+        EntityArchetype[] configured = worldData.runtimeEntityArchetypes;
+        for (int i = 0; i < (configured?.Length ?? 0); i++)
+        {
+            EntityArchetype candidate = configured[i];
+            if (candidate != null && candidate.NodeData == nodeData)
+            {
+                archetype = candidate;
+                return true;
+            }
+        }
 
-        archetype ??= Resources.LoadAll<EntityArchetype>(string.Empty)
-            .FirstOrDefault(candidate => candidate.NodeData == nodeData);
-        return archetype != null;
+        EntityArchetype[] resources = GetResourceArchetypes();
+        for (int i = 0; i < resources.Length; i++)
+        {
+            EntityArchetype candidate = resources[i];
+            if (candidate != null && candidate.NodeData == nodeData)
+            {
+                archetype = candidate;
+                return true;
+            }
+        }
+
+        archetype = null;
+        return false;
     }
 
     private PersistentEntity RestoreRuntimeEntity(PersistentEntityRecord record)
     {
-        EntityArchetype archetype = worldData.runtimeEntityArchetypes?
-            .FirstOrDefault(candidate => candidate.Id == record.archetypeId);
+        EntityArchetype archetype = null;
+        EntityArchetype[] configured = worldData.runtimeEntityArchetypes;
+        for (int i = 0; i < (configured?.Length ?? 0); i++)
+        {
+            EntityArchetype candidate = configured[i];
+            if (candidate != null && candidate.Id == record.archetypeId)
+            {
+                archetype = candidate;
+                break;
+            }
+        }
 
-        archetype ??= Resources.LoadAll<EntityArchetype>(string.Empty)
-            .FirstOrDefault(candidate => candidate.Id == record.archetypeId);
+        if (archetype == null)
+        {
+            EntityArchetype[] resources = GetResourceArchetypes();
+            for (int i = 0; i < resources.Length; i++)
+            {
+                EntityArchetype candidate = resources[i];
+                if (candidate == null || candidate.Id != record.archetypeId)
+                    continue;
+
+                archetype = candidate;
+                break;
+            }
+        }
 
         if (archetype == null)
         {
@@ -481,6 +621,12 @@ public class Chunk : MonoBehaviour, IChunk
 
         // PersistentTransform applies the saved position immediately afterwards.
         return SpawnRuntimeNode(record.id, archetype.Id, archetype.NodeData, transform.position);
+    }
+
+    private static EntityArchetype[] GetResourceArchetypes()
+    {
+        return _resourceArchetypes ??=
+            Resources.LoadAll<EntityArchetype>(string.Empty);
     }
 
     private PersistentEntity SpawnRuntimeNode(
@@ -518,7 +664,7 @@ public class Chunk : MonoBehaviour, IChunk
             await dataController.RestoreChunkAsync(this);
             ApplyPersistentTileOverrides();
             _coverage.CompleteRestore(weatherService);
-            ClearSpawnPlatformCoverage();
+            ClearFeatureEntityCoverage();
             RebuildReservationsAndSuppressConflictingGeneratedProps();
             _reservationsReady = true;
             _roomTopologyReady = true;
@@ -531,37 +677,39 @@ public class Chunk : MonoBehaviour, IChunk
         }
     }
 
-    private void ClearSpawnPlatformCoverage()
+    private void ClearFeatureEntityCoverage()
     {
-        NodeData platform = worldGeneration.SpawnPlatformNode;
-        if (platform == null ||
-            !SpaceReservationUtility.TryGetArea(
-                platform,
-                worldGeneration.WorldSpawnPosition,
-                out RectInt area))
+        foreach (Node node in props)
         {
-            return;
-        }
+            if (node == null || !node.ClearReservedAreaCoverage)
+            {
+                continue;
+            }
 
-        _coverage.ClearWorldArea(area);
+            SpaceReservationComponent reservation =
+                node.GetComponentInChildren<SpaceReservationComponent>();
+            if (reservation != null)
+                _coverage.ClearWorldArea(reservation.ReservedArea);
+        }
     }
 
     private void RebuildReservationsAndSuppressConflictingGeneratedProps()
     {
-        List<SpaceReservationComponent> reservations = new();
+        _reservations.Clear();
         foreach (Node node in props)
         {
             if (node == null || !node.gameObject.activeInHierarchy)
                 continue;
 
-            reservations.AddRange(
-                node.GetComponentsInChildren<SpaceReservationComponent>());
+            _reservationScratch.Clear();
+            node.GetComponentsInChildren(false, _reservationScratch);
+            _reservations.AddRange(_reservationScratch);
         }
 
-        foreach (SpaceReservationComponent reservation in reservations)
+        foreach (SpaceReservationComponent reservation in _reservations)
             reservation.ReleaseReservation();
 
-        reservations.Sort((left, right) =>
+        _reservations.Sort((left, right) =>
         {
             PersistentEntity leftEntity =
                 left.GetComponentInParent<PersistentEntity>();
@@ -576,8 +724,8 @@ public class Chunk : MonoBehaviour, IChunk
             return leftPriority.CompareTo(rightPriority);
         });
 
-        HashSet<PersistentEntity> failedReservations = new();
-        foreach (SpaceReservationComponent reservation in reservations)
+        _failedReservations.Clear();
+        foreach (SpaceReservationComponent reservation in _reservations)
         {
             if (reservation.RefreshReservation())
                 continue;
@@ -585,7 +733,7 @@ public class Chunk : MonoBehaviour, IChunk
             PersistentEntity entity =
                 reservation.GetComponentInParent<PersistentEntity>();
             if (entity != null)
-                failedReservations.Add(entity);
+                _failedReservations.Add(entity);
         }
 
         foreach (Node node in props)
@@ -601,7 +749,7 @@ public class Chunk : MonoBehaviour, IChunk
             }
 
             Vector2Int cell = Vector2Int.FloorToInt(node.transform.position);
-            if (failedReservations.Contains(entity) ||
+            if (_failedReservations.Contains(entity) ||
                 TileReservationSystem.IsReserved(cell, entity))
                 node.gameObject.SetActive(false);
         }
@@ -653,6 +801,141 @@ public class Chunk : MonoBehaviour, IChunk
             layer,
             worldCell,
             out tileData);
+    }
+
+    public bool TryGetPlantingTile(Vector3Int worldCell, out TileData tile) =>
+        TryGetTileData(worldCell, PersistentTileLayer.Ground, out tile);
+
+    public float GetPlantWater(Vector3Int worldCell) =>
+        GetComponent<PersistentTileWater>()?.GetWater(worldCell) ?? 0f;
+
+    public float AddPlantWater(Vector3Int worldCell, float amount, float maximum) =>
+        GetComponent<PersistentTileWater>()?.AddWater(worldCell, amount, maximum) ?? 0f;
+
+    public float ConsumePlantWater(Vector3Int worldCell, float amount) =>
+        GetComponent<PersistentTileWater>()?.ConsumeWater(worldCell, amount) ?? 0f;
+
+    public void SetPlantWaterColor(Vector3Int worldCell, Color moistureTint)
+    {
+        if (!TryGetLocalCell(
+                worldCell,
+                PersistentTileLayer.Ground,
+                out Vector3Int localCell) ||
+            !TryGetTileData(
+                worldCell,
+                PersistentTileLayer.Ground,
+                out TileData tile) ||
+            tile == null)
+        {
+            return;
+        }
+
+        int index = localCell.x + localCell.y * ChunkBuildResult.ChunkSize;
+        Color baseColor;
+        if (!_persistenceRoot.HasTileOverride(
+                (byte)localCell.x,
+                (byte)localCell.y,
+                PersistentTileLayer.Ground) &&
+            _baselineTiles[(int)PersistentTileLayer.Ground][index] == tile)
+        {
+            baseColor = _baselineColors[(int)PersistentTileLayer.Ground][index];
+        }
+        else
+        {
+            PersistentTileTint tint = PersistentTileTint.TileDefault;
+            foreach (TileOverrideData tileOverride in _persistenceRoot.TileOverrides)
+            {
+                if (tileOverride.localX == localCell.x &&
+                    tileOverride.localY == localCell.y &&
+                    tileOverride.layer == PersistentTileLayer.Ground &&
+                    tileOverride.kind == TileOverrideKind.Place)
+                {
+                    tint = tileOverride.tint;
+                    break;
+                }
+            }
+
+            TerrainSample sample = worldGeneration.GetTerrainSample(
+                worldCell.x,
+                worldCell.y);
+            baseColor = GetTileColor(tile, sample.biomeBlend, tint);
+        }
+
+        worldTilemapRenderer.SetTint(
+            PersistentTileLayer.Ground,
+            worldCell,
+            baseColor * moistureTint);
+    }
+
+    public bool DoesWeatherWaterPlants(Vector3Int worldCell) =>
+        weatherService?.DoesWeatherWaterPlants(
+            new Vector2(worldCell.x + 0.5f, worldCell.y + 0.5f)) == true;
+
+    public bool IsWalkableArea(RectInt worldArea)
+    {
+        foreach (Vector2Int cell in worldArea.allPositionsWithin)
+        {
+            Vector3Int worldCell = new(cell.x, cell.y, 0);
+            if (!worldGeneration.GetTerrainSample(cell.x, cell.y).IsWalkable ||
+                !TryGetTileData(
+                    worldCell,
+                    PersistentTileLayer.Ground,
+                    out TileData ground) ||
+                ground == null ||
+                TryGetTileData(
+                    worldCell,
+                    PersistentTileLayer.Wall,
+                    out TileData wall) && wall != null ||
+                TryGetTileData(
+                    worldCell,
+                    PersistentTileLayer.Water,
+                    out TileData water) && water != null)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the most damaging walkable tile at a world cell. Water is
+    /// checked alongside the ground because generated liquids are rendered on
+    /// a separate layer above their underlying floor.
+    /// </summary>
+    public bool TryGetDamagingTile(
+        Vector3Int worldCell,
+        out TileData damagingTile)
+    {
+        damagingTile = null;
+        TrySelectDamagingTile(
+            worldCell,
+            PersistentTileLayer.Ground,
+            ref damagingTile);
+        TrySelectDamagingTile(
+            worldCell,
+            PersistentTileLayer.Water,
+            ref damagingTile);
+        return damagingTile != null;
+    }
+
+    private void TrySelectDamagingTile(
+        Vector3Int worldCell,
+        PersistentTileLayer layer,
+        ref TileData damagingTile)
+    {
+        if (!TryGetTileData(worldCell, layer, out TileData candidate) ||
+            candidate == null ||
+            candidate.damagePerSecond <= 0)
+        {
+            return;
+        }
+
+        if (damagingTile == null ||
+            candidate.damagePerSecond > damagingTile.damagePerSecond)
+        {
+            damagingTile = candidate;
+        }
     }
 
     /// <summary>
@@ -831,6 +1114,15 @@ public class Chunk : MonoBehaviour, IChunk
 
         PersistentTileLayer targetLayer =
             tile.IsWall ? PersistentTileLayer.Wall : layer;
+        if (targetLayer == PersistentTileLayer.Water)
+        {
+            int index = localCell.x +
+                        localCell.y * ChunkBuildResult.ChunkSize;
+            color = WaterTilePayload.Encode(
+                color,
+                _waterDepths[index],
+                tile.waterTextureIndex);
+        }
         bool enclosedBefore =
             targetLayer == PersistentTileLayer.Wall &&
             IsRoomBoundary(worldCell);
@@ -1328,6 +1620,15 @@ public class Chunk : MonoBehaviour, IChunk
             PersistentTileLayer restoredLayer = tileData.IsWall
                 ? PersistentTileLayer.Wall
                 : tileOverride.layer;
+            if (restoredLayer == PersistentTileLayer.Water)
+            {
+                int index = localCell.x +
+                            localCell.y * ChunkBuildResult.ChunkSize;
+                color = WaterTilePayload.Encode(
+                    color,
+                    _waterDepths[index],
+                    tileData.waterTextureIndex);
+            }
             worldTilemapRenderer.SetTile(
                 restoredLayer,
                 worldCell,
@@ -1345,6 +1646,7 @@ public class Chunk : MonoBehaviour, IChunk
 
         RebuildLinkedCeilings();
         RebuildWallDamageVisuals();
+        GetComponent<PersistentTileWater>()?.RefreshAllColors();
     }
 
     private void RebuildWallDamageVisuals()
@@ -1684,51 +1986,70 @@ public class Chunk : MonoBehaviour, IChunk
         }
 
         EnsureTilemaps();
-        TileChangeData[] changes = new TileChangeData[count];
-        for (int i = 0; i < count; i++)
+        int sourceOffset = 0;
+        int remaining = count;
+        while (remaining > 0)
         {
-            ushort localIndex = localIndices[i];
-            Vector3Int localCell = new(
-                localIndex % ChunkBuildResult.ChunkSize,
-                localIndex / ChunkBuildResult.ChunkSize);
-            Vector3Int worldCell = LocalToWorldCell(localCell);
-            CoverageData coverage = coverageByCell[localIndex];
-            float amount = alphaByCell[localIndex] / 255f;
-            TileBase tile = null;
-            Color color = Color.white;
+            int batchSize = Mathf.NextPowerOfTwo(remaining);
+            if (batchSize > remaining)
+                batchSize >>= 1;
+            int batchIndex = 0;
+            for (int size = batchSize; size > 1; size >>= 1)
+                batchIndex++;
 
-            if (coverage != null &&
-                coverage.CoverageSprite != null &&
-                amount > 0f &&
-                worldTilemapRenderer.HasTile(
-                    PersistentTileLayer.Ground,
-                    worldCell))
+            TileChangeData[] changes =
+                _coverageChangeBatches[batchIndex] ??=
+                    new TileChangeData[batchSize];
+            for (int i = 0; i < batchSize; i++)
             {
-                if (!_coverageTiles.TryGetValue(coverage, out Tile runtimeTile))
+                ushort localIndex = localIndices[sourceOffset + i];
+                Vector3Int localCell = new(
+                    localIndex % ChunkBuildResult.ChunkSize,
+                    localIndex / ChunkBuildResult.ChunkSize);
+                Vector3Int worldCell = LocalToWorldCell(localCell);
+                CoverageData coverage = coverageByCell[localIndex];
+                float amount = alphaByCell[localIndex] / 255f;
+                TileBase tile = null;
+                Color color = Color.white;
+
+                if (coverage != null &&
+                    coverage.CoverageSprite != null &&
+                    amount > 0f &&
+                    worldTilemapRenderer.HasTile(
+                        PersistentTileLayer.Ground,
+                        worldCell))
                 {
-                    runtimeTile = ScriptableObject.CreateInstance<Tile>();
-                    runtimeTile.name =
-                        $"{coverage.name} Runtime Coverage Tile";
-                    runtimeTile.sprite = coverage.CoverageSprite;
-                    runtimeTile.color = Color.white;
-                    runtimeTile.flags = TileFlags.None;
-                    runtimeTile.hideFlags = HideFlags.HideAndDontSave;
-                    _coverageTiles.Add(coverage, runtimeTile);
+                    if (!_coverageTiles.TryGetValue(
+                            coverage,
+                            out Tile runtimeTile))
+                    {
+                        runtimeTile = ScriptableObject.CreateInstance<Tile>();
+                        runtimeTile.name =
+                            $"{coverage.name} Runtime Coverage Tile";
+                        runtimeTile.sprite = coverage.CoverageSprite;
+                        runtimeTile.color = Color.white;
+                        runtimeTile.flags = TileFlags.None;
+                        runtimeTile.hideFlags = HideFlags.HideAndDontSave;
+                        _coverageTiles.Add(coverage, runtimeTile);
+                    }
+
+                    tile = runtimeTile;
+                    color = GetCoverageColor(coverage, localIndex);
+                    color.a *= amount;
                 }
 
-                tile = runtimeTile;
-                color = GetCoverageColor(coverage, localIndex);
-                color.a *= amount;
+                changes[i] = new TileChangeData(
+                    localCell,
+                    tile,
+                    color,
+                    Matrix4x4.identity);
             }
 
-            changes[i] = new TileChangeData(
-                localCell,
-                tile,
-                color,
-                Matrix4x4.identity);
+            _coverageTilemap.SetTiles(changes, ignoreLockFlags: true);
+            sourceOffset += batchSize;
+            remaining -= batchSize;
         }
 
-        _coverageTilemap.SetTiles(changes, ignoreLockFlags: true);
         for (int i = 0; i < count; i++)
         {
             ushort localIndex = localIndices[i];
@@ -1770,7 +2091,7 @@ public class Chunk : MonoBehaviour, IChunk
             return configured;
         }
 
-        BiomeBlend biome = _biomeBlends[localIndex];
+        SeasonalBiomeColors biome = _biomeBlends[localIndex];
         Color color = coverage.ColorSource switch
         {
             CoverageColorSource.BiomeGround => biome.groundColor,
@@ -1789,8 +2110,7 @@ public class Chunk : MonoBehaviour, IChunk
         float _)
     {
         EnsureTilemaps();
-        TilemapRenderer renderer =
-            _coverageTilemap.GetComponent<TilemapRenderer>();
+        TilemapRenderer renderer = _coverageRenderer;
         _coveragePropertyBlock ??= new MaterialPropertyBlock();
         renderer.GetPropertyBlock(_coveragePropertyBlock);
 
@@ -1940,6 +2260,28 @@ public class Chunk : MonoBehaviour, IChunk
         tilemap.SetTile(change, ignoreLockFlags: true);
     }
 
+    public void SetBakedTint(
+        PersistentTileLayer layer,
+        Vector3Int localCell,
+        Color color)
+    {
+        EnsureTilemaps();
+        Tilemap tilemap = GetTilemap(layer);
+        TileBase tile = tilemap.GetTile(localCell);
+        if (tile == null)
+            return;
+
+        // Apply the existing tile and its new vertex tint atomically. Calling
+        // RefreshTile separately can queue an auto-tile rebuild that restores
+        // the tile asset's default white color after SetColor has completed.
+        TileChangeData change = new(
+            localCell,
+            tile,
+            color,
+            tilemap.GetTransformMatrix(localCell));
+        tilemap.SetTile(change, ignoreLockFlags: true);
+    }
+
     public void ClearBakedTiles()
     {
         if (_groundTilemap != null)
@@ -2050,7 +2392,8 @@ public class Chunk : MonoBehaviour, IChunk
             _waterTilemap.GetComponent<TilemapRenderer>(),
             _waterTilemap.GetComponent<TilemapCollider2D>());
         worldTilemapRenderer.ConfigureCoverageTilemap(
-            _coverageTilemap.GetComponent<TilemapRenderer>());
+            _coverageRenderer =
+                _coverageTilemap.GetComponent<TilemapRenderer>());
         _tilemapsConfigured = true;
     }
 
@@ -2074,7 +2417,20 @@ public class Chunk : MonoBehaviour, IChunk
         renderer.mode = drawIndiviual ? TilemapRenderer.Mode.Individual : TilemapRenderer.Mode.Chunk;
 
         if (addCollider)
-            layerObject.AddComponent<TilemapCollider2D>();
+        {
+            TilemapCollider2D tileCollider =
+                layerObject.AddComponent<TilemapCollider2D>();
+            Rigidbody2D body = layerObject.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Static;
+            CompositeCollider2D composite =
+                layerObject.AddComponent<CompositeCollider2D>();
+            composite.geometryType =
+                CompositeCollider2D.GeometryType.Polygons;
+            composite.generationType =
+                CompositeCollider2D.GenerationType.Synchronous;
+            tileCollider.compositeOperation =
+                Collider2D.CompositeOperation.Merge;
+        }
 
         if (blocksLight)
         {
@@ -2161,7 +2517,7 @@ public class Chunk : MonoBehaviour, IChunk
             int x = index % ChunkBuildResult.ChunkSize;
             int y = index / ChunkBuildResult.ChunkSize;
             Vector3Int localCell = new(x, y);
-            BiomeBlend biome = _biomeBlends[index];
+            BiomeBlend biome = _biomeBlends[index].ToBiomeBlend();
             int worldX = Position.x * ChunkBuildResult.ChunkSize + x;
             int worldY = Position.y * ChunkBuildResult.ChunkSize + y;
             SeasonalBiomeTint.Reapply(
@@ -2170,7 +2526,7 @@ public class Chunk : MonoBehaviour, IChunk
                 timeController,
                 worldX,
                 worldY);
-            _biomeBlends[index] = biome;
+            _biomeBlends[index] = new SeasonalBiomeColors(biome);
             _biomeColorAppliedDayKeys[index] = SeasonalBiomeTint.GetDayKey(
                 timeController.DayInMonth,
                 timeController.Season,
@@ -2209,11 +2565,19 @@ public class Chunk : MonoBehaviour, IChunk
         if (tile == null)
             return;
 
-        Color color = GetTileColor(
-            tile,
-            biome,
-            _baselineTints[(int)layer][index]);
-        color *= tile.Color;
+        Color color = tile.usesMoistureTint
+            ? tile.Color
+            : GetTileColor(
+                  tile,
+                  biome,
+                  _baselineTints[(int)layer][index]) * tile.Color;
+        if (layer == PersistentTileLayer.Water)
+        {
+            color = WaterTilePayload.Encode(
+                color,
+                _waterDepths[index],
+                tile.waterTextureIndex);
+        }
         _baselineColors[(int)layer][index] = color;
 
         if (!_persistenceRoot.HasTileOverride(
@@ -2233,6 +2597,9 @@ public class Chunk : MonoBehaviour, IChunk
         BiomeBlend biome,
         PersistentTileTint tint)
     {
+        if (tile.usesMoistureTint)
+            return tile.Color;
+
         return tint switch
         {
             PersistentTileTint.BiomeGround => biome.groundColor,
@@ -2243,6 +2610,72 @@ public class Chunk : MonoBehaviour, IChunk
             PersistentTileTint.BiomeBeach => biome.beachColor,
             _ => tile.Color
         };
+    }
+
+    private readonly struct SeasonalBiomeColors
+    {
+        public readonly Color groundColor;
+        public readonly Color dirtColor;
+        public readonly Color pathColor;
+        public readonly Color waterColor;
+        public readonly Color cliffColor;
+        public readonly Color beachColor;
+        public readonly Color untintedGroundColor;
+        public readonly Color untintedDirtColor;
+        public readonly Color untintedPathColor;
+        public readonly Color untintedWaterColor;
+        public readonly Color untintedCliffColor;
+        public readonly Color untintedBeachColor;
+        public readonly Color springTint;
+        public readonly Color summerTint;
+        public readonly Color fallTint;
+        public readonly Color winterTint;
+        public readonly float seasonColorEffectMod;
+
+        public SeasonalBiomeColors(BiomeBlend biome)
+        {
+            groundColor = biome.groundColor;
+            dirtColor = biome.dirtColor;
+            pathColor = biome.pathColor;
+            waterColor = biome.waterColor;
+            cliffColor = biome.cliffColor;
+            beachColor = biome.beachColor;
+            untintedGroundColor = biome.untintedGroundColor;
+            untintedDirtColor = biome.untintedDirtColor;
+            untintedPathColor = biome.untintedPathColor;
+            untintedWaterColor = biome.untintedWaterColor;
+            untintedCliffColor = biome.untintedCliffColor;
+            untintedBeachColor = biome.untintedBeachColor;
+            springTint = biome.springTint;
+            summerTint = biome.summerTint;
+            fallTint = biome.fallTint;
+            winterTint = biome.winterTint;
+            seasonColorEffectMod = biome.SeasonColorEffectMod;
+        }
+
+        public BiomeBlend ToBiomeBlend()
+        {
+            return new BiomeBlend
+            {
+                groundColor = groundColor,
+                dirtColor = dirtColor,
+                pathColor = pathColor,
+                waterColor = waterColor,
+                cliffColor = cliffColor,
+                beachColor = beachColor,
+                untintedGroundColor = untintedGroundColor,
+                untintedDirtColor = untintedDirtColor,
+                untintedPathColor = untintedPathColor,
+                untintedWaterColor = untintedWaterColor,
+                untintedCliffColor = untintedCliffColor,
+                untintedBeachColor = untintedBeachColor,
+                springTint = springTint,
+                summerTint = summerTint,
+                fallTint = fallTint,
+                winterTint = winterTint,
+                SeasonColorEffectMod = seasonColorEffectMod
+            };
+        }
     }
 
     private PersistentTileTint GetGroundTint(float height, bool isCliff)
@@ -2316,6 +2749,16 @@ public class Chunk : MonoBehaviour, IChunk
 
         if (height < worldGeneration.Elevation.waterHeight)
         {
+            if (worldGeneration.UsesCaveLayout)
+            {
+                color = biome.dominantBiome.overrideBeachTile != null
+                    ? biome.beachColor
+                    : biome.groundColor;
+                return biome.dominantBiome.overrideBeachTile ??
+                       biome.dominantBiome.overrideGroundTile ??
+                       GroundTile;
+            }
+
             color = biome.beachColor;
             return biome.dominantBiome.overrideBeachTile ?? BeachTile;
         }
@@ -2326,6 +2769,13 @@ public class Chunk : MonoBehaviour, IChunk
         }
         else if (height < worldGeneration.Elevation.beachHeight)
         {
+            if (worldGeneration.UsesCaveLayout &&
+                biome.dominantBiome.overrideBeachTile == null)
+            {
+                color = biome.groundColor;
+                return biome.dominantBiome.overrideGroundTile ?? GroundTile;
+            }
+
             color = biome.beachColor;
             return biome.dominantBiome.overrideBeachTile ?? BeachTile;
         }
@@ -2334,11 +2784,6 @@ public class Chunk : MonoBehaviour, IChunk
             color = biome.groundColor;
             return biome.dominantBiome.overrideGroundTile ?? GroundTile;
         }
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
     }
 
     public class Pool : MonoMemoryPool<ChunkBuildResult, Chunk>

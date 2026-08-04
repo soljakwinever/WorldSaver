@@ -24,15 +24,39 @@ public class DataInstaller : ScriptableObjectInstaller<DataInstaller>
                 ? GenerationPresetCatalog
                 : Resources.Load<WorldGenerationPresetCatalogData>(
                     "WorldGeneration/PresetCatalog");
-        WorldGenerationPresetData preset = ResolvePreset(catalog);
+        PlaneData plane = ResolvePlane(WorldData);
+        WorldGenerationPresetData preset = plane != null
+            ? plane.generationPreset
+            : ResolvePreset(catalog);
         if (preset == null)
             preset = WorldGenerationPresetDefaults.CreateFromLegacy(WorldData);
 
         Container.BindInstance(WorldData);
         Container.BindInstance(new WorldGenerationSelection(seed, preset));
         Container.BindInstance(preset);
+        if (plane != null)
+        {
+            Container.BindInstance(plane);
+            Container.BindInstance(new PlaneSelection(plane));
+        }
         if (catalog != null)
             Container.BindInstance(catalog);
+    }
+
+    private static PlaneData ResolvePlane(WorldData world)
+    {
+        if (world == null)
+            return null;
+        string id = PlayerPrefs.GetString(
+            PlaneSelection.GetActivePlaneIdKey(), string.Empty);
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            if (world.TryGetPlane(id, out PlaneData active))
+                return active;
+            throw new System.InvalidOperationException(
+                $"Plane '{id}' is not installed in this world.");
+        }
+        return world.StartPlane;
     }
 
     private static WorldGenerationPresetData ResolvePreset(

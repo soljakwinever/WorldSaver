@@ -34,6 +34,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: c8df123b1de94a190de8880b70d6beb5, type: 2}
   - {fileID: 11400000, guid: 2327ab1b2293e6c1682c8eabd8664475, type: 2}
   - {fileID: 11400000, guid: 1877ca8a6e29cb24dac2f55c4db1b089, type: 2}
+  valueTags: []
   damageRules: []
   references:
     version: 2
@@ -52,8 +53,8 @@ MonoBehaviour:
         fuelTag: {fileID: 11400000, guid: 60f82f88a77b4ba09cfc6515e57c0374, type: 2}
         recipeList: {fileID: 11400000, guid: b51c85efb6824b3684a3d0d1d60f31f1, type: 2}
         ingredientSlots: 3
-        ticksPerCycle: 200
-        fuelValuePerCycle: 8
+        ticksPerCycle: 60
+        fuelValuePerCycle: 1
     - rid: 810000000000000703
       type: {class: SpaceReservationData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
       data:

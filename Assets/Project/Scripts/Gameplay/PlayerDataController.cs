@@ -8,6 +8,7 @@ using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Zenject;
 
 namespace Project.Scripts.Gameplay
@@ -32,12 +33,13 @@ namespace Project.Scripts.Gameplay
         IPersistentComponent, ISkillStamina
     {
         public const ushort TypeId = 10;
-        private const ushort CurrentComponentVersion = 5;
+        private const ushort CurrentComponentVersion = 7;
         private const ushort CurrentFileVersion = 1;
         private const uint FileMagic = 0x43535750; // PWSC
         private const int BaseStat = 5;
         private const int StatPointsPerLevel = 5;
         private const int BaseHealth = 100;
+        private const int BaseHunger = 100;
         private const int BaseEnergy = 100;
         private const int BaseMana = 50;
 
@@ -57,6 +59,9 @@ namespace Project.Scripts.Gameplay
         [SerializeField, Min(1)] private int level = 1;
         [SerializeField, Min(0)] private int experience;
         [SerializeField, Min(0)] private int unspentStatPoints;
+        [SerializeField, Min(0)] private int unspentSkillPoints = 1;
+        [SerializeField] private List<string> unlockedSkillTreeNodes = new();
+        [SerializeField] private List<string> unlockedSkills = new();
 
         [Header("Attributes")]
         [SerializeField, Min(1)] private int strength = BaseStat;
@@ -72,6 +77,8 @@ namespace Project.Scripts.Gameplay
         [SerializeField] private Vector3 spawnPoint;
         [SerializeField] private bool hasSpawnTown;
         [SerializeField] private ulong spawnTownId;
+        [SerializeField] private string spawnPlaneId = string.Empty;
+        [SerializeField] private string currentPlaneId = string.Empty;
         [SerializeField] private List<VisitedTown> visitedTowns = new();
 
         [Serializable]
@@ -89,6 +96,9 @@ namespace Project.Scripts.Gameplay
         [InjectOptional] private IWorldClock _worldClock;
         [InjectOptional] private IComponentWindowService _windowService;
         [InjectOptional] private IWorldGenerator _worldGenerator;
+        [InjectOptional] private PlaneSelection _planeSelection;
+        [InjectOptional] private WorldData _worldData;
+        [InjectOptional] private IWorldSaveService _worldSaveService;
 
         private PersistentHealth _health;
         private PlayerBus _playerBus;
@@ -111,6 +121,9 @@ namespace Project.Scripts.Gameplay
         public int Experience => experience;
         public int ExperienceToNextLevel => GetExperienceRequired(level);
         public int UnspentStatPoints => unspentStatPoints;
+        public int UnspentSkillPoints => unspentSkillPoints;
+        public IReadOnlyList<string> UnlockedSkillTreeNodes => unlockedSkillTreeNodes;
+        public IReadOnlyList<string> UnlockedSkills => unlockedSkills;
         public int Strength => Mathf.Max(
             1, strength + GetEquipmentModifier(EquipmentStat.Strength));
         public int Constitution => Mathf.Max(
@@ -127,9 +140,13 @@ namespace Project.Scripts.Gameplay
             1, luck + GetEquipmentModifier(EquipmentStat.Luck));
         public int Defense => Mathf.Max(
             0, GetEquipmentModifier(EquipmentStat.Defense));
+        public int MaxHunger => checked(
+            BaseHunger + GetNeedCapacityLevelBonus(level));
+        public int CurrentHunger => Mathf.RoundToInt(hunger * MaxHunger);
         public int MaxEnergy => Mathf.Max(
             1,
             BaseEnergy + (Constitution - BaseStat) * 10 +
+            GetNeedCapacityLevelBonus(level) +
             GetEquipmentModifier(EquipmentStat.MaximumEnergy));
         public int CurrentEnergy => Mathf.RoundToInt(energy * MaxEnergy);
         public int MaxMana => Mathf.Max(
@@ -153,6 +170,8 @@ namespace Project.Scripts.Gameplay
             SanitizePathSegment(characterId, "player");
         public bool HasSpawnPoint => hasSpawnPoint;
         public Vector3 SpawnPoint => spawnPoint;
+        public string SpawnPlaneId => spawnPlaneId;
+        public string CurrentPlaneId => currentPlaneId;
         public bool IsDeathInProgress => _deathInProgress;
         public DeathDropContainer LastDeathDrop { get; private set; }
 
@@ -165,6 +184,17 @@ namespace Project.Scripts.Gameplay
                 return;
 
             Mana += (float)amount / MaxMana;
+        }
+
+        public bool TrySpendMana(float amount)
+        {
+            if (float.IsNaN(amount) || float.IsInfinity(amount) || amount < 0f)
+                throw new ArgumentOutOfRangeException(nameof(amount));
+            if (CurrentMana + 0.0001f < amount)
+                return false;
+            if (amount > 0f)
+                Mana -= amount / MaxMana;
+            return true;
         }
 
         public bool TrySpendStamina(float amount)
@@ -224,6 +254,24 @@ namespace Project.Scripts.Gameplay
                 "WorldSaver.ActiveWorld",
                 worldId);
             bool restored = TryLoad();
+            string activePlaneId = _planeSelection?.PlaneId ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(currentPlaneId))
+                currentPlaneId = activePlaneId;
+            if (restored && !string.IsNullOrWhiteSpace(activePlaneId) &&
+                !string.Equals(currentPlaneId, activePlaneId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                if (_worldData != null &&
+                    _worldData.TryGetPlane(currentPlaneId, out _))
+                {
+                    PlayerPrefs.SetString(PlaneSelection.GetActivePlaneIdKey(),
+                        currentPlaneId);
+                    PlayerPrefs.Save();
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                    return;
+                }
+                currentPlaneId = activePlaneId;
+            }
             if (!restored && _worldGenerator != null)
                 MoveToRespawnPosition(GetWorldSpawnPosition());
             _loaded = true;
@@ -284,6 +332,7 @@ namespace Project.Scripts.Gameplay
                 level++;
                 unspentStatPoints =
                     checked(unspentStatPoints + StatPointsPerLevel);
+                unspentSkillPoints = checked(unspentSkillPoints + 1);
                 _playerBus?.RaiseLevelUp(level, StatPointsPerLevel);
             }
 
@@ -323,6 +372,46 @@ namespace Project.Scripts.Gameplay
 
             unspentStatPoints--;
             _playerBus?.RaiseStatsChanged();
+            return true;
+        }
+
+        public bool HasSkill(SkillData skill) =>
+            skill != null && unlockedSkills.Contains(skill.persistentId);
+
+        public bool HasUnlockedNode(SkillTreeNode node) =>
+            node?.skill != null && unlockedSkillTreeNodes.Contains(node.skill.persistentId);
+
+        public bool TryUnlockSkillTreeNode(SkillTreeNode node)
+        {
+            if (node?.skill == null || unspentSkillPoints <= 0 || HasUnlockedNode(node))
+                return false;
+            if (node.Parent != null && !HasUnlockedNode(node.Parent))
+                return false;
+
+            unspentSkillPoints--;
+            unlockedSkillTreeNodes.Add(node.skill.persistentId);
+            if (!GrantSkill(node.skill))
+            {
+                // The skill may already have come from a skillbook, but the
+                // newly unlocked tree node and spent point must still persist.
+                _playerBus?.RaiseStatsChanged();
+                if (_loaded)
+                    TrySave();
+            }
+            return true;
+        }
+
+        /// <summary>Grants a skill independently of a tree (for example, from a skillbook).</summary>
+        public bool GrantSkill(SkillData skill)
+        {
+            if (skill == null || string.IsNullOrWhiteSpace(skill.persistentId) ||
+                unlockedSkills.Contains(skill.persistentId))
+                return false;
+            unlockedSkills.Add(skill.persistentId);
+            GetComponent<SkillRuntime>()?.GrantPassive(skill);
+            _playerBus?.RaiseStatsChanged();
+            if (_loaded)
+                TrySave();
             return true;
         }
 
@@ -390,6 +479,20 @@ namespace Project.Scripts.Gameplay
             return (int)Math.Min(required, int.MaxValue);
         }
 
+        /// <summary>
+        /// Slow, always-increasing capacity growth: a small early boost that
+        /// approaches one additional point per level.
+        /// </summary>
+        public static int GetNeedCapacityLevelBonus(int currentLevel)
+        {
+            if (currentLevel < 1)
+                throw new ArgumentOutOfRangeException(nameof(currentLevel));
+
+            long offset = currentLevel - 1L;
+            long bonus = offset + (long)Math.Floor(2d * Math.Sqrt(offset));
+            return (int)Math.Min(bonus, int.MaxValue);
+        }
+
         public void SetWalking(bool moving)
         {
             _needsController ??= GetComponent<PlayerNeedsController>();
@@ -404,6 +507,7 @@ namespace Project.Scripts.Gameplay
                     "Spawn point coordinates must be finite.");
 
             spawnPoint = worldPosition;
+            spawnPlaneId = CurrentPlaneId;
             hasSpawnPoint = true;
             hasSpawnTown = false;
             spawnTownId = 0;
@@ -446,6 +550,40 @@ namespace Project.Scripts.Gameplay
             return hasSpawnPoint;
         }
 
+        public bool TryGetSpawnPoint(
+            out string planeId,
+            out Vector3 worldPosition)
+        {
+            planeId = spawnPlaneId;
+            return TryGetSpawnPoint(out worldPosition);
+        }
+
+        public async Awaitable<bool> TravelToPlaneAsync(
+            PlaneData destination,
+            Vector3 destinationPosition)
+        {
+            if (destination == null ||
+                string.IsNullOrWhiteSpace(destination.PersistentId) ||
+                destination.generationPreset == null ||
+                _worldData == null ||
+                !_worldData.TryGetPlane(destination.PersistentId, out _))
+                return false;
+            if (!IsFinite(destinationPosition))
+                throw new ArgumentOutOfRangeException(nameof(destinationPosition));
+
+            if (_worldSaveService != null)
+                await _worldSaveService.SaveAsync();
+
+            currentPlaneId = destination.PersistentId;
+            MoveToRespawnPosition(destinationPosition);
+            Save();
+            PlayerPrefs.SetString(PlaneSelection.GetActivePlaneIdKey(),
+                currentPlaneId);
+            PlayerPrefs.Save();
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            return true;
+        }
+
         public IReadOnlyList<VisitedTown> VisitedTowns => visitedTowns;
 
         public void RegisterTownVisit(TownCore town)
@@ -470,6 +608,16 @@ namespace Project.Scripts.Gameplay
             if (!hasSpawnPoint)
                 return false;
 
+            if (!string.IsNullOrWhiteSpace(spawnPlaneId) &&
+                !string.Equals(spawnPlaneId, CurrentPlaneId,
+                    StringComparison.OrdinalIgnoreCase) &&
+                _worldData != null &&
+                _worldData.TryGetPlane(spawnPlaneId, out PlaneData spawnPlane))
+            {
+                _ = TravelToPlaneAsync(spawnPlane, spawnPoint);
+                return true;
+            }
+
             transform.position = spawnPoint;
             if (TryGetComponent(out Rigidbody2D body))
             {
@@ -486,12 +634,24 @@ namespace Project.Scripts.Gameplay
 
             Vector3 deathPosition = transform.position;
             DropNonToolbarItems(deathPosition);
-            MoveToRespawnPosition(ResolveRespawnPosition());
+            Vector3 respawnPosition = ResolveRespawnPosition();
             hunger = 0.25f;
             energy = 1f;
             _health.SetHealth(Mathf.Min(20, _health.MaxHealth));
             _deathInProgress = false;
             Respawned?.Invoke(this);
+
+            if (!string.IsNullOrWhiteSpace(spawnPlaneId) &&
+                !string.Equals(spawnPlaneId, CurrentPlaneId,
+                    StringComparison.OrdinalIgnoreCase) &&
+                _worldData != null &&
+                _worldData.TryGetPlane(spawnPlaneId, out PlaneData spawnPlane))
+            {
+                _ = TravelToPlaneAsync(spawnPlane, respawnPosition);
+                return;
+            }
+
+            MoveToRespawnPosition(respawnPosition);
         }
 
         public void ResolveDeathImmediately()
@@ -643,6 +803,11 @@ namespace Project.Scripts.Gameplay
                 writer.Write(town.SpawnPoint.y);
                 writer.Write(town.SpawnPoint.z);
             }
+            writer.Write(unspentSkillPoints);
+            WriteIds(writer, unlockedSkillTreeNodes);
+            WriteIds(writer, unlockedSkills);
+            writer.Write(spawnPlaneId ?? string.Empty);
+            writer.Write(currentPlaneId ?? string.Empty);
         }
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
@@ -755,6 +920,38 @@ namespace Project.Scripts.Gameplay
                 }
             }
 
+            unlockedSkillTreeNodes.Clear();
+            unlockedSkills.Clear();
+            if (savedVersion >= 6)
+            {
+                unspentSkillPoints = reader.ReadInt32();
+                if (unspentSkillPoints < 0)
+                    throw new InvalidDataException("Saved skill point count is invalid.");
+                ReadIds(reader, unlockedSkillTreeNodes, "skill-tree node");
+                ReadIds(reader, unlockedSkills, "skill");
+            }
+            else
+            {
+                // Version 5 and earlier predate skill points. Award one for
+                // every level already earned, including the starting level.
+                unspentSkillPoints = level;
+            }
+
+            string activePlaneId = _planeSelection?.PlaneId ?? string.Empty;
+            spawnPlaneId = hasSpawnPoint ? activePlaneId : string.Empty;
+            currentPlaneId = activePlaneId;
+            if (savedVersion >= 7)
+            {
+                spawnPlaneId = reader.ReadString();
+                currentPlaneId = reader.ReadString();
+                if (hasSpawnPoint && string.IsNullOrWhiteSpace(spawnPlaneId))
+                    spawnPlaneId = activePlaneId;
+                if (string.IsNullOrWhiteSpace(currentPlaneId))
+                    currentPlaneId = activePlaneId;
+            }
+
+            RestoreUnlockedPassives();
+
             ApplyConstitutionToHealth(healIncrease: false);
         }
 
@@ -775,6 +972,41 @@ namespace Project.Scripts.Gameplay
                    !hasSpawnPoint &&
                    !hasSpawnTown &&
                    visitedTowns.Count == 0;
+        }
+
+        private static void WriteIds(BinaryWriter writer, IReadOnlyList<string> ids)
+        {
+            writer.Write(ids?.Count ?? 0);
+            for (int i = 0; i < (ids?.Count ?? 0); i++)
+                writer.Write(ids[i] ?? string.Empty);
+        }
+
+        private static void ReadIds(BinaryReader reader, ICollection<string> destination, string kind)
+        {
+            int count = reader.ReadInt32();
+            if (count < 0 || count > 10000)
+                throw new InvalidDataException($"Saved {kind} count is invalid.");
+            var unique = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < count; i++)
+            {
+                string id = reader.ReadString();
+                if (string.IsNullOrWhiteSpace(id) || !unique.Add(id))
+                    throw new InvalidDataException($"Saved {kind} identifier is invalid or duplicated.");
+                destination.Add(id);
+            }
+        }
+
+        private void RestoreUnlockedPassives()
+        {
+            SkillRuntime runtime = GetComponent<SkillRuntime>();
+            if (runtime == null)
+                return;
+            var catalog = new SkillCatalog();
+            foreach (string id in unlockedSkills)
+                if (catalog.TryGet(id, out SkillData skill))
+                    runtime.GrantPassive(skill);
+                else
+                    Debug.LogWarning($"Saved skill '{id}' is not present in the skill catalog.", this);
         }
 
         private void OnHealthDepleted()

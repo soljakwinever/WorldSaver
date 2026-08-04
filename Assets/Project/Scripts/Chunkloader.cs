@@ -7,14 +7,16 @@ using Project.Scripts.Bus;
 using Project.Scripts.Interface;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.Gameplay;
 using Project.Scripts.TimeAndWeather;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Zenject;
 
-public class Chunkloader : MonoBehaviour, IChunkLoader
+public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
 {
     [Inject] private IChunkGenerator chunkGenerator;
+    [Inject] private PlaneSelection planeSelection;
     
     public Vector2Int Position
     {
@@ -28,10 +30,26 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
 
     public int LoadedChunks => _loadedChunks.Count;
     public Vector2Int WorldSpawnPosition => worldGeneration.WorldSpawnPosition;
+    public PlaneData CurrentPlane => planeSelection.Plane;
+    public string CurrentPlaneId => planeSelection.PlaneId;
     public float CurrentAmbientTemperature =>
         track == null ? 0f : weatherService.GetAmbientTemperature(track.position);
     public WeatherSample CurrentWeather =>
         track == null ? default : weatherService.Sample(track.position);
+
+    public bool ShouldLoadChunk(Vector2Int chunkPosition)
+    {
+        if (_portalPinnedChunks.Contains(chunkPosition))
+            return true;
+        if (track == null)
+            return false;
+
+        Vector2Int loaderPosition = Position;
+        return chunkPosition.x >= loaderPosition.x - LoadDistance &&
+               chunkPosition.x < loaderPosition.x + LoadDistance &&
+               chunkPosition.y >= loaderPosition.y - LoadDistance &&
+               chunkPosition.y < loaderPosition.y + LoadDistance;
+    }
 
     [SerializeField] private GameObject cursor;
     
@@ -103,6 +121,11 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
             "chunkloader.reload",
             "Unloads and reloads every currently loaded chunk.",
             ReloadChunks);
+        DebugLogConsole.AddCommand<string>(
+            "plane.portal",
+            "Creates a portal to a plane at the player's current coordinates.",
+            DebugCreatePlanePortal,
+            "planeId");
         if (!chunkGenerator.IsRunning)
             chunkGenerator.Run(this,destroyCancellationToken);
     }
@@ -115,6 +138,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
         timeSignalBus.MonthChanged -= OnMonthChanged;
         DebugLogConsole.RemoveCommand(DebugPrintCurrentRegion);
         DebugLogConsole.RemoveCommand(ReloadChunks);
+        DebugLogConsole.RemoveCommand<string>(DebugCreatePlanePortal);
     }
 
     private void DebugPrintCurrentRegion()
@@ -131,6 +155,83 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
             WorldPartition.ChunkToRegion(chunkPosition);
         Debug.Log(
             $"Chunk loader region: {regionPosition} (chunk: {chunkPosition}).");
+    }
+
+    private void DebugCreatePlanePortal(string planeId)
+    {
+        if (track == null)
+        {
+            Debug.LogWarning("Cannot create a plane portal without a tracked player.");
+            return;
+        }
+        if (!worldData.TryGetPlane(planeId, out PlaneData destination))
+        {
+            string available = string.Join(", ",
+                (worldData.planes ?? Array.Empty<PlaneData>())
+                .Where(candidate => candidate != null)
+                .Select(candidate => candidate.PersistentId));
+            Debug.LogWarning(
+                $"Unknown plane '{planeId}'. Available planes: {available}.");
+            return;
+        }
+        if (string.Equals(destination.PersistentId, CurrentPlaneId,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Debug.LogWarning($"Player is already in plane '{CurrentPlaneId}'.");
+            return;
+        }
+
+        GameObject prefab = Resources.Load<GameObject>("Portal");
+        if (prefab == null)
+        {
+            Debug.LogWarning("Could not load Resources/Portal.");
+            return;
+        }
+
+        WorldGeneration destinationGeneration = new(
+            worldData,
+            new WorldGenerationSelection(
+                unchecked((int)worldGeneration.Seed),
+                destination.generationPreset),
+            null);
+        Vector2Int requestedCell = Vector2Int.FloorToInt(track.position);
+        if (!destinationGeneration.TryFindSafePortalPosition(
+                requestedCell,
+                out Vector2Int safeCell))
+        {
+            Debug.LogWarning(
+                $"No safe portal landing area was found within 64 cells of " +
+                $"{requestedCell} in plane '{destination.PersistentId}'.");
+            return;
+        }
+
+        Vector3 destinationPosition = safeCell == requestedCell
+            ? track.position
+            : new Vector3(safeCell.x + 0.5f, safeCell.y + 0.5f,
+                track.position.z);
+        GameObject instance = Instantiate(
+            prefab,
+            track.position + Vector3.right * 2f,
+            Quaternion.identity);
+        EventPortalEffect effect = new()
+        {
+            destinationWorldPosition = destinationPosition,
+            activationDistance = 1.5f,
+            transitionDuration = 0.45f,
+            creationDuration = 0.5f,
+            textureSize = 256,
+            particleSizeMultiplier = 6f
+        };
+        FastTravelPortal portal =
+            instance.GetComponent<FastTravelPortal>() ??
+            instance.AddComponent<FastTravelPortal>();
+        portal.Initialize(effect, track, this, destination);
+        Debug.Log(
+            $"Created portal from plane '{CurrentPlaneId}' to " +
+            $"'{destination.PersistentId}' at {destinationPosition}" +
+            (safeCell == requestedCell
+                ? "."
+                : $" (nearest safe area to {requestedCell})."));
     }
 
     private void OnHourChanged(TimeChangedArgs args)
@@ -300,6 +401,16 @@ public class Chunkloader : MonoBehaviour, IChunkLoader
 
         chunk = null;
         return false;
+    }
+
+    public bool IsWaterTile(Vector3Int worldCell)
+    {
+        return TryGetLoadedChunk(worldCell, out Chunk chunk) &&
+               chunk.TryGetTileData(
+                   worldCell,
+                   PersistentTileLayer.Water,
+                   out TileData water) &&
+               water != null;
     }
 
     public void CopyLoadedChunks(List<Chunk> destination)

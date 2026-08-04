@@ -9,9 +9,11 @@ namespace Project.Scripts.DataTypes
     public abstract class WeatherData : ScriptableObject
     {
         [SerializeField] private string weatherId = "weather";
+        [SerializeField] private bool watersPlants;
 
         public string WeatherId => string.IsNullOrWhiteSpace(weatherId)
             ? name
             : weatherId.Trim();
+        public bool WatersPlants => watersPlants;
     }
 }

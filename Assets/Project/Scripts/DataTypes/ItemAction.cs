@@ -59,4 +59,12 @@ namespace Project.Scripts.DataTypes
         public virtual bool DisplayCount => false;
     }
 
+    /// <summary>
+    /// Marks an item action that should be attempted when the player presses
+    /// Direct Interact. The target position is the cell the player occupies.
+    /// </summary>
+    public interface IDirectTileInteractionItemAction
+    {
+    }
+
 }

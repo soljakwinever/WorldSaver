@@ -5,4 +5,5 @@ namespace Project.Scripts.Core
         long CurrentTick { get; }
         void Save();
     }
+
 }

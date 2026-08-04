@@ -3,6 +3,7 @@ using Project.Scripts;
 using Project.Scripts.Bus;
 using Project.Scripts.Gameplay;
 using Project.Scripts.Core;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using Project.Scripts.Persistence;
 using Project.Scripts.Pathfinding;
@@ -22,6 +23,7 @@ public class GameDataInstaller : MonoInstaller
 
     public RectTransform worldUi;
     public PopTextSettings popTextSettings = new();
+    public ItemStackExplosionSettings itemStackExplosionSettings = new();
     
     public override void InstallBindings()
     {
@@ -70,6 +72,11 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<IItemStackPickupPool>()
             .To<ItemStackPickupPool>()
             .FromResolve();
+        itemStackExplosionSettings ??= new ItemStackExplosionSettings();
+        Container.BindInstance(itemStackExplosionSettings);
+        Container.Bind<IItemStackExplosionService>()
+            .To<ItemStackExplosionService>()
+            .AsSingle();
 
         Container.Bind<BiomeData[]>().FromMethod(t => Resources.LoadAll<BiomeData>("Biomes") 
         ).AsSingle();
@@ -100,6 +107,9 @@ public class GameDataInstaller : MonoInstaller
             .AsSingle()
             .NonLazy();
         Container.Bind<Chunkloader>().FromComponentInHierarchy().AsSingle();
+        Container.Bind<IWaterTileQuery>()
+            .FromResolveGetter<Chunkloader>(loader => loader)
+            .AsSingle();
         Container.BindInterfacesAndSelfTo<RoomDetectionSystem>()
             .FromNewComponentOnNewGameObject()
             .AsSingle()
@@ -133,10 +143,12 @@ public class GameDataInstaller : MonoInstaller
             .FromNewComponentOnNewGameObject()
             .AsSingle()
             .NonLazy();
+        Container.Bind<IWorldSaveService>()
+            .To<DataController>()
+            .FromResolve();
         
         Container.Bind<PlayerDataController>().FromComponentInHierarchy().AsSingle();
-        Container.Bind<IWorldActionUiBlocker>()
-            .To<PlayerHUD>()
+        Container.BindInterfacesAndSelfTo<PlayerHUD>()
             .FromComponentInHierarchy()
             .AsSingle();
         Container.BindInterfacesTo<PlayerGiveItemCommand>().AsSingle().NonLazy();
@@ -175,12 +187,19 @@ public class GameDataInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<WeatherEffectPresenter>()
             .AsSingle()
             .NonLazy();
+        Container.BindInterfacesAndSelfTo<EarthquakeWeatherController>()
+            .AsSingle()
+            .NonLazy();
         Container.Bind<PlayerBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<EntityBus>().FromNew().AsSingle().NonLazy();
         Container.BindInterfacesTo<PersistentEntityRemovalBridge>()
             .AsSingle()
             .NonLazy();
         Container.Bind<IAttackService>().To<AttackService>().AsSingle();
+        Container.BindInterfacesAndSelfTo<AreaAttackService>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
         Container.BindInterfacesAndSelfTo<ProjectileService>()
             .AsSingle();
 

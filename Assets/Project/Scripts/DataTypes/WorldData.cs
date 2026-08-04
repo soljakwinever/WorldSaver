@@ -10,6 +10,28 @@ namespace Project.Scripts
     [CreateAssetMenu(fileName = "World Data", menuName = "WorldData", order = 0)]
     public class WorldData : ScriptableObject
     {
+        [Header("Planes")]
+        public PlaneData StartPlane;
+        public PlaneData[] planes = Array.Empty<PlaneData>();
+
+        public bool TryGetPlane(string planeId, out PlaneData plane)
+        {
+            plane = null;
+            if (string.IsNullOrWhiteSpace(planeId))
+                return false;
+            foreach (PlaneData candidate in planes ?? Array.Empty<PlaneData>())
+            {
+                if (candidate != null &&
+                    string.Equals(candidate.PersistentId, planeId.Trim(),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    plane = candidate;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public TileData[] tiles;
 
         [Header("Tile Actions")]
@@ -74,6 +96,17 @@ namespace Project.Scripts
 
         private void OnValidate()
         {
+            HashSet<string> planeIds = new(StringComparer.OrdinalIgnoreCase);
+            foreach (PlaneData plane in planes ?? Array.Empty<PlaneData>())
+            {
+                if (plane == null || string.IsNullOrWhiteSpace(plane.PersistentId))
+                    Debug.LogError("World planes require a non-empty ID.", this);
+                else if (!planeIds.Add(plane.PersistentId))
+                    Debug.LogError($"Duplicate plane ID '{plane.PersistentId}'.", this);
+            }
+            if (StartPlane != null && !planeIds.Contains(StartPlane.PersistentId))
+                Debug.LogError("StartPlane must also appear in the planes list.", this);
+
             if (tiles == null)
                 return;
 
@@ -163,8 +196,8 @@ namespace Project.Scripts
         public EventData startingEvent;
 
         [Header("Runtime Entities")]
-        [Tooltip("Deterministic procedural node generated at the world's shared spawn position.")]
-        public NodeData spawnPlatformNode;
+        [Tooltip("Feature recipe applied at the world's shared spawn position.")]
+        public FeatureData worldSpawnFeature;
         public DataTypes.EntityArchetype[] runtimeEntityArchetypes;
         
         [Header("Time Data")]
