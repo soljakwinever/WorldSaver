@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Bioluminescent Grotto
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Bioluminescent Grotto
+  areaNameParts: {fileID: 11400000, guid: edf3b0621846acff4666b607f25451d9, type: 2}
   temperature: 0.38
   temperatureVariance: 0.12
   moisture: 0.82

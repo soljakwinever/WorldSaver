@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Saltstone Caves
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Saltstone Caves
+  areaNameParts: {fileID: 11400000, guid: 8bea00c1b818b01ca1e48bba84bf5e3a, type: 2}
   temperature: 0.68
   temperatureVariance: 0.12
   moisture: 0.08

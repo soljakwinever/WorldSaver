@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Wildflower Meadows
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Wildflower Meadows
+  areaNameParts: {fileID: 11400000, guid: 3dcdbd873edfd55f5c3d0752e3c315e8, type: 2}
   temperature: 0.58
   temperatureVariance: 0.14
   moisture: 0.55

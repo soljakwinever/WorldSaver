@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Luminous Caverns
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Luminous Caverns
+  areaNameParts: {fileID: 11400000, guid: 52df89e4737640c776e261761588d8e0, type: 2}
   temperature: 0.32
   temperatureVariance: 0.16
   moisture: 0.7

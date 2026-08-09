@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Boreal Forest
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Boreal Forest
+  areaNameParts: {fileID: 11400000, guid: 4afce491b1d6a705e765fd93c8758a8a, type: 2}
   temperature: 0.22
   temperatureVariance: 0.12
   moisture: 0.58

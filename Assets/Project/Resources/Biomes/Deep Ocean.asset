@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Deep Ocean
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Deep Ocean
+  areaNameParts: {fileID: 11400000, guid: f79955323c6f6e8220f55f3bb94c2d28, type: 2}
+  biomePlacement: 2
   temperature: 0.4
   temperatureVariance: 0.35
   moisture: 1

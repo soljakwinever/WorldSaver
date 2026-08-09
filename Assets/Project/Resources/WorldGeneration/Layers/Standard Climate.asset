@@ -66,6 +66,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: eeb19e0e4e7479a4a88ed7e909352c39, type: 2}
   - {fileID: 11400000, guid: 9deba257788954b4491107153ee7acfb, type: 2}
   - {fileID: 11400000, guid: 03b094fd2b4ccdc478b1329ce73f5582, type: 2}
+  - {fileID: 11400000, guid: b5ccd41aac3b360aad80b45760b9d136, type: 2}
+  - {fileID: 11400000, guid: 78850286f628b59d37a80dc1ad81d0e6, type: 2}
+  - {fileID: 11400000, guid: 245d74b6792c5f94ed8a80657af88443, type: 2}
+  - {fileID: 11400000, guid: 8c50426dd7ac1fe7699c759418e5dd28, type: 2}
+  - {fileID: 11400000, guid: 3b9163de5436b60e074025e161fb62e3, type: 2}
   continentalNoiseScale: 16
   moistureNoiseScale: 48
   temperatureNoiseScale: 64

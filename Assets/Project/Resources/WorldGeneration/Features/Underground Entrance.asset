@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Underground Entrance
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.FeatureData
   persistentId: UndergroundEntrance
-  selectionWeight: 0.6
+  selectionWeight: 4
   canBeSensed: 1
   senseIcon: {fileID: 370992156, guid: e0ed3743aaef6d649a6dbb360cd67395, type: 3}
   senseName: Underground Entrance
@@ -36,6 +36,10 @@ MonoBehaviour:
     strength: 1
     generator:
       rid: 880000000000000006
+  - enabled: 1
+    strength: 1
+    generator:
+      rid: 4542294877180002777
   references:
     version: 2
     RefIds:
@@ -57,3 +61,10 @@ MonoBehaviour:
         requireWalkableArea: 1
         walkableAreaSize: {x: 3, y: 3}
         walkableAreaOffset: {x: -1, y: -1}
+    - rid: 4542294877180002777
+      type: {class: RectangleFloorGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        tile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+        offset: {x: 0, y: 0}
+        width: 9
+        height: 9

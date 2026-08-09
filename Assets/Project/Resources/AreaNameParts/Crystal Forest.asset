@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74e1b366d3ca49aaa4b5bf364f60a219, type: 3}
+  m_Name: Crystal Forest Names
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.DataTypes.AreaNameParts
+  style: 0
+  presetNames:
+  - The Starlit Veil
+  - Moonwake
+  - Prism Reach
+  - The Crystal Dream
+  - Manafont
+  - Silverglow
+  - The Feyward
+  - Astral Hollow
+  firstParts:
+  - Arcane
+  - Astral
+  - Azure
+  - Crystal
+  - Dream
+  - Fey
+  - Glimmer
+  - Luminous
+  - Mana
+  - Moon
+  - Opal
+  - Prism
+  - Rune
+  - Silver
+  - Star
+  - Veil
+  - Violet
+  - Wisp
+  middleParts:
+  - dream
+  - glimmer
+  - light
+  - mana
+  - moon
+  - prism
+  - rune
+  - star
+  - veil
+  lastParts:
+  - bloom
+  - cradle
+  - fields
+  - font
+  - grove
+  - heights
+  - hollow
+  - reach
+  - sanctum
+  - springs
+  - vale
+  - wilds
+  - rift
+  - garden
+  separators:
+  - 
+  - ' '
+  - ''''
+  - '-'
+  minimumComponents: 2
+  maximumComponents: 3
+  featureTypes:
+  - Grove
+  - Springs
+  - Highlands
+  - Fields
+  - Crater
+  - Geodes
+  - Grotto

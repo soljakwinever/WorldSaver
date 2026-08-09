@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Bloodleaf Woods
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Bloodleaf Woods
+  areaNameParts: {fileID: 11400000, guid: 707594f5ac97bc05af2d70a69c9b184f, type: 2}
   temperature: 0.56
   temperatureVariance: 0.12
   moisture: 0.56

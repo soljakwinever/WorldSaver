@@ -15,9 +15,12 @@ MonoBehaviour:
   _toolName: Level1Pickaxe
   _toolType: 2
   _power: 8
+  _attackType: 0
   _staminaCost: 1
+  _ignoreEntities: 0
   _actions:
   - {fileID: 11400000, guid: d7dd636ed98efc848a84c99f803e278c, type: 2}
   - {fileID: 11400000, guid: f68a33b49cecac541aba9a318ca2f831, type: 2}
   _damageTags:
   - {fileID: 11400000, guid: 16fa4e544f7e7ebecf9d13e47b20aac2, type: 2}
+  _weaponSwing: {fileID: 11400000, guid: c36e9c3b1ff34893862190619d4bb0ab, type: 2}

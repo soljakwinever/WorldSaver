@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74e1b366d3ca49aaa4b5bf364f60a219, type: 3}
+  m_Name: Sporefall Basin Names
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.DataTypes.AreaNameParts
+  style: 0
+  presetNames:
+  - The Great Mycelium
+  - Sporefall
+  - Bluecap Wilds
+  - The Violet Bloom
+  - Glowcap Garden
+  - Redcap Reach
+  - The Fungal Deep
+  - Dreamspore
+  firstParts:
+  - Amber
+  - Bluecap
+  - Dream
+  - Fungal
+  - Giant
+  - Glow
+  - Moss
+  - Mycelial
+  - Puff
+  - Redcap
+  - Spore
+  - Toad
+  - Umber
+  - Veil
+  - Violet
+  - Whitecap
+  middleParts:
+  - cap
+  - glow
+  - moss
+  - mycel
+  - spore
+  - veil
+  lastParts:
+  - bloom
+  - grove
+  - hollows
+  - maze
+  - reach
+  - wilds
+  - warren
+  - garden
+  - basin
+  - forest
+  - fields
+  - vault
+  - depths
+  separators:
+  - 
+  - ' '
+  - ''''
+  - '-'
+  minimumComponents: 2
+  maximumComponents: 3
+  featureTypes:
+  - Grove
+  - Wilds
+  - Basin
+  - Hollows
+  - Warrens
+  - Garden
+  - Depths

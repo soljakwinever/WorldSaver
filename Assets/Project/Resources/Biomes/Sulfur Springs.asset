@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Sulfur Springs
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Sulfur Springs
+  areaNameParts: {fileID: 11400000, guid: f12fc5bf7b6c10c027e237a60a3e31d1, type: 2}
   temperature: 0.82
   temperatureVariance: 0.1
   moisture: 0.48

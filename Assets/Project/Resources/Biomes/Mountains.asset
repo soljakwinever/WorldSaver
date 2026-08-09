@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Mountains
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Mountains
+  areaNameParts: {fileID: 11400000, guid: 948a9f9136fceb8bfb663d9c083f3275, type: 2}
   temperature: 0.36
   temperatureVariance: 0.18
   moisture: 0.42

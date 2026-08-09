@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Frozen Tundra
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Frozen Tundra
+  areaNameParts: {fileID: 11400000, guid: 38b885383840944fa6a25b26f92d6e1b, type: 2}
   temperature: 0.08
   temperatureVariance: 0.08
   moisture: 0.3

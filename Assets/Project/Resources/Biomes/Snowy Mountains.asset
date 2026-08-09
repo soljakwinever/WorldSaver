@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Snowy Mountains
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Snowy Mountains
+  areaNameParts: {fileID: 11400000, guid: cd609b7163d254cc7931762e1a67c5e0, type: 2}
   temperature: 0.1
   temperatureVariance: 0.1
   moisture: 0.4

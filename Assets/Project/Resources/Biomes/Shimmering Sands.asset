@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Shimmering Sands
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Shimmering Sands
+  areaNameParts: {fileID: 11400000, guid: e89381bafe0bf8b01582b4d6c13302a1, type: 2}
   temperature: 0.82
   temperatureVariance: 0.1
   moisture: 0.16

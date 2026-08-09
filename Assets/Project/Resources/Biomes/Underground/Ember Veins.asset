@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Ember Veins
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Ember Veins
+  areaNameParts: {fileID: 11400000, guid: c579d2efb2112539b276caa99902d96d, type: 2}
   temperature: 0.92
   temperatureVariance: 0.12
   moisture: 0.1

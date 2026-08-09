@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Rocky Coast
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Rocky Coast
+  areaNameParts: {fileID: 11400000, guid: 2fd76266b2ee80f15fe75f12532405a3, type: 2}
   temperature: 0.46
   temperatureVariance: 0.2
   moisture: 0.62

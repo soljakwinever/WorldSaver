@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Starfall Crater
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Starfall Crater
+  areaNameParts: {fileID: 11400000, guid: ec85df7cf50dad5166ed03fce1a44470, type: 2}
   temperature: 0.34
   temperatureVariance: 0.16
   moisture: 0.22

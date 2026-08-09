@@ -55,6 +55,8 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
     private readonly CaveBiomeMapLayerData caveBiomeMapLayer;
     private readonly ITimeController timeController;
     private readonly BiomeData[] biomeLibrary;
+    private readonly BiomeData[] terrainBiomeLibrary;
+    private readonly BiomeData[] waterBiomeLibrary;
     private readonly Dictionary<long, FeatureInstance> featureInstances = new();
     private readonly object featureInstanceLock = new();
     private const int CaveCellBlockSize = 64;
@@ -167,6 +169,17 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
             : climateLayer.biomes ?? Array.Empty<BiomeData>();
         if (biomeLibrary.Length == 0)
             throw new InvalidOperationException($"Preset '{preset.name}' has no biomes.");
+        terrainBiomeLibrary = Array.FindAll(
+            biomeLibrary,
+            biome => biome != null &&
+                     biome.biomePlacement != BiomePlacement.WaterOnly);
+        waterBiomeLibrary = Array.FindAll(
+            biomeLibrary,
+            biome => biome != null &&
+                     biome.biomePlacement == BiomePlacement.WaterOnly);
+        if (terrainBiomeLibrary.Length == 0)
+            throw new InvalidOperationException(
+                $"Preset '{preset.name}' has no biome capable of shaping land.");
         float largestFeatureRadius = 0f;
         foreach (FeatureData feature in featureLayer.features ?? Array.Empty<FeatureData>())
         {
@@ -643,6 +656,17 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         moisture = Mathf.Clamp01(terrain.moisture);
         temperature = Mathf.Clamp01(terrain.temperature);
         biomeData = terrain.biomeData;
+        if (height <= elevationLayer.waterHeight &&
+            waterBiomeLibrary.Length > 0)
+        {
+            // Water biomes decorate water produced by the terrain pass. They
+            // cannot lower terrain to satisfy their own placement condition.
+            biomeData = BiomeSelector.GetBiomeBlend(
+                waterBiomeLibrary,
+                baseHeight,
+                moisture,
+                temperature);
+        }
         SeasonalBiomeTint.Apply(
             ref biomeData,
             worldData,
@@ -1016,7 +1040,7 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         if (caveLayer == null || caveBiomeMapLayer == null)
         {
             return BiomeSelector.GetBiomeBlend(
-                biomeLibrary,
+                terrainBiomeLibrary,
                 climate.x,
                 climate.y,
                 climate.z);

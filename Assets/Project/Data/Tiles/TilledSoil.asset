@@ -24,7 +24,7 @@ MonoBehaviour:
   saturatedColor: {r: 0.62, g: 0.72, b: 0.82, a: 1}
   maximumWaterPoints: 200
   waterPointsLostPerHour: 1
-  rainWaterPointsPerHour: 2
+  rainWaterPointsPerHour: 40
   waterTextureIndex: 0
   waterEmissionColor: {r: 0, g: 0, b: 0, a: 1}
   waterEmissionStrength: 0

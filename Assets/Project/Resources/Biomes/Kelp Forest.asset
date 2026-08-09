@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Kelp Forest
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Kelp Forest
+  areaNameParts: {fileID: 11400000, guid: c13ab91880be612911e1e4ed74bfec74, type: 2}
+  biomePlacement: 2
   temperature: 0.42
   temperatureVariance: 0.18
   moisture: 0.95

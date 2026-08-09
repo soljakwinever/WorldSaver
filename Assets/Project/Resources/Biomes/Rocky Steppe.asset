@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Rocky Steppe
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Rocky Steppe
+  areaNameParts: {fileID: 11400000, guid: 279f592466a7611cadb0c1d7bfe166d8, type: 2}
   temperature: 0.62
   temperatureVariance: 0.16
   moisture: 0.28

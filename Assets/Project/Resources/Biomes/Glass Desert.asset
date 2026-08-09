@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Glass Desert
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Glass Desert
+  areaNameParts: {fileID: 11400000, guid: d46a1e3488d623f20bddccac1eea3437, type: 2}
   temperature: 0.95
   temperatureVariance: 0.06
   moisture: 0.04

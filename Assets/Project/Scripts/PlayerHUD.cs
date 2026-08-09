@@ -261,7 +261,8 @@ namespace Project.Scripts
                 mapSignalBus,
                 chunkloader,
                 worldTilemapRenderer,
-                playerDataController);
+                playerDataController,
+                worldGeneration);
         }
 
         public bool CanSense(GameObject user) =>

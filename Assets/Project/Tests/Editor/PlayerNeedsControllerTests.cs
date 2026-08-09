@@ -40,7 +40,7 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
-        public void FullHungerSlowlyRegeneratesHealth()
+        public void HealthAndManaRegenerateFasterWhileFed()
         {
             WorldData worldData = CreateWorldData(
                 hungerRate: 0f,
@@ -54,22 +54,26 @@ namespace Project.Tests.EditMode
                 PlayerNeedsController needs =
                     playerObject.AddComponent<PlayerNeedsController>();
                 needs.Construct(worldData);
-                needs.ConfigureHealthRegeneration(
+                needs.ConfigureRegeneration(
                     healthPerSecond: 2f,
-                    hungerThreshold: 0.99f);
+                    manaPerSecond: 4f,
+                    fedMultiplier: 2f);
                 playerObject.SetActive(true);
 
                 PersistentHealth health =
                     playerObject.GetComponent<PersistentHealth>();
                 health.TakeDamage(10);
+                Assert.That(player.TrySpendMana(20f), Is.True);
                 player.Hunger = 1f;
                 needs.SimulateNeeds(1f);
 
-                Assert.That(health.Health, Is.EqualTo(92));
+                Assert.That(health.Health, Is.EqualTo(94));
+                Assert.That(player.CurrentMana, Is.EqualTo(38));
 
-                player.Hunger = 0.5f;
+                player.Hunger = 0f;
                 needs.SimulateNeeds(1f);
-                Assert.That(health.Health, Is.EqualTo(92));
+                Assert.That(health.Health, Is.EqualTo(96));
+                Assert.That(player.CurrentMana, Is.EqualTo(42));
             }
             finally
             {

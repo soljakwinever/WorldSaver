@@ -19,5 +19,24 @@ MonoBehaviour:
   toolRequirement: 0
   overrideMaterial: {fileID: 2100000, guid: b92cef41cc5e98940a34a2711c9948bf, type: 2}
   tintColor: {r: 1, g: 1, b: 1, a: 1}
+  overrideVisual: {fileID: 0}
   lightness: 2
   lightnessVariance: 0.25
+  persistentComponents:
+  - rid: 4542294929125933530
+  droppedItem: {fileID: 0}
+  dropChance: 1
+  tags: []
+  valueTags: []
+  damageRules: []
+  references:
+    version: 2
+    RefIds:
+    - rid: 4542294929125933530
+      type: {class: SpaceReservationData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: d50bbd4f86d1460ea2680d9ac2f163d4, type: 2}
+        width: 1
+        height: 1
+        xOffset: 0
+        yOffset: 0

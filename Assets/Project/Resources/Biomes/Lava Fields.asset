@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Lava Fields
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Lava Fields
+  areaNameParts: {fileID: 11400000, guid: fbf45bfffa5e48b672efea028ac61392, type: 2}
   temperature: 1
   temperatureVariance: 0.06
   moisture: 0.04

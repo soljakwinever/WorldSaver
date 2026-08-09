@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Magma Crucible
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Magma Crucible
+  areaNameParts: {fileID: 11400000, guid: dcc04dc014bb84956dbf10793ebf3b3c, type: 2}
   temperature: 1
   temperatureVariance: 0.12
   moisture: 0.04

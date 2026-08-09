@@ -158,6 +158,47 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void WaterOnlyBiome_IsAppliedAfterTerrainWithoutShapingIt()
+        {
+            BiomeData waterBiome = ScriptableObject.CreateInstance<BiomeData>();
+            try
+            {
+                WorldGeneration landOnly = new(
+                    _worldData,
+                    new WorldGenerationSelection(_worldData.seed, _preset),
+                    null);
+
+                waterBiome.biomeName = "Test lake";
+                waterBiome.biomePlacement = BiomePlacement.WaterOnly;
+                waterBiome.height = 0.5f;
+                waterBiome.heightVariance = 1f;
+                waterBiome.moisture = 0.5f;
+                waterBiome.moistureVariance = 1f;
+                waterBiome.temperature = 0.5f;
+                waterBiome.temperatureVariance = 1f;
+                waterBiome.heightMultiplier = 100f;
+                waterBiome.heightOffset = 100f;
+                _preset.climate.biomes = new[] { _biome, waterBiome };
+                WorldGeneration withWaterBiome = new(
+                    _worldData,
+                    new WorldGenerationSelection(_worldData.seed, _preset),
+                    null);
+                _preset.elevation.waterHeight = 1f;
+
+                TerrainSample baseline = landOnly.GetTerrainSample(17, -29);
+                TerrainSample water = withWaterBiome.GetTerrainSample(17, -29);
+
+                Assert.That(water.isWater, Is.True);
+                Assert.That(water.biome, Is.SameAs(waterBiome));
+                Assert.That(water.height, Is.EqualTo(baseline.height));
+            }
+            finally
+            {
+                Object.DestroyImmediate(waterBiome);
+            }
+        }
+
+        [Test]
         public void WorldSpawnPositionIsCachedAndMatchesCanonicalSearch()
         {
             Vector2Int first = _generator.WorldSpawnPosition;

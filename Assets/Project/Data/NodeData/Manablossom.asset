@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Manablossom
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.NodeData
   sprite: {fileID: 8047007480541596992, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
-  isTrigger: 0
+  isTrigger: 1
   sprites: []
   nodeType: 0
   toolRequirement: 0

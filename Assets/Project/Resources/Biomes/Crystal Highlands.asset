@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Crystal Highlands
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Crystal Highlands
+  areaNameParts: {fileID: 11400000, guid: 7a6e78853a642f947ef286b2ef2a6055, type: 2}
   temperature: 0.44
   temperatureVariance: 0.14
   moisture: 0.44

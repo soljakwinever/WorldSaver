@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Frostfire Peaks
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Frostfire Peaks
+  areaNameParts: {fileID: 11400000, guid: c093bc88a5a7fd8d50f336bfee6dff25, type: 2}
   temperature: 0.18
   temperatureVariance: 0.1
   moisture: 0.28

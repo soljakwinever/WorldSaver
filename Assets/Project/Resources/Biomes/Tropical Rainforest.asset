@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Tropical Rainforest
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Tropical Rainforest
+  areaNameParts: {fileID: 11400000, guid: 4440367fa87fb0dc3237c75cffbf3a1d, type: 2}
   temperature: 0.78
   temperatureVariance: 0.12
   moisture: 0.86

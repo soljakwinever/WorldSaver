@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Glacial Vaults
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Glacial Vaults
+  areaNameParts: {fileID: 11400000, guid: 4d938e3237f56e2ce9324ae83e55449a, type: 2}
   temperature: 0.04
   temperatureVariance: 0.12
   moisture: 0.5

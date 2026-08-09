@@ -11,6 +11,8 @@ namespace Project.Scripts.Core
     /// </summary>
     public static class TileReservationSystem
     {
+        public static event Action<RectInt> ReservationsChanged;
+
         private static readonly Dictionary<Vector2Int, object> OwnersByCell =
             new();
         private static readonly Dictionary<object, HashSet<Vector2Int>>
@@ -58,6 +60,7 @@ namespace Project.Scripts.Core
             }
 
             CellsByOwner[owner] = cells;
+            ReservationsChanged?.Invoke(area);
             return true;
         }
 
@@ -71,13 +74,30 @@ namespace Project.Scripts.Core
                 return;
             }
 
+            int xMin = int.MaxValue;
+            int yMin = int.MaxValue;
+            int xMax = int.MinValue;
+            int yMax = int.MinValue;
             foreach (Vector2Int cell in cells)
             {
+                xMin = Mathf.Min(xMin, cell.x);
+                yMin = Mathf.Min(yMin, cell.y);
+                xMax = Mathf.Max(xMax, cell.x);
+                yMax = Mathf.Max(yMax, cell.y);
                 if (OwnersByCell.TryGetValue(cell, out object existing) &&
                     ReferenceEquals(existing, owner))
                 {
                     OwnersByCell.Remove(cell);
                 }
+            }
+
+            if (cells.Count > 0)
+            {
+                ReservationsChanged?.Invoke(new RectInt(
+                    xMin,
+                    yMin,
+                    xMax - xMin + 1,
+                    yMax - yMin + 1));
             }
         }
 

@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74e1b366d3ca49aaa4b5bf364f60a219, type: 3}
+  m_Name: Jungle Basin Names
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.DataTypes.AreaNameParts
+  style: 0
+  presetNames:
+  - The Drowned March
+  - Heron Fen
+  - Stillwater Mire
+  - The Reed Maze
+  - Moonlit Mere
+  - Witchwater
+  - Blackwillow Marsh
+  - The Sallow Wash
+  firstParts:
+  - Black
+  - Bog
+  - Brackish
+  - Crane
+  - Drowned
+  - Elder
+  - Fog
+  - Heron
+  - Mire
+  - Moon
+  - Moss
+  - Reed
+  - Sallow
+  - Shadow
+  - Still
+  - Twilight
+  - Willow
+  - Witch
+  middleParts:
+  - deep
+  - fog
+  - mire
+  - moon
+  - moss
+  - reed
+  - still
+  - water
+  - willow
+  lastParts:
+  - bog
+  - fen
+  - marsh
+  - mere
+  - mire
+  - moor
+  - pool
+  - reach
+  - slough
+  - wash
+  - water
+  - wetland
+  - hollow
+  - basin
+  separators:
+  - 
+  - ' '
+  - ''''
+  - '-'
+  minimumComponents: 2
+  maximumComponents: 3
+  featureTypes:
+  - Fen
+  - Mire
+  - Marsh
+  - Moor
+  - Wetlands
+  - Basin
+  - Springs

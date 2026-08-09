@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Poison Fen
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Poison Fen
+  areaNameParts: {fileID: 11400000, guid: 5f9f6190734a62434b05fdaffbbc3a92, type: 2}
   temperature: 0.58
   temperatureVariance: 0.12
   moisture: 0.96

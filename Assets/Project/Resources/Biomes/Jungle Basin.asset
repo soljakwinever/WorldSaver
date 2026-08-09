@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Jungle Basin
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Jungle Basin
+  areaNameParts: {fileID: 11400000, guid: 75c3ade9494604ebfb68add0db724903, type: 2}
   temperature: 0.82
   temperatureVariance: 0.1
   moisture: 0.92

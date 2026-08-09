@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Mirestone Caves
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Mirestone Caves
+  areaNameParts: {fileID: 11400000, guid: 5efa2750c0cb013bab73bced374c7b65, type: 2}
   temperature: 0.62
   temperatureVariance: 0.12
   moisture: 0.96

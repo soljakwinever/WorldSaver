@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Project.Scripts.Bus;
+using Project.Scripts.Core;
 using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using UnityEngine;
@@ -20,13 +21,21 @@ namespace Project.Scripts.UI
             ChunkBuildResult.ChunkSize * PixelsPerCell;
         private const int CellCount =
             ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize;
+        private const int NameRegionChunks = 4;
+        private const int RegionSampleAxis = 4;
+        private const float NameLabelWidth = 240f;
+        private static readonly Color32 ReservationColor =
+            new(156, 108, 61, byte.MaxValue);
 
         private readonly MapSignalBus _signals;
         private readonly Chunkloader _chunkloader;
         private readonly WorldTilemapRenderer _renderer;
         private readonly PlayerDataController _player;
+        private readonly WorldGeneration _worldGeneration;
         private readonly Dictionary<string, Dictionary<Vector2Int, ChunkMap>>
             _planes = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Dictionary<Vector2Int, RegionSite>>
+            _regionSites = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<Chunk> _loadedChunks = new();
         private readonly Color32[] _colorBuffer = new Color32[CellCount];
         private readonly VisualElement _screen;
@@ -50,17 +59,27 @@ namespace Project.Scripts.UI
             public Image View;
         }
 
+        private sealed class RegionSite
+        {
+            public Vector2Int Coordinate;
+            public Vector2 Position;
+            public BiomeData Biome;
+            public Label NameView;
+        }
+
         public WorldMapScreenController(
             VisualElement root,
             MapSignalBus signals,
             Chunkloader chunkloader,
             WorldTilemapRenderer renderer,
-            PlayerDataController player)
+            PlayerDataController player,
+            WorldGeneration worldGeneration)
         {
             _signals = signals;
             _chunkloader = chunkloader;
             _renderer = renderer;
             _player = player;
+            _worldGeneration = worldGeneration;
 
             _screen = BuildScreen(out _viewport, out _canvas,
                 out _playerMarker, out _planeLabel);
@@ -76,6 +95,7 @@ namespace Project.Scripts.UI
             _signals.ChunkLoaded += OnChunkLoaded;
             _signals.NavigationCellChanged += OnNavigationCellChanged;
             _signals.NavigationChunkChanged += OnNavigationChunkChanged;
+            TileReservationSystem.ReservationsChanged += OnReservationsChanged;
             SnapshotLoadedChunks();
         }
 
@@ -84,11 +104,13 @@ namespace Project.Scripts.UI
             _signals.ChunkLoaded -= OnChunkLoaded;
             _signals.NavigationCellChanged -= OnNavigationCellChanged;
             _signals.NavigationChunkChanged -= OnNavigationChunkChanged;
+            TileReservationSystem.ReservationsChanged -= OnReservationsChanged;
             foreach (Dictionary<Vector2Int, ChunkMap> plane in _planes.Values)
             foreach (ChunkMap chunk in plane.Values)
                 if (chunk.Texture != null)
                     UnityEngine.Object.Destroy(chunk.Texture);
             _planes.Clear();
+            _regionSites.Clear();
             _screen.RemoveFromHierarchy();
         }
 
@@ -183,10 +205,29 @@ namespace Project.Scripts.UI
                 SnapshotChunk(planeId, position);
         }
 
+        private void OnReservationsChanged(RectInt area)
+        {
+            if (area.width <= 0 || area.height <= 0)
+                return;
+
+            int chunkSize = ChunkBuildResult.ChunkSize;
+            int xMin = Mathf.FloorToInt((float)area.xMin / chunkSize);
+            int yMin = Mathf.FloorToInt((float)area.yMin / chunkSize);
+            int xMax = Mathf.FloorToInt((float)(area.xMax - 1) / chunkSize);
+            int yMax = Mathf.FloorToInt((float)(area.yMax - 1) / chunkSize);
+            for (int y = yMin; y <= yMax; y++)
+            for (int x = xMin; x <= xMax; x++)
+                RefreshVisitedChunk(new Vector2Int(x, y));
+        }
+
         private bool SnapshotChunk(string planeId, Vector2Int position)
         {
             if (!_renderer.CopyMapColors(position, _colorBuffer))
                 return false;
+
+            EnsureNearbyRegionSites(planeId, position);
+            OverlayVoronoiBoundaries(planeId, position);
+            OverlayReservations(position);
 
             Dictionary<Vector2Int, ChunkMap> plane = GetPlane(planeId);
             if (!plane.TryGetValue(position, out ChunkMap map))
@@ -214,6 +255,182 @@ namespace Project.Scripts.UI
             return true;
         }
 
+        private void OverlayReservations(Vector2Int chunkPosition)
+        {
+            int chunkSize = ChunkBuildResult.ChunkSize;
+            Vector2Int origin = chunkPosition * chunkSize;
+            for (int y = 0; y < chunkSize; y++)
+            for (int x = 0; x < chunkSize; x++)
+            {
+                if (TileReservationSystem.IsReserved(
+                        origin + new Vector2Int(x, y)))
+                {
+                    _colorBuffer[y * chunkSize + x] = ReservationColor;
+                }
+            }
+        }
+
+        private void EnsureNearbyRegionSites(
+            string planeId,
+            Vector2Int chunkPosition)
+        {
+            if (_worldGeneration == null)
+                return;
+
+            Vector2Int region = ChunkToNameRegion(chunkPosition);
+            for (int y = -1; y <= 1; y++)
+            for (int x = -1; x <= 1; x++)
+                GetOrCreateRegionSite(planeId, region + new Vector2Int(x, y));
+        }
+
+        private RegionSite GetOrCreateRegionSite(
+            string planeId,
+            Vector2Int coordinate)
+        {
+            if (!_regionSites.TryGetValue(planeId, out var sites))
+            {
+                sites = new Dictionary<Vector2Int, RegionSite>();
+                _regionSites.Add(planeId, sites);
+            }
+            if (sites.TryGetValue(coordinate, out RegionSite existing))
+                return existing;
+
+            int regionCells = NameRegionChunks * ChunkBuildResult.ChunkSize;
+            Vector2Int origin = coordinate * regionCells;
+            Dictionary<BiomeData, List<Vector2>> samples = new();
+            for (int y = 0; y < RegionSampleAxis; y++)
+            for (int x = 0; x < RegionSampleAxis; x++)
+            {
+                Vector2 sample = origin + new Vector2(
+                    (x + .5f) * regionCells / RegionSampleAxis,
+                    (y + .5f) * regionCells / RegionSampleAxis);
+                BiomeData biome = _worldGeneration.GetTerrainSample(
+                    Mathf.FloorToInt(sample.x),
+                    Mathf.FloorToInt(sample.y)).biome;
+                if (biome == null)
+                    continue;
+                if (!samples.TryGetValue(biome, out List<Vector2> positions))
+                {
+                    positions = new List<Vector2>();
+                    samples.Add(biome, positions);
+                }
+                positions.Add(sample);
+            }
+
+            BiomeData dominant = null;
+            List<Vector2> dominantSamples = null;
+            foreach (KeyValuePair<BiomeData, List<Vector2>> pair in samples)
+            {
+                if (dominantSamples == null ||
+                    pair.Value.Count > dominantSamples.Count ||
+                    pair.Value.Count == dominantSamples.Count &&
+                    string.CompareOrdinal(pair.Key.biomeName,
+                        dominant.biomeName) < 0)
+                {
+                    dominant = pair.Key;
+                    dominantSamples = pair.Value;
+                }
+            }
+
+            Vector2 position = origin + Vector2.one * (regionCells * .5f);
+            if (dominantSamples != null && dominantSamples.Count > 0)
+            {
+                Vector2 centroid = Vector2.zero;
+                foreach (Vector2 sample in dominantSamples)
+                    centroid += sample;
+                centroid /= dominantSamples.Count;
+
+                // Use the sampled point nearest the centroid so the label's
+                // Voronoi site is guaranteed to remain inside its biome.
+                position = dominantSamples[0];
+                float bestDistance = (position - centroid).sqrMagnitude;
+                for (int i = 1; i < dominantSamples.Count; i++)
+                {
+                    float distance =
+                        (dominantSamples[i] - centroid).sqrMagnitude;
+                    if (distance < bestDistance)
+                    {
+                        position = dominantSamples[i];
+                        bestDistance = distance;
+                    }
+                }
+            }
+
+            RegionSite site = new()
+            {
+                Coordinate = coordinate,
+                Position = position,
+                Biome = dominant
+            };
+            sites.Add(coordinate, site);
+            return site;
+        }
+
+        private void OverlayVoronoiBoundaries(
+            string planeId,
+            Vector2Int chunkPosition)
+        {
+            if (!_regionSites.TryGetValue(planeId, out var sites) ||
+                sites.Count == 0)
+                return;
+
+            int chunkSize = ChunkBuildResult.ChunkSize;
+            Vector2Int origin = chunkPosition * chunkSize;
+            for (int y = 0; y < chunkSize; y++)
+            for (int x = 0; x < chunkSize; x++)
+            {
+                Vector2 cell = origin + new Vector2(x + .5f, y + .5f);
+                Vector2Int owner = FindNearestSite(cell, sites);
+                bool boundary =
+                    FindNearestSite(cell + Vector2.right, sites) != owner ||
+                    FindNearestSite(cell + Vector2.up, sites) != owner;
+                if (!boundary)
+                    continue;
+
+                int index = y * chunkSize + x;
+                Color original = _colorBuffer[index];
+                Color boundaryColor = new(.94f, .78f, .36f, 1f);
+                _colorBuffer[index] = (Color32)Color.Lerp(
+                    original,
+                    boundaryColor,
+                    .72f);
+            }
+        }
+
+        private static Vector2Int FindNearestSite(
+            Vector2 position,
+            Dictionary<Vector2Int, RegionSite> sites)
+        {
+            Vector2Int nearest = default;
+            float nearestDistance = float.MaxValue;
+            int regionCells = NameRegionChunks * ChunkBuildResult.ChunkSize;
+            Vector2Int region = new(
+                Mathf.FloorToInt(position.x / regionCells),
+                Mathf.FloorToInt(position.y / regionCells));
+            for (int y = -1; y <= 1; y++)
+            for (int x = -1; x <= 1; x++)
+            {
+                Vector2Int coordinate = region + new Vector2Int(x, y);
+                if (!sites.TryGetValue(coordinate, out RegionSite site))
+                    continue;
+                float distance = (site.Position - position).sqrMagnitude;
+                if (distance < nearestDistance ||
+                    Mathf.Approximately(distance, nearestDistance) &&
+                    CompareCoordinates(coordinate, nearest) < 0)
+                {
+                    nearest = coordinate;
+                    nearestDistance = distance;
+                }
+            }
+            return nearest;
+        }
+
+        private static int CompareCoordinates(Vector2Int left, Vector2Int right)
+        {
+            int x = left.x.CompareTo(right.x);
+            return x != 0 ? x : left.y.CompareTo(right.y);
+        }
+
         private Dictionary<Vector2Int, ChunkMap> GetPlane(string planeId)
         {
             if (!_planes.TryGetValue(planeId, out var plane))
@@ -231,6 +448,7 @@ namespace Project.Scripts.UI
             _canvas.Clear();
             foreach (KeyValuePair<Vector2Int, ChunkMap> pair in GetPlane(planeId))
                 AddChunkView(pair.Key, pair.Value);
+            AddRegionNameViews(planeId);
             _canvas.Add(_playerMarker);
             ApplyPan();
             UpdatePlayerMarker();
@@ -256,8 +474,67 @@ namespace Project.Scripts.UI
                 map.View.style.height = ChunkPixels;
             }
             _canvas.Add(map.View);
+            AddRegionNameViews(_displayedPlaneId);
             _playerMarker.BringToFront();
         }
+
+        private void AddRegionNameViews(string planeId)
+        {
+            if (string.IsNullOrWhiteSpace(planeId) ||
+                !_planes.TryGetValue(planeId, out var plane) ||
+                !_regionSites.TryGetValue(planeId, out var sites))
+                return;
+
+            HashSet<Vector2Int> visitedRegions = new();
+            foreach (Vector2Int chunk in plane.Keys)
+                visitedRegions.Add(ChunkToNameRegion(chunk));
+
+            foreach (Vector2Int region in visitedRegions)
+            {
+                if (!sites.TryGetValue(region, out RegionSite site) ||
+                    site.Biome == null)
+                    continue;
+                if (site.NameView == null)
+                {
+                string areaName = AreaNameGenerator.Generate(
+                        unchecked((int)_worldGeneration.Seed),
+                        site.Biome,
+                        site.Coordinate);
+                if (string.IsNullOrWhiteSpace(areaName))
+                        continue;
+
+                    site.NameView = new Label(areaName)
+                {
+                    pickingMode = PickingMode.Ignore
+                };
+                    site.NameView.style.position = Position.Absolute;
+                    site.NameView.style.left =
+                        site.Position.x * PixelsPerCell -
+                    NameLabelWidth * .5f;
+                    site.NameView.style.top =
+                        -site.Position.y * PixelsPerCell - 12f;
+                    site.NameView.style.width = NameLabelWidth;
+                    site.NameView.style.unityTextAlign = TextAnchor.MiddleCenter;
+                    site.NameView.style.fontSize = 15f;
+                    site.NameView.style.unityFontStyleAndWeight = FontStyle.Bold;
+                    site.NameView.style.color =
+                        new Color(.96f, .91f, .76f, .95f);
+                    site.NameView.style.backgroundColor =
+                    new Color(.025f, .04f, .065f, .55f);
+                }
+
+                if (site.NameView.parent != _canvas)
+                    _canvas.Add(site.NameView);
+                site.NameView.BringToFront();
+            }
+        }
+
+        private static Vector2Int ChunkToNameRegion(Vector2Int chunk) => new(
+            FloorDivide(chunk.x, NameRegionChunks),
+            FloorDivide(chunk.y, NameRegionChunks));
+
+        private static int FloorDivide(int value, int divisor) =>
+            Mathf.FloorToInt((float)value / divisor);
 
         private void UpdatePlayerMarker()
         {

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Mana Springs
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Mana Springs
+  areaNameParts: {fileID: 11400000, guid: 1d714c1c62722ab74ad6deda3a55421d, type: 2}
   temperature: 0.5
   temperatureVariance: 0.14
   moisture: 0.76

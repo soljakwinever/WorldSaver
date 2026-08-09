@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Buried Ruins
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Buried Ruins
+  areaNameParts: {fileID: 11400000, guid: df009154ee3a88d09503011087fcc4e6, type: 2}
   temperature: 0.48
   temperatureVariance: 0.12
   moisture: 0.42

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Temperate Forest
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Temperate Forest
+  areaNameParts: {fileID: 11400000, guid: a50cc983519f7becb0276cfb0ff2dace, type: 2}
   temperature: 0.5
   temperatureVariance: 0.14
   moisture: 0.68

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Mangrove Coast
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Mangrove Coast
+  areaNameParts: {fileID: 11400000, guid: 012227a401c06827cd62cfad820ff74f, type: 2}
   temperature: 0.74
   temperatureVariance: 0.12
   moisture: 0.88

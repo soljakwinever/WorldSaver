@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Flooded Depths
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Flooded Depths
+  areaNameParts: {fileID: 11400000, guid: 2adb1425907603359e3687a46462a55b, type: 2}
   temperature: 0.32
   temperatureVariance: 0.12
   moisture: 0.94

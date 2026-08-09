@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Oasis
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Oasis
+  areaNameParts: {fileID: 11400000, guid: 26df6b9ce718aaa04b9dd0707b17b013, type: 2}
   temperature: 0.84
   temperatureVariance: 0.1
   moisture: 0.42

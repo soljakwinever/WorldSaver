@@ -3,10 +3,25 @@ using Project.Scripts.DataTypes;
 
 namespace Project.Scripts
 {
+    public enum BiomePlacement
+    {
+        Any,
+        LandOnly,
+        WaterOnly
+    }
+
     [CreateAssetMenu(fileName = "New Biome", menuName = "Biome Data", order = 0)]
     public sealed class BiomeData : ScriptableObject
     {
         public string biomeName;
+
+        [Header("Map Naming")]
+        [Tooltip("Optional deterministic vocabulary used to name this biome's regions on the world map.")]
+        public AreaNameParts areaNameParts;
+
+        [Header("Placement")]
+        [Tooltip("Water Only biomes are selected after terrain and lakes determine that a cell is underwater. They do not influence terrain height.")]
+        public BiomePlacement biomePlacement;
         
         public float temperature;
         public float temperatureVariance;

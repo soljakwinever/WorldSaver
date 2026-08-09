@@ -24,7 +24,14 @@ MonoBehaviour:
   lightnessVariance: 0
   persistentComponents:
   - rid: 810000000000000401
-  resourceType: 0
+  - rid: 4542294877180002774
+  droppedItem: {fileID: 0}
+  dropChance: 1
+  tags: []
+  valueTags: []
+  damageRules:
+  - sources: 0
+    sourceTags: []
   references:
     version: 2
     RefIds:
@@ -39,3 +46,10 @@ MonoBehaviour:
         maximumItemsSpawned: 4
         useRarity: 1
         destroyOnPickup: 1
+    - rid: 4542294877180002774
+      type: {class: PersistentRespawnData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 9357c25800ab3d64ab9d3f743596395e, type: 2}
+        minimumDays: 2
+        maximumDays: 4
+        respawnInsideTownInfluence: 0

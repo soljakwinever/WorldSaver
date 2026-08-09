@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Ash Wastes
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Ash Wastes
+  areaNameParts: {fileID: 11400000, guid: b8fa5208b4fdc6b4249a6852e61e7f01, type: 2}
   temperature: 0.72
   temperatureVariance: 0.16
   moisture: 0.12

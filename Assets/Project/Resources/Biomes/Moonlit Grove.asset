@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Moonlit Grove
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Moonlit Grove
+  areaNameParts: {fileID: 11400000, guid: 5ce6e67f5e9a5c0584096ed7f5045b83, type: 2}
   temperature: 0.38
   temperatureVariance: 0.12
   moisture: 0.68

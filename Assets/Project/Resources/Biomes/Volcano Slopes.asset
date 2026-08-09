@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Volcano Slopes
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Volcano Slopes
+  areaNameParts: {fileID: 11400000, guid: fe8f1086ab7552a821cff559bd121a8e, type: 2}
   temperature: 0.88
   temperatureVariance: 0.1
   moisture: 0.18

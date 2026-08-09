@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Arcane Highlands
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Arcane Highlands
+  areaNameParts: {fileID: 11400000, guid: 21b6796159b2d36e0d261688a6651894, type: 2}
   temperature: 0.42
   temperatureVariance: 0.14
   moisture: 0.46

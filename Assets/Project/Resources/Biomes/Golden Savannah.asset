@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Golden Savannah
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Golden Savannah
+  areaNameParts: {fileID: 11400000, guid: b4c08085968622aa294b8f29af1273ad, type: 2}
   temperature: 0.78
   temperatureVariance: 0.12
   moisture: 0.34

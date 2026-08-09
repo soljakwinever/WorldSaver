@@ -1,6 +1,7 @@
 using System;
 using Project.Scripts.Interface.Decorator;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Zenject;
 
 namespace Project.Scripts.Gameplay
@@ -10,11 +11,11 @@ namespace Project.Scripts.Gameplay
     [RequireComponent(typeof(PersistentHealth))]
     public sealed class PlayerNeedsController : MonoBehaviour, IHasNeeds
     {
-        [Header("Health Regeneration")]
-        [SerializeField, Min(0f)]
-        private float fullHungerHealthRegenerationPerSecond = 0.25f;
-        [SerializeField, Range(0f, 1f)]
-        private float fullHungerThreshold = 0.95f;
+        [Header("Regeneration")]
+        [FormerlySerializedAs("fullHungerHealthRegenerationPerSecond")]
+        [SerializeField, Min(0f)] private float healthRegenerationPerSecond = 0.25f;
+        [SerializeField, Min(0f)] private float manaRegenerationPerSecond = 0.25f;
+        [SerializeField, Min(1f)] private float fedRegenerationMultiplier = 2f;
 
         private PlayerDataController _player;
         private PersistentHealth _health;
@@ -22,9 +23,9 @@ namespace Project.Scripts.Gameplay
         private bool _isMoving;
         private float _pendingHealthRegeneration;
 
-        public float FullHungerHealthRegenerationPerSecond =>
-            fullHungerHealthRegenerationPerSecond;
-        public float FullHungerThreshold => fullHungerThreshold;
+        public float HealthRegenerationPerSecond => healthRegenerationPerSecond;
+        public float ManaRegenerationPerSecond => manaRegenerationPerSecond;
+        public float FedRegenerationMultiplier => fedRegenerationMultiplier;
         public float Hunger
         {
             get
@@ -86,15 +87,32 @@ namespace Project.Scripts.Gameplay
             {
                 throw new ArgumentOutOfRangeException(nameof(healthPerSecond));
             }
-            if (hungerThreshold < 0f ||
-                hungerThreshold > 1f ||
+            if (hungerThreshold < 0f || hungerThreshold > 1f ||
                 float.IsNaN(hungerThreshold))
             {
                 throw new ArgumentOutOfRangeException(nameof(hungerThreshold));
             }
 
-            fullHungerHealthRegenerationPerSecond = healthPerSecond;
-            fullHungerThreshold = hungerThreshold;
+            healthRegenerationPerSecond = healthPerSecond;
+            _pendingHealthRegeneration = 0f;
+        }
+
+        public void ConfigureRegeneration(
+            float healthPerSecond,
+            float manaPerSecond,
+            float fedMultiplier)
+        {
+            if (!IsValidRate(healthPerSecond))
+                throw new ArgumentOutOfRangeException(nameof(healthPerSecond));
+            if (!IsValidRate(manaPerSecond))
+                throw new ArgumentOutOfRangeException(nameof(manaPerSecond));
+            if (fedMultiplier < 1f || float.IsNaN(fedMultiplier) ||
+                float.IsInfinity(fedMultiplier))
+                throw new ArgumentOutOfRangeException(nameof(fedMultiplier));
+
+            healthRegenerationPerSecond = healthPerSecond;
+            manaRegenerationPerSecond = manaPerSecond;
+            fedRegenerationMultiplier = fedMultiplier;
             _pendingHealthRegeneration = 0f;
         }
 
@@ -137,21 +155,21 @@ namespace Project.Scripts.Gameplay
                 deltaTime;
 
             RegenerateHealth(deltaTime);
+            RegenerateMana(deltaTime);
         }
 
         private void RegenerateHealth(float deltaTime)
         {
-            if (_player.Hunger < fullHungerThreshold ||
-                _health.Health <= 0 ||
+            if (_health.Health <= 0 ||
                 _health.Health >= _health.MaxHealth ||
-                fullHungerHealthRegenerationPerSecond <= 0f)
+                healthRegenerationPerSecond <= 0f)
             {
                 _pendingHealthRegeneration = 0f;
                 return;
             }
 
             _pendingHealthRegeneration +=
-                fullHungerHealthRegenerationPerSecond * deltaTime;
+                healthRegenerationPerSecond * GetHungerMultiplier() * deltaTime;
             int wholeHealth = Mathf.FloorToInt(
                 _pendingHealthRegeneration);
             if (wholeHealth <= 0)
@@ -165,6 +183,23 @@ namespace Project.Scripts.Gameplay
                 _pendingHealthRegeneration = 0f;
         }
 
+        private void RegenerateMana(float deltaTime)
+        {
+            if (_player.Mana >= 1f ||
+                manaRegenerationPerSecond <= 0f)
+                return;
+
+            _player.Mana += manaRegenerationPerSecond *
+                            GetHungerMultiplier() * deltaTime /
+                            _player.MaxMana;
+        }
+
+        private float GetHungerMultiplier() =>
+            _player.Hunger > 0f ? fedRegenerationMultiplier : 1f;
+
+        private static bool IsValidRate(float rate) =>
+            rate >= 0f && !float.IsNaN(rate) && !float.IsInfinity(rate);
+
         private void ResolvePlayerComponents()
         {
             _player ??= GetComponent<PlayerDataController>();
@@ -173,10 +208,9 @@ namespace Project.Scripts.Gameplay
 
         private void OnValidate()
         {
-            fullHungerHealthRegenerationPerSecond = Mathf.Max(
-                0f,
-                fullHungerHealthRegenerationPerSecond);
-            fullHungerThreshold = Mathf.Clamp01(fullHungerThreshold);
+            healthRegenerationPerSecond = Mathf.Max(0f, healthRegenerationPerSecond);
+            manaRegenerationPerSecond = Mathf.Max(0f, manaRegenerationPerSecond);
+            fedRegenerationMultiplier = Mathf.Max(1f, fedRegenerationMultiplier);
         }
     }
 }

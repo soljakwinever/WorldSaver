@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8556cc21aa2c4a29aaf8ce174555172b, type: 3}
+  m_Name: Blackwater Lake
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
+  biomeName: Blackwater Lake
+  areaNameParts: {fileID: 11400000, guid: c0cb5c707df6b5d9d8fd21f6d0ed055f, type: 2}
+  biomePlacement: 2
+  temperature: .44
+  temperatureVariance: .24
+  moisture: .94
+  moistureVariance: .08
+  height: .37
+  heightVariance: .17
+  heightOffset: 0
+  heightMultiplier: 1
+  erosionStrength: 1
+  mountainStrength: 1
+  valleyStrength: 1
+  roughnessStrength: 1
+  hillStrength: 0
+  hillScale: 40
+  bumpStrength: 0
+  bumpScale: 20
+  cliffChance: 0
+  cliffStrength: 0
+  cliffScale: 20
+  crevasseStrength: 1
+  lakeStrength: 0
+  SmallPoolsStrength: 0
+  volcanoChance: 0
+  craterChance: 0
+  mesaChance: 0
+  townChance: 0
+  groundColor: {r: 0.12, g: 0.2, b: 0.15, a: 1}
+  dirtColor: {r: 0.25, g: 0.22, b: 0.16, a: 1}
+  pathColor: {r: 0.3, g: 0.3, b: 0.24, a: 1}
+  waterColor: {r: 0.055, g: 0.16, b: 0.19, a: 1}
+  cliffColor: {r: 0.25, g: 0.3, b: 0.3, a: 1}
+  beachColor: {r: 0.68, g: 0.62, b: 0.42, a: 1}
+  springTint: {r: 1, g: 1, b: 1, a: 1}
+  summerTint: {r: 1, g: 1, b: 1, a: 1}
+  fallTint: {r: 1, g: 1, b: 1, a: 1}
+  winterTint: {r: 1, g: 1, b: 1, a: 1}
+  SeasonColorEffectMod: 1
+  overrideGroundTile: {fileID: 0}
+  overridePathTile: {fileID: 0}
+  overrideWaterTile: {fileID: 0}
+  overrideCliffTile: {fileID: 0}
+  overrideBeachTile: {fileID: 0}
+  overrideMinedTileReplacement: {fileID: 0}

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Desert
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Desert
+  areaNameParts: {fileID: 11400000, guid: 87259594f492f6604781c864f0caf118, type: 2}
   temperature: 0.88
   temperatureVariance: 0.1
   moisture: 0.1

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Dune Sea
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Dune Sea
+  areaNameParts: {fileID: 11400000, guid: 53afb73f1487b4657acefa714afa2cd1, type: 2}
   temperature: 0.92
   temperatureVariance: 0.08
   moisture: 0.06

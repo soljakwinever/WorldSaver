@@ -29,7 +29,10 @@ MonoBehaviour:
   dropChance: 1
   tags: []
   valueTags: []
-  damageRules: []
+  damageRules:
+  - sources: 2
+    sourceTags:
+    - {fileID: 11400000, guid: 16fa4e544f7e7ebecf9d13e47b20aac2, type: 2}
   references:
     version: 2
     RefIds:

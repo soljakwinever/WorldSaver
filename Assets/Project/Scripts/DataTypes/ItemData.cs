@@ -16,6 +16,7 @@ namespace Project.Scripts.DataTypes
         public const string GoldValueTagId = "gold-value";
         public const string MagicValueTagId = "magic-value";
         public const string FuelValueTagId = "fuel-value";
+        public const string FurnaceCyclesValueTagId = "furnace-cycles";
 
         [Tooltip("Stable identifier used in save data. Do not change after the item ships.")]
         public string persistentId;
@@ -85,6 +86,12 @@ namespace Project.Scripts.DataTypes
             ValueTagLookup.TryGetInt(valueTags, GoldValueTagId, out int value)
                 ? value
                 : goldValue;
+
+        public int GetFurnaceCycles() =>
+            ValueTagLookup.TryGetInt(
+                valueTags, FurnaceCyclesValueTagId, out int value)
+                ? Mathf.Max(1, value)
+                : 1;
 
         /// <summary>Finds the first action-data record of the requested type.</summary>
         public bool TryGetActionData<T>(out T data)

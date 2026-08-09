@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Highland Moors
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Highland Moors
+  areaNameParts: {fileID: 11400000, guid: feca4e596a056645728ad5a8568efa92, type: 2}
   temperature: 0.38
   temperatureVariance: 0.14
   moisture: 0.62

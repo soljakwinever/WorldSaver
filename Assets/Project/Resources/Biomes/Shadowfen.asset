@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Shadowfen
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Shadowfen
+  areaNameParts: {fileID: 11400000, guid: cd4bed3d28750bf4b4bb9977c362f5f9, type: 2}
   temperature: 0.44
   temperatureVariance: 0.12
   moisture: 0.9

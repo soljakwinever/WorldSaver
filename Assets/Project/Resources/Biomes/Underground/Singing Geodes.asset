@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Singing Geodes
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Singing Geodes
+  areaNameParts: {fileID: 11400000, guid: 842323f9a66985a09d7c9bec48cb510b, type: 2}
   temperature: 0.24
   temperatureVariance: 0.12
   moisture: 0.58

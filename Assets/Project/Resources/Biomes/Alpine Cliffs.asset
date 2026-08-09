@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Alpine Cliffs
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Alpine Cliffs
+  areaNameParts: {fileID: 11400000, guid: 0545f5fe50a2264da91e3eac947aa0f9, type: 2}
   temperature: 0.26
   temperatureVariance: 0.12
   moisture: 0.36

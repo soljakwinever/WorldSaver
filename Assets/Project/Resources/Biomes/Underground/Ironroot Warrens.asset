@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Ironroot Warrens
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Ironroot Warrens
+  areaNameParts: {fileID: 11400000, guid: 7f91d596932b1c69200d646816f39003, type: 2}
   temperature: 0.52
   temperatureVariance: 0.12
   moisture: 0.56

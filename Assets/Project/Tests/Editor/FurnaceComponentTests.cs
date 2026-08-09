@@ -135,6 +135,62 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void FurnaceCyclesValueTagExtendsCraftTimeAndFuelCost()
+        {
+            EntityTag fuelTag = CreateTag();
+            ItemData fuel = CreateItem("fuel", 20, fuelTag);
+            ItemData ingredient = CreateItem("ore", 20);
+            ItemData output = CreateItem("slow-bar", 20);
+            ValueTag furnaceCycles =
+                ScriptableObject.CreateInstance<ValueTag>();
+            furnaceCycles.Configure(
+                ItemData.FurnaceCyclesValueTagId,
+                ValueTag.NumberType.Integer);
+            _objects.Add(furnaceCycles);
+            SetValueTags(
+                output,
+                new ValueTagAssignment(furnaceCycles, 3));
+
+            FurnaceComponent furnace = new GameObject("Furnace")
+                .AddComponent<FurnaceComponent>();
+            _objects.Add(furnace.gameObject);
+            furnace.Initialize(
+                "Furnace",
+                "Use furnace",
+                fuelTag,
+                CreateRecipeList(CreateRecipe(ingredient, 1, output)),
+                1,
+                10,
+                1);
+
+            Inventory source = new(2);
+            source.TryAdd(fuel, 3, out _);
+            source.TryAdd(ingredient, 1, out _);
+            Assert.That(
+                furnace.TryInsertFuel(source, new ItemStack(fuel, 3)),
+                Is.True);
+            Assert.That(
+                furnace.TryInsertIngredient(
+                    source, new ItemStack(ingredient, 1)),
+                Is.True);
+
+            furnace.SimulateOffline(
+                0, 29, OfflineSimulationPolicy.CatchUp);
+
+            Assert.That(furnace.OutputInventory.OccupiedSlots, Is.Zero);
+            Assert.That(furnace.Progress01, Is.EqualTo(29f / 30f));
+
+            furnace.SimulateOffline(
+                29, 30, OfflineSimulationPolicy.CatchUp);
+
+            Assert.That(
+                furnace.OutputInventory.GetCount(
+                    output, ItemData.Rarity.Common),
+                Is.EqualTo(1));
+            Assert.That(furnace.FuelInventory.OccupiedSlots, Is.Zero);
+        }
+
+        [Test]
         public void FurnaceRejectsItemsNotUsedByItsRecipeList()
         {
             EntityTag fuelTag = CreateTag();
@@ -267,6 +323,17 @@ namespace Project.Tests.EditMode
                 ?.SetValue(item, tags);
             _objects.Add(item);
             return item;
+        }
+
+        private static void SetValueTags(
+            ItemData item,
+            params ValueTagAssignment[] assignments)
+        {
+            typeof(ItemData)
+                .GetField(
+                    "valueTags",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.SetValue(item, assignments);
         }
 
         private CraftingRecipeData CreateRecipe(

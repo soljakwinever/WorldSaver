@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Ancient Woodland
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Ancient Woodland
+  areaNameParts: {fileID: 11400000, guid: 4f2e0b0566c41d4c1841719884ac942b, type: 2}
   temperature: 0.48
   temperatureVariance: 0.12
   moisture: 0.72

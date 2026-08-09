@@ -49,10 +49,10 @@ namespace Project.Scripts.Gameplay
         public IInventory OutputInventory => _output;
         public float Progress01 => ticksPerCycle <= 0
             ? 0f
-            : Mathf.Clamp01(_progressTicks / (float)ticksPerCycle);
+            : Mathf.Clamp01(_progressTicks / (float)GetActiveRecipeTicks());
         public bool IsBurning =>
-            GetAvailableFuelUnits() >= RequiredFuelUnits &&
-            TryGetReadyRecipe(out _);
+            TryGetReadyRecipe(out CraftingRecipeData recipe) &&
+            GetAvailableFuelUnits() >= GetRequiredFuelUnits(recipe);
         private long RequiredFuelUnits => checked(
             (long)fuelValuePerCycle * ItemData.FuelUnitsPerBaseValue);
 
@@ -128,34 +128,57 @@ namespace Project.Scripts.Gameplay
                 return;
 
             ValidateConfiguration();
-            long progressBeforeSimulation = _progressTicks;
-            long totalProgress = checked(
-                _progressTicks + (toTick - fromTick));
-            long requestedCycles = totalProgress / ticksPerCycle;
-            if (requestedCycles == 0)
+            long elapsedTicks = toTick - fromTick;
+            while (elapsedTicks > 0 &&
+                   TryGetReadyRecipe(out CraftingRecipeData recipe))
             {
-                if (IsBurning)
-                    _progressTicks = totalProgress;
-                _lastTick = toTick;
-                return;
-            }
+                long requiredFuel = GetRequiredFuelUnits(recipe);
+                if (GetAvailableFuelUnits() < requiredFuel)
+                    break;
 
-            long completedCycles = 0;
-            while (completedCycles < requestedCycles &&
-                   GetAvailableFuelUnits() >= RequiredFuelUnits &&
-                   TryGetReadyRecipe(out CraftingRecipeData recipe) &&
-                   TryCraftCycle(recipe))
-            {
-                ConsumeFuel(RequiredFuelUnits);
-                completedCycles++;
-            }
+                long recipeTicks = GetRequiredTicks(recipe);
+                long remainingTicks = recipeTicks - _progressTicks;
+                if (elapsedTicks < remainingTicks)
+                {
+                    _progressTicks += elapsedTicks;
+                    elapsedTicks = 0;
+                    break;
+                }
 
-            _progressTicks = completedCycles == requestedCycles
-                ? totalProgress % ticksPerCycle
-                : completedCycles == 0
-                    ? progressBeforeSimulation
-                    : 0;
+                if (!TryCraftCycle(recipe))
+                    break;
+
+                ConsumeFuel(requiredFuel);
+                elapsedTicks -= remainingTicks;
+                _progressTicks = 0;
+            }
             _lastTick = toTick;
+        }
+
+        private long GetActiveRecipeTicks() =>
+            TryGetReadyRecipe(out CraftingRecipeData recipe)
+                ? GetRequiredTicks(recipe)
+                : ticksPerCycle;
+
+        private long GetRequiredTicks(CraftingRecipeData recipe) =>
+            checked(ticksPerCycle * GetRequiredCycles(recipe));
+
+        private long GetRequiredFuelUnits(CraftingRecipeData recipe) =>
+            checked(RequiredFuelUnits * GetRequiredCycles(recipe));
+
+        public static int GetRequiredCycles(CraftingRecipeData recipe)
+        {
+            int cycles = 1;
+            if (recipe?.output == null)
+                return cycles;
+
+            for (int i = 0; i < recipe.output.Length; i++)
+            {
+                ItemData item = recipe.output[i]?.itemData;
+                if (item != null)
+                    cycles = Math.Max(cycles, item.GetFurnaceCycles());
+            }
+            return cycles;
         }
 
         public bool TryInsertFuel(IInventory source, IItemStack stack)
@@ -265,8 +288,7 @@ namespace Project.Scripts.Gameplay
             _lastTick = reader.ReadInt64();
             _progressTicks = reader.ReadInt64();
             _storedFuelUnits = reader.ReadInt64();
-            if (_progressTicks < 0 || _progressTicks >= ticksPerCycle ||
-                _storedFuelUnits < 0)
+            if (_progressTicks < 0 || _storedFuelUnits < 0)
                 throw new InvalidDataException(
                     "Furnace timing or fuel state is invalid.");
             _fuel = ReadInventory(
@@ -280,6 +302,9 @@ namespace Project.Scripts.Gameplay
                 : new Inventory(ingredientSlots);
             _output = ReadInventory(
                 reader, OutputSlotCount, null, savedVersion);
+            if (_progressTicks >= GetActiveRecipeTicks())
+                throw new InvalidDataException(
+                    "Furnace timing or fuel state is invalid.");
             _tickInitialized = _lastTick != 0;
         }
 

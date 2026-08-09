@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Sulfur Pits
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Sulfur Pits
+  areaNameParts: {fileID: 11400000, guid: b5b949678191f84d8476bb4da5b49b84, type: 2}
   temperature: 0.86
   temperatureVariance: 0.12
   moisture: 0.62

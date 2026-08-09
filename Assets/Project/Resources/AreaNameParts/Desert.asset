@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74e1b366d3ca49aaa4b5bf364f60a219, type: 3}
+  m_Name: Desert Names
+  m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.DataTypes.AreaNameParts
+  style: 0
+  presetNames:
+  - The Empty Quarter
+  - Sea of Glass
+  - The Long Thirst
+  - Saffron Expanse
+  - The Sunscar
+  - Dragon Sand
+  - The Pale Waste
+  - Ember Dunes
+  firstParts:
+  - Amber
+  - Ash
+  - Bleached
+  - Brass
+  - Burning
+  - Cinder
+  - Copper
+  - Dust
+  - Empty
+  - Glass
+  - Golden
+  - Ivory
+  - Red
+  - Salt
+  - Scorched
+  - Sun
+  - White
+  - Wyrm
+  middleParts:
+  - blown
+  - burn
+  - dust
+  - fire
+  - glass
+  - long
+  - salt
+  - sand
+  - scorch
+  - sun
+  lastParts:
+  - barrens
+  - dunes
+  - erg
+  - expanse
+  - flats
+  - march
+  - reach
+  - sands
+  - scar
+  - sea
+  - waste
+  - wilds
+  - pan
+  - drift
+  separators:
+  - 
+  - ' '
+  - ''''
+  - '-'
+  minimumComponents: 2
+  maximumComponents: 3
+  featureTypes:
+  - Desert
+  - Dunes
+  - Sands
+  - Barrens
+  - Wastes
+  - Flats
+  - Expanse

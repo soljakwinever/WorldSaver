@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Fey Wildwood
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Fey Wildwood
+  areaNameParts: {fileID: 11400000, guid: 97dfeb6a3d8ff7f0af46557fc7e72262, type: 2}
   temperature: 0.54
   temperatureVariance: 0.12
   moisture: 0.74

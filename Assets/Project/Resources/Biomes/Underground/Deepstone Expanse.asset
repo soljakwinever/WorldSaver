@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Deepstone Expanse
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Deepstone Expanse
+  areaNameParts: {fileID: 11400000, guid: 8d72b945ec259421d68f4a4154c2bd74, type: 2}
   temperature: 0.34
   temperatureVariance: 0.12
   moisture: 0.26

@@ -16,3 +16,4 @@ MonoBehaviour:
   chancePerCell: 0
   features:
   - {fileID: 11400000, guid: a5000000000000000000000000000005, type: 2}
+  - {fileID: 11400000, guid: a1700000000000000000000000000007, type: 2}

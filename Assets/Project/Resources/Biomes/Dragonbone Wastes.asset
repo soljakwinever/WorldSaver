@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Dragonbone Wastes
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Dragonbone Wastes
+  areaNameParts: {fileID: 11400000, guid: 19bda760a9a51be81351410aefd03497, type: 2}
   temperature: 0.7
   temperatureVariance: 0.14
   moisture: 0.14

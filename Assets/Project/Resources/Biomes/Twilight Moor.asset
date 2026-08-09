@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Twilight Moor
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Twilight Moor
+  areaNameParts: {fileID: 11400000, guid: ea61bbbc4cd9609cbdc1a4bf40b88cb6, type: 2}
   temperature: 0.36
   temperatureVariance: 0.14
   moisture: 0.72

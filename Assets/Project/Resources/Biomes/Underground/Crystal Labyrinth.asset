@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Crystal Labyrinth
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Crystal Labyrinth
+  areaNameParts: {fileID: 11400000, guid: 8425972f595fc0fe02bf1e2a0ba95134, type: 2}
   temperature: 0.28
   temperatureVariance: 0.12
   moisture: 0.36

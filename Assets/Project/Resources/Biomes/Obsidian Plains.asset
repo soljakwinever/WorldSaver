@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Obsidian Plains
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Obsidian Plains
+  areaNameParts: {fileID: 11400000, guid: f02800cf17eef6a44a9dc6b387bfa31b, type: 2}
   temperature: 0.78
   temperatureVariance: 0.12
   moisture: 0.08

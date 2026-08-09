@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Glacier Fields
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Glacier Fields
+  areaNameParts: {fileID: 11400000, guid: d83ca706c09096619aad24b30b719971, type: 2}
   temperature: 0.03
   temperatureVariance: 0.05
   moisture: 0.45

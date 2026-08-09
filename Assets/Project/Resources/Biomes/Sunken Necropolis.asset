@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Sunken Necropolis
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Sunken Necropolis
+  areaNameParts: {fileID: 11400000, guid: 162a3fd4c0aa437ab8806acf68a06780, type: 2}
   temperature: 0.46
   temperatureVariance: 0.14
   moisture: 0.84

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Fungal Wilds
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Fungal Wilds
+  areaNameParts: {fileID: 11400000, guid: 76fae9dc963e8f2b6f6fc8df339e6449, type: 2}
   temperature: 0.56
   temperatureVariance: 0.12
   moisture: 0.86

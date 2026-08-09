@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using Project.Scripts.Gameplay;
@@ -207,7 +209,7 @@ namespace Project.Scripts.Core
                     simulatable.SimulateOffline(fromTick, toTick, policy);
             }
 
-            foreach (PersistentEntity entity in _entities.Values)
+            foreach (PersistentEntity entity in _entities.Values.ToImmutableList())
             {
                 foreach (IPersistentComponent component
                          in entity.GetPersistentComponents())

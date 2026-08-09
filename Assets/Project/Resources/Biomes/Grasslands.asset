@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Grasslands
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Grasslands
+  areaNameParts: {fileID: 11400000, guid: 8f36a382003649512fd5c3afa1986a34, type: 2}
   temperature: 0.55
   temperatureVariance: 0.16
   moisture: 0.48

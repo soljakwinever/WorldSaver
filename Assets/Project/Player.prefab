@@ -314,8 +314,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43f94f6d0dde49f2bd1b1b84bcdf0d4a, type: 3}
   m_Name:
   m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.PlayerNeedsController
-  fullHungerHealthRegenerationPerSecond: 0.25
-  fullHungerThreshold: 0.95
+  healthRegenerationPerSecond: 0.25
+  manaRegenerationPerSecond: 0.25
+  fedRegenerationMultiplier: 2
 --- !u!114 &2057483881632290249
 MonoBehaviour:
   m_ObjectHideFlags: 0

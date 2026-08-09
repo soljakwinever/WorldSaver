@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Obsidian Cathedral
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Obsidian Cathedral
+  areaNameParts: {fileID: 11400000, guid: 8716469a59e56ed513077e0d5702f7c1, type: 2}
   temperature: 0.82
   temperatureVariance: 0.12
   moisture: 0.12

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Sandy Coast
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Sandy Coast
+  areaNameParts: {fileID: 11400000, guid: b1b9680f859c6d831572398b6e528421, type: 2}
   temperature: 0.62
   temperatureVariance: 0.22
   moisture: 0.58
