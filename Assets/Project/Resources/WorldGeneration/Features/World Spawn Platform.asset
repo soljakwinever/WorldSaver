@@ -27,6 +27,11 @@ MonoBehaviour:
   moistureRange: {x: 0, y: 1}
   temperatureRange: {x: 0, y: 1}
   allowedBiomes: []
+  connectToRoads: 1
+  roadConnectionOffset: {x: 0, y: 0}
+  maximumRoadConnections: 0
+  allowedRoadConnections:
+  - {fileID: 11400000, guid: 3692680514cab484da577c8d67f33826, type: 2}
   generators:
   - enabled: 1
     strength: 1
@@ -58,6 +63,9 @@ MonoBehaviour:
         flipX: 0
         damageImmune: 1
         clearReservedAreaCoverage: 0
+        requireWalkableArea: 0
+        walkableAreaSize: {x: 1, y: 1}
+        walkableAreaOffset: {x: 0, y: 0}
     - rid: 4542294794638721499
       type: {class: StarFloorGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
       data:

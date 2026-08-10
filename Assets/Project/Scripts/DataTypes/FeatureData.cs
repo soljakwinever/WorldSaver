@@ -30,6 +30,16 @@ namespace Project.Scripts.DataTypes
         public Vector2 temperatureRange = new(0f, 1f);
         public BiomeData[] allowedBiomes = Array.Empty<BiomeData>();
 
+        [Header("Road Connections")]
+        [Tooltip("Allow this feature type to create procedural road connections.")]
+        public bool connectToRoads = true;
+        [Tooltip("Feature-local point where roads meet the feature. The offset rotates with each generated feature instance.")]
+        public Vector2 roadConnectionOffset;
+        [Min(0), Tooltip("Maximum roads connected to each generated instance. Zero allows any number.")]
+        public int maximumRoadConnections;
+        [Tooltip("Feature types this feature may connect to. An empty list allows every road-enabled feature type.")]
+        public FeatureData[] allowedRoadConnections = Array.Empty<FeatureData>();
+
         [Header("Ordered Recipe")]
         public GeneratorInfo[] generators = Array.Empty<GeneratorInfo>();
 

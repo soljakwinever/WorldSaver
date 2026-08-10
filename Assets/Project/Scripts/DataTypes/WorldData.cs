@@ -180,6 +180,8 @@ namespace Project.Scripts
 
         public float minFeatureRadius = 64f;
         public float maxFeatureRadius = 256f;
+        [Tooltip("Feature assets used when no authored generation preset is available.")]
+        public FeatureData[] legacyFeatures = Array.Empty<FeatureData>();
         
         public PropSpawnRule[] propSpawnRules;
 

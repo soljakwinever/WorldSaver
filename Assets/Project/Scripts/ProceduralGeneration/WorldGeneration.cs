@@ -7,6 +7,7 @@ using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Enums;
 using Project.Scripts.Interface;
+using Project.Scripts.ProceduralGeneration;
 using UnityEngine;
 using Zenject;
 
@@ -59,6 +60,18 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
     private readonly BiomeData[] waterBiomeLibrary;
     private readonly Dictionary<long, FeatureInstance> featureInstances = new();
     private readonly object featureInstanceLock = new();
+    private readonly Dictionary<Vector2Int, Lazy<Dictionary<string, FeatureInstance>>>
+        featureBuildingWinners = new();
+    private readonly object featureBuildingWinnerLock = new();
+    private readonly Dictionary<RoadKey, Lazy<Vector2[]>> roadPaths = new();
+    private readonly Dictionary<RoadBranchKey, Lazy<Vector2[]>> roadBranchPaths = new();
+    private readonly object roadPathLock = new();
+    private Lazy<Vector2[]> guaranteedTownRoad;
+    private readonly Dictionary<long, Lazy<TownLayout>> townLayouts = new();
+    private readonly object townLayoutLock = new();
+    private readonly object guaranteedTownLock = new();
+    private bool guaranteedTownResolved;
+    private FeatureInstance guaranteedTown;
     private const int CaveCellBlockSize = 64;
     private const int CaveCellCacheCapacity = 128;
     private const int CaveBiomeSiteCacheCapacity = 1024;
@@ -446,6 +459,12 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
     }
 
     public TerrainSample GetTerrainSample(int x, int y)
+        => GetTerrainSample(x, y, includePathData: true);
+
+    public TerrainSample GetTerrainSample(
+        int x,
+        int y,
+        bool includePathData)
     {
         TerrainKind? knownCaveKind = caveLayer != null
             ? GetTerrainKind(x, y)
@@ -464,7 +483,7 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
             out _,
             terrainSampleRadius,
             knownCaveKind);
-        return new TerrainSample()
+        TerrainSample sample = new()
         {
             terrainKind = terrainKind,
             biome = biomeData.dominantBiome,
@@ -476,9 +495,28 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
             isCliff = terrainKind == TerrainKind.Wall ||
                       caveLayer == null && IsSmallCliff(x,y),
             isWater = terrainKind == TerrainKind.Floor && height <= elevationLayer.waterHeight,
-            isRoad = false,
+            isRoad = includePathData && IsProceduralRoad(x, y),
             isTrail = false
         };
+        if (TryGetTownCell(x, y, out _, out TownCellKind townCell))
+        {
+            if (includePathData &&
+                (townCell == TownCellKind.Street ||
+                 townCell == TownCellKind.TownCorePlaza))
+                sample.isRoad = true;
+            if (townCell == TownCellKind.BuildingWall)
+            {
+                sample.terrainKind = TerrainKind.Wall;
+                sample.isCliff = true;
+            }
+            else if (townCell != TownCellKind.None)
+            {
+                sample.terrainKind = TerrainKind.Floor;
+                sample.isCliff = false;
+                sample.isWater = false;
+            }
+        }
+        return sample;
     }
 
     private float SelectNoiseLayer(int x, int y, float moisture, float temperature, BiomeBlend biomeData = default)
@@ -543,7 +581,8 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         out float temperature,
         out TileData floorTile,
         int sampleRadius = -1,
-        TerrainKind? knownCaveKind = null)
+        TerrainKind? knownCaveKind = null,
+        bool applyFeatureRecipes = true)
     {
         if (sampleRadius < 0)
             sampleRadius = climateLayer.blendSampleRadius;
@@ -647,7 +686,8 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
             temperature = temperature,
             biomeData = biomeData
         };
-        ApplyFeatures(x, y, ref terrain);
+        if (applyFeatureRecipes)
+            ApplyFeatures(x, y, ref terrain);
         floorTile = terrain.floorTile;
         height = Mathf.InverseLerp(
             elevationLayer.normalizationMinimum,
@@ -1421,6 +1461,9 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         FeatureInstance worldSpawn = GetWorldSpawnFeatureInstance();
         if (worldSpawn.exists)
             ApplyFeatureInstance(x, y, worldSpawn, ref terrain);
+        FeatureInstance requiredTown = GetGuaranteedTownInstance();
+        if (requiredTown.exists)
+            ApplyFeatureInstance(x, y, requiredTown, ref terrain);
     }
 
     private FeatureInstance GetWorldSpawnFeatureInstance()
@@ -1452,6 +1495,740 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
             featureInstances.Add(key, created);
             return created;
         }
+    }
+
+    public bool IsProceduralRoad(int x, int y)
+    {
+        if (caveLayer != null)
+            return false;
+
+        FeatureInstance requiredTown = GetGuaranteedTownInstance();
+        if (requiredTown.exists && IsGuaranteedTownRoad(x, y, requiredTown))
+            return true;
+        if (!featureLayer.generateRoads)
+            return false;
+
+        float maximumDistance = Mathf.Max(8f, featureLayer.maximumRoadDistance);
+        float width = Mathf.Max(0.5f, featureLayer.roadWidth);
+        int cellSize = Mathf.Max(1, featureLayer.cellSize);
+        // Include the neighbors of both possible endpoints as well as the
+        // A* search margin. Connection limiting must see the same candidate
+        // set from every tile along a road, including across chunk borders.
+        int range = Mathf.CeilToInt(maximumDistance * 3f / cellSize) + 1;
+        int cellX = Mathf.FloorToInt((float)x / cellSize);
+        int cellY = Mathf.FloorToInt((float)y / cellSize);
+        var nearby = new List<RoadFeature>();
+
+        for (int oy = -range; oy <= range; oy++)
+        for (int ox = -range; ox <= range; ox++)
+        {
+            int candidateX = cellX + ox;
+            int candidateY = cellY + oy;
+            FeatureInstance instance = GetFeatureInstance(candidateX, candidateY);
+            if (instance.exists)
+            {
+                if (!instance.feature.connectToRoads)
+                    continue;
+                nearby.Add(new RoadFeature(
+                    PackCoordinates(candidateX, candidateY),
+                    instance,
+                    GetRoadConnectionPoint(instance)));
+            }
+        }
+
+        FeatureInstance spawn = GetWorldSpawnFeatureInstance();
+        if (spawn.exists && spawn.feature.connectToRoads &&
+            Vector2.Distance(new Vector2(x, y), spawn.center) <= maximumDistance * 2f)
+        {
+            nearby.Add(new RoadFeature(
+                long.MinValue,
+                spawn,
+                GetRoadConnectionPoint(spawn)));
+        }
+        if (requiredTown.exists &&
+            Vector2.Distance(new Vector2(x, y), requiredTown.center) <= maximumDistance * 2f)
+        {
+            nearby.Add(new RoadFeature(
+                long.MinValue + 1,
+                requiredTown,
+                GetRoadConnectionPoint(requiredTown)));
+        }
+
+        Vector2 point = new(x, y);
+        float maximumDistanceSquared = maximumDistance * maximumDistance;
+        List<Vector2[]> paths = GetRoadNetworkPaths(nearby, maximumDistanceSquared);
+        for (int pathIndex = 0; pathIndex < paths.Count; pathIndex++)
+        {
+            Vector2[] path = paths[pathIndex];
+            for (int i = 1; i < path.Length; i++)
+            {
+                if (DistanceToSegment(point, path[i - 1], path[i]) <= width * 0.5f)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    public bool IsWithinRestrictedPathArea(int x, int y)
+    {
+        int clearance = Mathf.Max(0, featureLayer.entityClearanceFromPaths);
+        int clearanceSquared = clearance * clearance;
+        for (int offsetY = -clearance; offsetY <= clearance; offsetY++)
+        for (int offsetX = -clearance; offsetX <= clearance; offsetX++)
+        {
+            if (offsetX * offsetX + offsetY * offsetY > clearanceSquared)
+                continue;
+            int sampleX = x + offsetX;
+            int sampleY = y + offsetY;
+            if (IsProceduralRoad(sampleX, sampleY))
+                return true;
+            if (TryGetTownCell(
+                    sampleX,
+                    sampleY,
+                    out _,
+                    out TownCellKind townCell) &&
+                (townCell == TownCellKind.Street ||
+                 townCell == TownCellKind.TownCorePlaza))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void BuildRoadMasks(
+        Vector2Int chunkPosition,
+        bool[] roadMask,
+        bool[] restrictedMask)
+    {
+        if (roadMask == null || roadMask.Length < ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize)
+            throw new ArgumentException("Road mask is smaller than a chunk.", nameof(roadMask));
+        if (restrictedMask == null || restrictedMask.Length < roadMask.Length)
+            throw new ArgumentException("Restricted mask is smaller than the road mask.", nameof(restrictedMask));
+        Array.Clear(roadMask, 0, roadMask.Length);
+        Array.Clear(restrictedMask, 0, restrictedMask.Length);
+        if (caveLayer != null)
+            return;
+
+        int size = ChunkBuildResult.ChunkSize;
+        int originX = chunkPosition.x * size;
+        int originY = chunkPosition.y * size;
+        int clearance = Mathf.Max(0, featureLayer.entityClearanceFromPaths);
+        float halfWidth = Mathf.Max(0.5f, featureLayer.roadWidth) * 0.5f;
+        var paths = new List<Vector2[]>();
+
+        FeatureInstance requiredTown = GetGuaranteedTownInstance();
+        if (requiredTown.exists)
+        {
+            Lazy<Vector2[]> lazy;
+            lock (roadPathLock)
+            {
+                guaranteedTownRoad ??= new Lazy<Vector2[]>(
+                    () => BuildRoadPath(WorldSpawnPosition, GetRoadConnectionPoint(requiredTown)),
+                    LazyThreadSafetyMode.ExecutionAndPublication);
+                lazy = guaranteedTownRoad;
+            }
+            AddPathIfRelevant(lazy.Value, originX, originY, size, halfWidth + clearance, paths);
+        }
+
+        if (featureLayer.generateRoads)
+        {
+            float maximumDistance = Mathf.Max(8f, featureLayer.maximumRoadDistance);
+            float maximumDistanceSquared = maximumDistance * maximumDistance;
+            int cellSize = Mathf.Max(1, featureLayer.cellSize);
+            float graphMargin = maximumDistance * 3f;
+            int minimumCellX = Mathf.FloorToInt((originX - graphMargin) / cellSize);
+            int minimumCellY = Mathf.FloorToInt((originY - graphMargin) / cellSize);
+            int maximumCellX = Mathf.FloorToInt((originX + size - 1 + graphMargin) / cellSize);
+            int maximumCellY = Mathf.FloorToInt((originY + size - 1 + graphMargin) / cellSize);
+            var candidates = new List<RoadFeature>();
+            for (int cellY = minimumCellY; cellY <= maximumCellY; cellY++)
+            for (int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
+            {
+                FeatureInstance instance = GetFeatureInstance(cellX, cellY);
+                if (instance.exists && instance.feature.connectToRoads)
+                    candidates.Add(new RoadFeature(
+                        PackCoordinates(cellX, cellY), instance, GetRoadConnectionPoint(instance)));
+            }
+            FeatureInstance spawn = GetWorldSpawnFeatureInstance();
+            if (spawn.exists && spawn.feature.connectToRoads)
+                candidates.Add(new RoadFeature(long.MinValue, spawn, GetRoadConnectionPoint(spawn)));
+            if (requiredTown.exists)
+                candidates.Add(new RoadFeature(long.MinValue + 1, requiredTown, GetRoadConnectionPoint(requiredTown)));
+
+            List<Vector2[]> networkPaths = GetRoadNetworkPaths(candidates, maximumDistanceSquared);
+            for (int pathIndex = 0; pathIndex < networkPaths.Count; pathIndex++)
+            {
+                AddPathIfRelevant(
+                    networkPaths[pathIndex],
+                    originX,
+                    originY,
+                    size,
+                    halfWidth + clearance,
+                    paths);
+            }
+        }
+
+        for (int localY = 0; localY < size; localY++)
+        for (int localX = 0; localX < size; localX++)
+        {
+            Vector2 point = new(originX + localX, originY + localY);
+            float nearest = float.MaxValue;
+            for (int pathIndex = 0; pathIndex < paths.Count; pathIndex++)
+            {
+                Vector2[] path = paths[pathIndex];
+                for (int segment = 1; segment < path.Length; segment++)
+                    nearest = Mathf.Min(nearest, DistanceToSegment(point, path[segment - 1], path[segment]));
+            }
+            int index = localX + localY * size;
+            roadMask[index] = nearest <= halfWidth;
+            restrictedMask[index] = nearest <= halfWidth + clearance;
+        }
+
+        // Town streets are already raster data. Visit the small padded chunk
+        // once and stamp their clearance into the mask instead of querying all
+        // neighboring cells again for every prop candidate.
+        int clearanceSquared = clearance * clearance;
+        for (int worldY = originY - clearance; worldY < originY + size + clearance; worldY++)
+        for (int worldX = originX - clearance; worldX < originX + size + clearance; worldX++)
+        {
+            if (!TryGetTownCell(worldX, worldY, out _, out TownCellKind kind) ||
+                (kind != TownCellKind.Street && kind != TownCellKind.TownCorePlaza))
+                continue;
+            for (int oy = -clearance; oy <= clearance; oy++)
+            for (int ox = -clearance; ox <= clearance; ox++)
+            {
+                if (ox * ox + oy * oy > clearanceSquared) continue;
+                int localX = worldX + ox - originX;
+                int localY = worldY + oy - originY;
+                if ((uint)localX >= size || (uint)localY >= size) continue;
+                restrictedMask[localX + localY * size] = true;
+            }
+        }
+    }
+
+    private static void AddPathIfRelevant(
+        Vector2[] path,
+        int originX,
+        int originY,
+        int size,
+        float margin,
+        List<Vector2[]> destination)
+    {
+        if (path == null || path.Length < 2) return;
+        float maximumX = originX + size - 1;
+        float maximumY = originY + size - 1;
+        for (int i = 1; i < path.Length; i++)
+        {
+            Vector2 a = path[i - 1];
+            Vector2 b = path[i];
+            if (Mathf.Max(a.x, b.x) >= originX - margin &&
+                Mathf.Min(a.x, b.x) <= maximumX + margin &&
+                Mathf.Max(a.y, b.y) >= originY - margin &&
+                Mathf.Min(a.y, b.y) <= maximumY + margin)
+            {
+                destination.Add(path);
+                return;
+            }
+        }
+    }
+
+    private bool IsGuaranteedTownRoad(
+        int x,
+        int y,
+        FeatureInstance town)
+    {
+        Lazy<Vector2[]> lazy;
+        lock (roadPathLock)
+        {
+            if (guaranteedTownRoad == null)
+            {
+                Vector2 start = WorldSpawnPosition;
+                Vector2 end = GetRoadConnectionPoint(town);
+                guaranteedTownRoad = new Lazy<Vector2[]>(
+                    () => BuildRoadPath(start, end),
+                    LazyThreadSafetyMode.ExecutionAndPublication);
+            }
+            lazy = guaranteedTownRoad;
+        }
+
+        Vector2 point = new(x, y);
+        float halfWidth = Mathf.Max(0.5f, featureLayer.roadWidth) * 0.5f;
+        Vector2[] path = lazy.Value;
+        for (int i = 1; i < path.Length; i++)
+        {
+            if (DistanceToSegment(point, path[i - 1], path[i]) <= halfWidth)
+                return true;
+        }
+        return false;
+    }
+
+    private static Vector2 GetRoadConnectionPoint(FeatureInstance instance)
+    {
+        float sine = Mathf.Sin(instance.rotation);
+        float cosine = Mathf.Cos(instance.rotation);
+        Vector2 offset = instance.feature.roadConnectionOffset;
+        if (instance.feature is TownFeatureData && offset == Vector2.zero)
+            offset = Vector2.right * Mathf.Max(1f, instance.radius - 2f);
+        Vector2 rotatedOffset = new(
+            offset.x * cosine - offset.y * sine,
+            offset.x * sine + offset.y * cosine);
+        return instance.center + rotatedOffset;
+    }
+
+    private static bool CanConnectRoadFeatures(RoadFeature first, RoadFeature second) =>
+        AllowsRoadDestination(first.feature, second.feature) &&
+        AllowsRoadDestination(second.feature, first.feature);
+
+    private static bool AllowsRoadDestination(FeatureData source, FeatureData destination)
+    {
+        FeatureData[] allowed = source.allowedRoadConnections;
+        if (allowed == null || allowed.Length == 0)
+            return true;
+        for (int i = 0; i < allowed.Length; i++)
+        {
+            if (allowed[i] == destination)
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsSelectedRoadConnection(
+        RoadFeature source,
+        RoadFeature destination,
+        List<RoadFeature> candidates,
+        float maximumDistanceSquared)
+    {
+        // Both endpoints must select the edge. This keeps each feature's
+        // configured maximum deterministic and prevents the other endpoint
+        // from exceeding its own limit.
+        return SelectsRoadConnection(source, destination, candidates, maximumDistanceSquared) &&
+               SelectsRoadConnection(destination, source, candidates, maximumDistanceSquared);
+    }
+
+    private static bool SelectsRoadConnection(
+        RoadFeature source,
+        RoadFeature destination,
+        List<RoadFeature> candidates,
+        float maximumDistanceSquared)
+    {
+        int maximum = source.feature.maximumRoadConnections;
+        if (maximum <= 0)
+            return true;
+
+        int closer = 0;
+        float targetDistance = (source.center - destination.center).sqrMagnitude;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            RoadFeature candidate = candidates[i];
+            if (candidate.id == source.id ||
+                !CanConnectRoadFeatures(source, candidate))
+                continue;
+            float distance = (source.center - candidate.center).sqrMagnitude;
+            if (distance > maximumDistanceSquared)
+                continue;
+            if (distance < targetDistance ||
+                Mathf.Approximately(distance, targetDistance) && candidate.id < destination.id)
+            {
+                closer++;
+                if (closer >= maximum)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private Vector2[] GetRoadPath(RoadFeature first, RoadFeature second)
+    {
+        RoadKey key = new(first.id, second.id);
+        Lazy<Vector2[]> lazy;
+        lock (roadPathLock)
+        {
+            if (!roadPaths.TryGetValue(key, out lazy))
+            {
+                RoadFeature capturedFirst = first;
+                RoadFeature capturedSecond = second;
+                lazy = new Lazy<Vector2[]>(
+                    () => BuildRoadPath(capturedFirst.center, capturedSecond.center),
+                    LazyThreadSafetyMode.ExecutionAndPublication);
+                roadPaths.Add(key, lazy);
+            }
+        }
+        return lazy.Value;
+    }
+
+    private List<Vector2[]> GetRoadNetworkPaths(
+        List<RoadFeature> candidates,
+        float maximumDistanceSquared)
+    {
+        candidates.Sort((a, b) => a.id.CompareTo(b.id));
+        var routes = new List<RoadRoute>();
+        var connected = new HashSet<long>();
+        for (int firstIndex = 0; firstIndex < candidates.Count; firstIndex++)
+        for (int secondIndex = firstIndex + 1; secondIndex < candidates.Count; secondIndex++)
+        {
+            RoadFeature first = candidates[firstIndex];
+            RoadFeature second = candidates[secondIndex];
+            if ((first.center - second.center).sqrMagnitude > maximumDistanceSquared ||
+                !CanConnectRoadFeatures(first, second) ||
+                !IsSelectedRoadConnection(first, second, candidates, maximumDistanceSquared))
+                continue;
+            Vector2[] path = GetRoadPath(first, second);
+            if (path.Length < 2) continue;
+            routes.Add(new RoadRoute(first, second, path));
+            connected.Add(first.id);
+            connected.Add(second.id);
+        }
+
+        if (featureLayer.generateRoadBranches && routes.Count > 0)
+        {
+            int primaryRouteCount = routes.Count;
+            float branchDistance = Mathf.Max(1f, featureLayer.maximumRoadBranchDistance);
+            float branchDistanceSquared = branchDistance * branchDistance;
+            for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+            {
+                RoadFeature candidate = candidates[candidateIndex];
+                if (connected.Contains(candidate.id)) continue;
+                RoadRoute nearestRoute = default;
+                Vector2 nearestPoint = default;
+                float nearestDistanceSquared = branchDistanceSquared;
+                bool found = false;
+                for (int routeIndex = 0; routeIndex < primaryRouteCount; routeIndex++)
+                {
+                    RoadRoute route = routes[routeIndex];
+                    if (route.first.id == candidate.id || route.second.id == candidate.id ||
+                        !CanBranchToRoute(candidate, route))
+                        continue;
+                    for (int segment = 1; segment < route.path.Length; segment++)
+                    {
+                        Vector2 point = ClosestPointOnSegment(
+                            candidate.center,
+                            route.path[segment - 1],
+                            route.path[segment]);
+                        float distanceSquared = (candidate.center - point).sqrMagnitude;
+                        if (distanceSquared >= nearestDistanceSquared) continue;
+                        nearestDistanceSquared = distanceSquared;
+                        nearestRoute = route;
+                        nearestPoint = point;
+                        found = true;
+                    }
+                }
+                if (!found) continue;
+                Vector2[] branch = GetRoadBranchPath(candidate, nearestRoute, nearestPoint);
+                if (branch.Length >= 2)
+                {
+                    routes.Add(new RoadRoute(candidate, nearestRoute.first, branch));
+                    connected.Add(candidate.id);
+                }
+            }
+        }
+
+        var paths = new List<Vector2[]>(routes.Count);
+        for (int i = 0; i < routes.Count; i++) paths.Add(routes[i].path);
+        return paths;
+    }
+
+    private static bool CanBranchToRoute(RoadFeature candidate, RoadRoute route) =>
+        CanConnectRoadFeatures(candidate, route.first) ||
+        CanConnectRoadFeatures(candidate, route.second);
+
+    private Vector2[] GetRoadBranchPath(
+        RoadFeature feature,
+        RoadRoute route,
+        Vector2 attachment)
+    {
+        RoadBranchKey key = new(feature.id, route.first.id, route.second.id);
+        Lazy<Vector2[]> lazy;
+        lock (roadPathLock)
+        {
+            if (!roadBranchPaths.TryGetValue(key, out lazy))
+            {
+                Vector2 start = feature.center;
+                Vector2 end = attachment;
+                lazy = new Lazy<Vector2[]>(
+                    () => BuildRoadPath(start, end),
+                    LazyThreadSafetyMode.ExecutionAndPublication);
+                roadBranchPaths.Add(key, lazy);
+            }
+        }
+        return lazy.Value;
+    }
+
+    private static Vector2 ClosestPointOnSegment(Vector2 point, Vector2 start, Vector2 end)
+    {
+        Vector2 segment = end - start;
+        float lengthSquared = segment.sqrMagnitude;
+        if (lengthSquared <= Mathf.Epsilon) return start;
+        return start + segment * Mathf.Clamp01(Vector2.Dot(point - start, segment) / lengthSquared);
+    }
+
+    private Vector2[] BuildRoadPath(Vector2 start, Vector2 end)
+    {
+        int step = Mathf.Max(1, featureLayer.roadPathStep);
+        int waterClearance = Mathf.Max(
+            1,
+            Mathf.CeilToInt(Mathf.Max(0.5f, featureLayer.roadWidth) * 0.5f));
+        var terrainCosts = new Dictionary<Vector2Int, float>();
+        float TraversalCost(Vector2 point)
+        {
+            // Endpoints may sit on authored feature floors. Let A* leave and
+            // enter them, then enforce hard terrain restrictions elsewhere.
+            if (Vector2.Distance(point, start) <= step ||
+                Vector2.Distance(point, end) <= step)
+                return 0f;
+
+            int sampleX = Mathf.RoundToInt(point.x);
+            int sampleY = Mathf.RoundToInt(point.y);
+            Vector2Int sampleCell = new(sampleX, sampleY);
+            if (terrainCosts.TryGetValue(sampleCell, out float cachedCost))
+                return cachedCost;
+
+            float height = GetRoadPlanningHeight(sampleX, sampleY);
+            if (height <= elevationLayer.waterHeight ||
+                GetRoadPlanningHeight(sampleX + waterClearance, sampleY) <= elevationLayer.waterHeight ||
+                GetRoadPlanningHeight(sampleX - waterClearance, sampleY) <= elevationLayer.waterHeight ||
+                GetRoadPlanningHeight(sampleX, sampleY + waterClearance) <= elevationLayer.waterHeight ||
+                GetRoadPlanningHeight(sampleX, sampleY - waterClearance) <= elevationLayer.waterHeight ||
+                GetRoadPlanningHeight(sampleX + waterClearance, sampleY + waterClearance) <= elevationLayer.waterHeight ||
+                GetRoadPlanningHeight(sampleX + waterClearance, sampleY - waterClearance) <= elevationLayer.waterHeight ||
+                GetRoadPlanningHeight(sampleX - waterClearance, sampleY + waterClearance) <= elevationLayer.waterHeight ||
+                GetRoadPlanningHeight(sampleX - waterClearance, sampleY - waterClearance) <= elevationLayer.waterHeight)
+            {
+                terrainCosts[sampleCell] = float.PositiveInfinity;
+                return float.PositiveInfinity;
+            }
+
+            float right = GetRoadPlanningHeight(sampleX + 1, sampleY);
+            float left = GetRoadPlanningHeight(sampleX - 1, sampleY);
+            float up = GetRoadPlanningHeight(sampleX, sampleY + 1);
+            float down = GetRoadPlanningHeight(sampleX, sampleY - 1);
+            float highestNeighbor = Mathf.Max(right, left, up, down);
+            if (highestNeighbor - height > elevationLayer.cliffHeight &&
+                height > elevationLayer.waterHeight + 0.04f)
+            {
+                terrainCosts[sampleCell] = float.PositiveInfinity;
+                return float.PositiveInfinity;
+            }
+            float slope = Mathf.Max(
+                Mathf.Abs(height - right),
+                Mathf.Abs(height - left),
+                Mathf.Abs(height - up),
+                Mathf.Abs(height - down));
+            float variation = Util.Hash01(
+                Mathf.RoundToInt(point.x / step),
+                Mathf.RoundToInt(point.y / step),
+                unchecked((int)seed) ^ 0x6a09e667) * 0.35f;
+            float cost = slope * featureLayer.roadSlopeCost + variation;
+            terrainCosts[sampleCell] = cost;
+            return cost;
+        }
+
+        Vector2[] path = ProceduralRoadPathfinder.Find(start, end, step, TraversalCost);
+        int steeringSeed = unchecked((int)seed) ^
+                           Mathf.RoundToInt(start.x * 17f + start.y * 31f) ^
+                           Mathf.RoundToInt(end.x * 43f + end.y * 59f);
+        bool CanTraverse(Vector2 point)
+        {
+            float cost = TraversalCost(point);
+            return !float.IsInfinity(cost) && !float.IsNaN(cost);
+        }
+        return ProceduralRoadPathfinder.ApplySteering(
+            path,
+            featureLayer.roadSteeringWeight,
+            featureLayer.roadSteeringPasses,
+            featureLayer.roadJitter,
+            steeringSeed,
+            CanTraverse);
+    }
+
+    private float GetRoadPlanningHeight(int x, int y) =>
+        GetHeight(
+            x,
+            y,
+            out _,
+            out _,
+            out _,
+            out _,
+            out _,
+            sampleRadius: 1,
+            knownCaveKind: null,
+            applyFeatureRecipes: false);
+
+    public void ApplyTownCell(
+        int x,
+        int y,
+        ref TileData floorTile,
+        ref TerrainKind terrainKind,
+        ref ChunkBuildResult.IsCliff cliff,
+        ref bool isRoad)
+    {
+        if (!TryGetTownCell(x, y, out TownFeatureData town, out TownCellKind kind))
+            return;
+
+        switch (kind)
+        {
+            case TownCellKind.Street:
+                floorTile = town.streetTile ?? floorTile;
+                terrainKind = TerrainKind.Floor;
+                cliff = default;
+                isRoad = true;
+                break;
+            case TownCellKind.TownCorePlaza:
+                floorTile = town.townCorePlazaTile ?? town.streetTile ?? floorTile;
+                terrainKind = TerrainKind.Floor;
+                cliff = default;
+                isRoad = true;
+                break;
+            case TownCellKind.BuildingFloor:
+            case TownCellKind.Door:
+                floorTile = town.buildingFloorTile ?? floorTile;
+                terrainKind = TerrainKind.Floor;
+                cliff = default;
+                break;
+            case TownCellKind.AlternateLot:
+                floorTile = town.alternateLotTile ?? town.buildingFloorTile ?? floorTile;
+                terrainKind = TerrainKind.Floor;
+                cliff = default;
+                break;
+            case TownCellKind.BuildingWall:
+                if (town.buildingWallTile != null)
+                {
+                    floorTile = town.buildingWallTile;
+                    terrainKind = TerrainKind.Wall;
+                    cliff = new ChunkBuildResult.IsCliff(true, true);
+                }
+                break;
+        }
+    }
+
+    private bool TryGetTownCell(int x, int y, out TownFeatureData town, out TownCellKind kind)
+    {
+        FeatureInstance requiredTown = GetGuaranteedTownInstance();
+        if (TryGetTownCell(requiredTown, x, y, out town, out kind))
+            return true;
+
+        int cellSize = Mathf.Max(1, featureLayer.cellSize);
+        int cellX = Mathf.FloorToInt((float)x / cellSize);
+        int cellY = Mathf.FloorToInt((float)y / cellSize);
+        for (int oy = -featureNeighborRange; oy <= featureNeighborRange; oy++)
+        for (int ox = -featureNeighborRange; ox <= featureNeighborRange; ox++)
+        {
+            FeatureInstance instance = GetFeatureInstance(cellX + ox, cellY + oy);
+            if (TryGetTownCell(instance, x, y, out town, out kind))
+                return true;
+        }
+        town = null;
+        kind = TownCellKind.None;
+        return false;
+    }
+
+    private bool TryGetTownCell(
+        FeatureInstance instance,
+        int x,
+        int y,
+        out TownFeatureData town,
+        out TownCellKind kind)
+    {
+        town = instance.feature as TownFeatureData;
+        if (!instance.exists || town == null)
+        {
+            kind = TownCellKind.None;
+            return false;
+        }
+        Vector2 local = WorldToFeatureLocal(
+            new Vector2(x, y),
+            instance.center,
+            Mathf.Cos(instance.rotation),
+            Mathf.Sin(instance.rotation));
+        kind = GetTownLayout(instance).GetCell(Vector2Int.RoundToInt(local));
+        return kind != TownCellKind.None;
+    }
+
+    private FeatureInstance GetGuaranteedTownInstance()
+    {
+        if (!hasWorldSpawnPosition)
+            return default;
+        lock (guaranteedTownLock)
+        {
+            if (guaranteedTownResolved)
+                return guaranteedTown;
+            guaranteedTownResolved = true;
+            TownFeatureData town = (featureLayer.features ?? Array.Empty<FeatureData>())
+                .OfType<TownFeatureData>()
+                .FirstOrDefault(candidate => candidate != null && candidate.guaranteeNearWorldSpawn);
+            if (town == null)
+                return default;
+
+            int regionSize = WorldPartition.RegionSizeInChunks * ChunkBuildResult.ChunkSize;
+            float minimumDistance = Mathf.Max(1, town.minimumSpawnDistanceRegions) * regionSize;
+            float maximumDistance = Mathf.Max(
+                town.minimumSpawnDistanceRegions,
+                town.maximumSpawnDistanceRegions) * regionSize;
+            int salt = unchecked((int)seed) ^ StableHash(town.persistentId) ^ 0x3c6ef372;
+            Vector2 spawn = WorldSpawnPosition;
+            for (int attempt = 0; attempt < 192; attempt++)
+            {
+                float angle = Util.Hash01(attempt, salt, 0x2719) * Mathf.PI * 2f;
+                float distance = Mathf.Lerp(
+                    minimumDistance,
+                    maximumDistance,
+                    Util.Hash01(attempt, salt, 0x527d));
+                Vector2 center = spawn + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                TerrainGenerationState placement = SampleFeaturePlacementTerrain(
+                    Mathf.RoundToInt(center.x),
+                    Mathf.RoundToInt(center.y));
+                if (!town.Allows(placement, elevationLayer.waterHeight))
+                    continue;
+                float radius = Mathf.Lerp(
+                    town.minimumRadius,
+                    town.maximumRadius,
+                    Util.Hash01(attempt, salt, 0x108d7));
+                float rotation = Mathf.Round(
+                    Util.Hash01(attempt, salt, 0x713a5) * 4f) * Mathf.PI * 0.5f;
+                guaranteedTown = new FeatureInstance
+                {
+                    exists = true,
+                    feature = town,
+                    center = center,
+                    radius = radius,
+                    aspect = 1f,
+                    rotation = rotation
+                };
+                break;
+            }
+            return guaranteedTown;
+        }
+    }
+
+    public bool TryGetGuaranteedTownPosition(out Vector2 position)
+    {
+        FeatureInstance instance = GetGuaranteedTownInstance();
+        position = instance.center;
+        return instance.exists;
+    }
+
+    private TownLayout GetTownLayout(FeatureInstance instance)
+    {
+        long key = PackCoordinates(
+            Mathf.RoundToInt(instance.center.x * 16f),
+            Mathf.RoundToInt(instance.center.y * 16f));
+        Lazy<TownLayout> lazy;
+        lock (townLayoutLock)
+        {
+            if (!townLayouts.TryGetValue(key, out lazy))
+            {
+                TownFeatureData town = (TownFeatureData)instance.feature;
+                int layoutSeed = unchecked(
+                    (int)seed ^ key.GetHashCode() ^ StableHash(town.persistentId));
+                int radius = Mathf.Max(8, Mathf.RoundToInt(instance.radius));
+                lazy = new Lazy<TownLayout>(
+                    () => (town.layoutGenerator ?? new VillageTownLayoutGenerator())
+                        .Generate(town, layoutSeed, radius),
+                    LazyThreadSafetyMode.ExecutionAndPublication);
+                townLayouts.Add(key, lazy);
+            }
+        }
+        return lazy.Value;
     }
 
     private FeatureInstance CreateFeatureInstance(int cellX, int cellY)
@@ -1488,6 +2265,14 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         if (!feature.Allows(placement, elevationLayer.waterHeight))
             return default;
 
+        float rotation = Util.Hash01(
+                cellX,
+                cellY,
+                seedSalt ^ StableHash(feature.persistentId)) *
+            Mathf.PI * 2f;
+        if (feature is TownFeatureData)
+            rotation = Mathf.Round(rotation / (Mathf.PI * 0.5f)) * (Mathf.PI * 0.5f);
+
         return new FeatureInstance
         {
             exists = true,
@@ -1501,11 +2286,7 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
                 feature.minimumAspect,
                 feature.maximumAspect,
                 Util.Hash01(cellX, cellY, seedSalt ^ 0x713a5)),
-            rotation = Util.Hash01(
-                    cellX,
-                    cellY,
-                    seedSalt ^ StableHash(feature.persistentId)) *
-                Mathf.PI * 2f
+            rotation = rotation
         };
     }
 
@@ -1885,13 +2666,24 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         // circular WorldSpawnPosition lookup.
         _ = WorldSpawnPosition;
 
-        foreach (FeatureInstance instance in
-                 GetFeatureInstancesAffectingChunk(chunkPosition))
+        List<FeatureInstance> affecting =
+            GetFeatureInstancesAffectingChunk(chunkPosition).ToList();
+        // Towns are applied last so their mandatory clear pass removes props
+        // and entities contributed by every overlapping ordinary feature.
+        foreach (FeatureInstance instance in affecting)
         {
+            if (instance.feature is TownFeatureData)
+                continue;
             ApplyFeatureEntityGenerators(
                 chunkPosition,
                 entities,
                 instance);
+        }
+        foreach (FeatureInstance instance in affecting)
+        {
+            if (instance.feature is not TownFeatureData)
+                continue;
+            ApplyFeatureEntityGenerators(chunkPosition, entities, instance);
         }
     }
 
@@ -1939,6 +2731,9 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         FeatureInstance worldSpawn = GetWorldSpawnFeatureInstance();
         if (worldSpawn.exists)
             yield return worldSpawn;
+        FeatureInstance requiredTown = GetGuaranteedTownInstance();
+        if (requiredTown.exists)
+            yield return requiredTown;
     }
 
     private void ApplyFeatureEntityGenerators(
@@ -1948,6 +2743,51 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
     {
         float cosine = Mathf.Cos(instance.rotation);
         float sine = Mathf.Sin(instance.rotation);
+
+        if (instance.feature is TownFeatureData town)
+        {
+            float clearRadiusSquared = instance.radius * instance.radius;
+            entities.RemoveAll(candidate =>
+                (candidate.position - instance.center).sqrMagnitude <= clearRadiusSquared);
+            TownLayout layout = GetTownLayout(instance);
+            IReadOnlyList<TownEntityPlacement> townEntities = layout.Entities;
+            for (int entityIndex = 0; entityIndex < townEntities.Count; entityIndex++)
+            {
+                TownEntityPlacement placement = townEntities[entityIndex];
+                if (placement.entity == null)
+                    continue;
+                Vector2 local = placement.localCell;
+                Vector2 position = instance.center + new Vector2(
+                    local.x * cosine - local.y * sine,
+                    local.x * sine + local.y * cosine);
+                Vector2Int worldCell = Vector2Int.RoundToInt(position);
+                if (WorldPartition.WorldToChunk(worldCell) != chunkPosition)
+                    continue;
+                string placementId = $"Town:{instance.feature.persistentId}:{placement.id}";
+                entities.RemoveAll(candidate => candidate.worldPosition == worldCell);
+                entities.Add(new PropSpawnData
+                {
+                    NodeId = NodeId.Create(
+                        seed,
+                        worldCell,
+                        NodeId.CreateGeneratorType(placementId),
+                        (ushort)Mathf.Clamp(entityIndex, 0, ushort.MaxValue)),
+                    worldPosition = worldCell,
+                    propName = placementId,
+                    nodeData = placement.entity,
+                    // Town layout cells are rasterized with RoundToInt. Use
+                    // that exact cell as the entity anchor; Node placement
+                    // floors its input, so passing the fractional transformed
+                    // position could move a door into the neighboring cell.
+                    position = worldCell,
+                    scale = 1f,
+                    terrainSample = GetTerrainSample(worldCell.x, worldCell.y),
+                    persistenceKind = EntityPersistenceKind.Procedural,
+                    generatedTownName = placement.generatedName
+                });
+            }
+        }
+
         GeneratorInfo[] recipe =
             instance.feature.generators ?? Array.Empty<GeneratorInfo>();
 
@@ -2341,6 +3181,24 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
     private Dictionary<string, FeatureInstance> GetFeatureBuildingWinners(
         Vector2Int region)
     {
+        Lazy<Dictionary<string, FeatureInstance>> lazy;
+        lock (featureBuildingWinnerLock)
+        {
+            if (!featureBuildingWinners.TryGetValue(region, out lazy))
+            {
+                Vector2Int capturedRegion = region;
+                lazy = new Lazy<Dictionary<string, FeatureInstance>>(
+                    () => BuildFeatureBuildingWinners(capturedRegion),
+                    LazyThreadSafetyMode.ExecutionAndPublication);
+                featureBuildingWinners.Add(region, lazy);
+            }
+        }
+        return lazy.Value;
+    }
+
+    private Dictionary<string, FeatureInstance> BuildFeatureBuildingWinners(
+        Vector2Int region)
+    {
         Dictionary<string, FeatureInstance> winners =
             new(StringComparer.Ordinal);
         int regionWorldSize =
@@ -2482,6 +3340,66 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         public float radius;
         public float aspect;
         public float rotation;
+    }
+
+    private readonly struct RoadFeature
+    {
+        public readonly long id;
+        public readonly FeatureData feature;
+        public readonly Vector2 center;
+        public RoadFeature(long id, FeatureInstance instance, Vector2 center)
+        {
+            this.id = id;
+            feature = instance.feature;
+            this.center = center;
+        }
+    }
+
+    private readonly struct RoadRoute
+    {
+        public readonly RoadFeature first;
+        public readonly RoadFeature second;
+        public readonly Vector2[] path;
+        public RoadRoute(RoadFeature first, RoadFeature second, Vector2[] path)
+        {
+            this.first = first;
+            this.second = second;
+            this.path = path;
+        }
+    }
+
+    private readonly struct RoadBranchKey : IEquatable<RoadBranchKey>
+    {
+        private readonly long feature;
+        private readonly RoadKey road;
+        public RoadBranchKey(long feature, long first, long second)
+        {
+            this.feature = feature;
+            road = new RoadKey(first, second);
+        }
+        public bool Equals(RoadBranchKey other) => feature == other.feature && road.Equals(other.road);
+        public override bool Equals(object obj) => obj is RoadBranchKey other && Equals(other);
+        public override int GetHashCode()
+        {
+            unchecked { return (feature.GetHashCode() * 397) ^ road.GetHashCode(); }
+        }
+    }
+
+    private readonly struct RoadKey : IEquatable<RoadKey>
+    {
+        private readonly long first;
+        private readonly long second;
+        public RoadKey(long a, long b)
+        {
+            first = Math.Min(a, b);
+            second = Math.Max(a, b);
+        }
+        public bool Equals(RoadKey other) => first == other.first && second == other.second;
+        public override bool Equals(object obj) => obj is RoadKey other && Equals(other);
+        public override int GetHashCode()
+        {
+            unchecked { return (first.GetHashCode() * 397) ^ second.GetHashCode(); }
+        }
     }
     
     #endregion

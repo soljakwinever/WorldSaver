@@ -176,7 +176,19 @@ namespace Project.Scripts
 
         private static ChunkBuildResult BuildChunk(Vector2Int position, WorldGeneration worldGeneration, IEnumerable<PropSpawnRule> propSpawnRules, CancellationToken cancellationToken = default)
         {
+            // Guaranteed features and their spawn-to-village road depend on
+            // the canonical spawn anchor. Resolve it before the first terrain
+            // cell so the initial chunk ring cannot be permanently generated
+            // without those overlays because of Unity Start-order timing.
+            _ = worldGeneration.WorldSpawnPosition;
+
             ChunkBuildResult result = new ChunkBuildResult(position);
+            bool[] restrictedPathCells =
+                new bool[ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize];
+            worldGeneration.BuildRoadMasks(
+                position,
+                result.isRoad,
+                restrictedPathCells);
 
             int offsetX = position.x * ChunkBuildResult.ChunkSize;
             int offsetY = position.y * ChunkBuildResult.ChunkSize;
@@ -202,6 +214,22 @@ namespace Project.Scripts
                         out result.isCliff[index]);
                     
                     result.tileIndexes[index] = tileIndex;
+                    worldGeneration.ApplyTownCell(
+                        worldX,
+                        worldY,
+                        ref result.floorTiles[index],
+                        ref result.terrainKinds[index],
+                        ref result.isCliff[index],
+                        ref result.isRoad[index]);
+                    if (result.isRoad[index] &&
+                        result.floorTiles[index] == null &&
+                        result.terrainKinds[index] == TerrainKind.Floor &&
+                        result.heights[index] > worldGeneration.Elevation.waterHeight)
+                    {
+                        result.floorTiles[index] =
+                            worldGeneration.Preset.features.roadTile ??
+                            result.biomeData[index].dominantBiome?.overridePathTile;
+                    }
                     
                     if(cancellationToken.IsCancellationRequested)
                         break;
@@ -382,9 +410,16 @@ namespace Project.Scripts
                 if(worldY < chunkStartY || worldY >= chunkStartY+IChunk.ChunkSize)
                     return;
                 
-                TerrainSample sample = worldGeneration.GetTerrainSample(worldX, worldY);
+                int chunkTileIndex = result.GetTileIndex(
+                    worldX - chunkStartX,
+                    worldY - chunkStartY);
+                TerrainSample sample = worldGeneration.GetTerrainSample(
+                    worldX,
+                    worldY,
+                    includePathData: false);
+                sample.isRoad = result.isRoad[chunkTileIndex];
                 
-                if(!CanSpawn(rule, sample))
+                if(!CanSpawn(rule, sample, chunkTileIndex))
                     return;
                 
                 float clusterNoise = worldGeneration.PropNoise(worldX, worldY, rule.noiseScale);
@@ -417,7 +452,10 @@ namespace Project.Scripts
                 });
             }
 
-            bool CanSpawn(PropSpawnRule rule, TerrainSample sample)
+            bool CanSpawn(
+                PropSpawnRule rule,
+                TerrainSample sample,
+                int chunkTileIndex)
             {
                 if(rule.avoidWater && sample.isWater)
                     return false;
@@ -425,7 +463,8 @@ namespace Project.Scripts
                     return false;
                 if(rule.avoidCliffs && sample.isCliff)
                     return false;
-                if(rule.avoidRoads && sample.isRoad)
+                if (!rule.canSpawnOnPaths &&
+                    restrictedPathCells[chunkTileIndex])
                     return false;
                 if(rule.avoidTrails && sample.isTrail)
                     return false;

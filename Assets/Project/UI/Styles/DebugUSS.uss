@@ -21,6 +21,7 @@
     border-top-right-radius: 8px;
     border-bottom-right-radius: 8px;
     border-bottom-left-radius: 8px;
+    -unity-font-definition: resource("Fonts & Materials/Kenney Pixel Square");
 }
 
 .debug-row {

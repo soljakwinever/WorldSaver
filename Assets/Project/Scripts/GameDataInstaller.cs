@@ -106,10 +106,7 @@ public class GameDataInstaller : MonoInstaller
             .FromComponentInHierarchy()
             .AsSingle()
             .NonLazy();
-        Container.Bind<Chunkloader>().FromComponentInHierarchy().AsSingle();
-        Container.Bind<IWaterTileQuery>()
-            .FromResolveGetter<Chunkloader>(loader => loader)
-            .AsSingle();
+        Container.BindInterfacesAndSelfTo<Chunkloader>().FromComponentInHierarchy().AsSingle();
         Container.BindInterfacesAndSelfTo<RoomDetectionSystem>()
             .FromNewComponentOnNewGameObject()
             .AsSingle()

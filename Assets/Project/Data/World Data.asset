@@ -72,6 +72,10 @@ MonoBehaviour:
   featureChancePerCell: 0.1
   minFeatureRadius: 32
   maxFeatureRadius: 96
+  legacyFeatures:
+  - {fileID: 11400000, guid: a5000000000000000000000000000005, type: 2}
+  - {fileID: 11400000, guid: a1700000000000000000000000000007, type: 2}
+  - {fileID: 11400000, guid: 3692680514cab484da577c8d67f33826, type: 2}
   propSpawnRules:
   - name: Oak Tree
     nodeData: {fileID: 11400000, guid: d9eaf2b8e259b4e41b604c1ebe576e32, type: 2}

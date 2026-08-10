@@ -99,6 +99,7 @@ namespace Project.Scripts.Gameplay
         [InjectOptional] private PlaneSelection _planeSelection;
         [InjectOptional] private WorldData _worldData;
         [InjectOptional] private IWorldSaveService _worldSaveService;
+        [InjectOptional] private IChunkLoader _chunkLoader;
 
         private PersistentHealth _health;
         private PlayerBus _playerBus;
@@ -109,6 +110,7 @@ namespace Project.Scripts.Gameplay
         private bool _loaded;
         private bool _subscribedToEnemyDefeats;
         private bool _deathInProgress;
+        private bool _planeTravelInProgress;
 
         public event Action<PlayerDataController> DeathStarted;
         public event Action<PlayerDataController> Respawned;
@@ -281,7 +283,8 @@ namespace Project.Scripts.Gameplay
 
         private void Update()
         {
-            if (_loaded && Time.unscaledTime >= _nextAutoSaveTime)
+            if (_loaded && !_planeTravelInProgress &&
+                Time.unscaledTime >= _nextAutoSaveTime)
             {
                 TrySave();
                 _nextAutoSaveTime = Time.unscaledTime + autoSaveInterval;
@@ -571,17 +574,57 @@ namespace Project.Scripts.Gameplay
             if (!IsFinite(destinationPosition))
                 throw new ArgumentOutOfRangeException(nameof(destinationPosition));
 
-            if (_worldSaveService != null)
-                await _worldSaveService.SaveAsync();
+            if (_planeTravelInProgress)
+                return false;
 
-            currentPlaneId = destination.PersistentId;
-            MoveToRespawnPosition(destinationPosition);
-            Save();
-            PlayerPrefs.SetString(PlaneSelection.GetActivePlaneIdKey(),
-                currentPlaneId);
-            PlayerPrefs.Save();
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-            return true;
+            _planeTravelInProgress = true;
+            try
+            {
+                if (_worldSaveService != null)
+                    await _worldSaveService.SaveAsync();
+
+                // Save the real landing position before temporarily moving the
+                // live player into the elevator/lobby.
+                currentPlaneId = destination.PersistentId;
+                MoveToRespawnPosition(destinationPosition);
+                Save();
+                PlayerPrefs.SetString(PlaneSelection.GetActivePlaneIdKey(),
+                    currentPlaneId);
+                PlayerPrefs.Save();
+
+                PlaneTransitSpace transit =
+                    FindFirstObjectByType<PlaneTransitSpace>();
+                transit?.Begin(this, _chunkLoader);
+
+                AsyncOperation load = SceneManager.LoadSceneAsync(
+                    SceneManager.GetActiveScene().buildIndex,
+                    LoadSceneMode.Single);
+                if (load == null)
+                    throw new InvalidOperationException(
+                        "Could not begin loading the destination plane.");
+
+                load.allowSceneActivation = false;
+                while (load.progress < 0.9f ||
+                       (transit != null && !transit.MinimumDurationElapsed))
+                {
+                    await Awaitable.NextFrameAsync(destroyCancellationToken);
+                }
+
+                transit?.NotifyDestinationReady();
+                float activateAt = Time.unscaledTime +
+                    (transit != null ? transit.ArrivalAnimationSeconds : 0f);
+                do
+                {
+                    await Awaitable.NextFrameAsync(destroyCancellationToken);
+                } while (Time.unscaledTime < activateAt);
+                load.allowSceneActivation = true;
+                return true;
+            }
+            catch
+            {
+                _planeTravelInProgress = false;
+                throw;
+            }
         }
 
         public IReadOnlyList<VisitedTown> VisitedTowns => visitedTowns;

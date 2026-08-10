@@ -10,6 +10,7 @@ namespace Project.Scripts.Interface
         bool ShouldLoadChunk(Vector2Int chunkPosition);
         void ReportSpawn(IChunk chunk);
         void SetPortalPreview(Vector2 worldPosition, bool enabled);
+        void SetTransitSpacePinned(Vector2 worldPosition, bool enabled);
     }
 
     public interface IWaterTileQuery

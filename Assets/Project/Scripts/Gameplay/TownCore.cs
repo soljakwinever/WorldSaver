@@ -68,6 +68,13 @@ namespace Project.Scripts.Gameplay
         public ushort PersistentTypeId => TypeId;
         public ushort PersistentVersion => CurrentVersion;
         public string TownName => townName;
+
+        /// <summary>Applies deterministic identity supplied by procedural generation before save restoration.</summary>
+        public void SetGeneratedName(string generatedName)
+        {
+            if (!string.IsNullOrWhiteSpace(generatedName))
+                townName = NormalizeName(generatedName);
+        }
         public int Population => _residentIds.Count;
         public int UpgradeLevel => _upgradeLevel;
         public float ManaPool => manaPool;

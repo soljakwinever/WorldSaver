@@ -51,6 +51,8 @@ namespace Project.Scripts.DataTypes
             FeatureCellLayerData features = Create<FeatureCellLayerData>();
             features.cellSize = world.featureCellSize;
             features.chancePerCell = world.featureChancePerCell;
+            features.features =
+                world.legacyFeatures ?? Array.Empty<FeatureData>();
 
             SurfaceDetailLayerData surface = Create<SurfaceDetailLayerData>();
             surface.useLegacyWorldPropRules = false;

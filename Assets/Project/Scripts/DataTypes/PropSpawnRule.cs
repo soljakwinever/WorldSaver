@@ -41,7 +41,10 @@ namespace Project.Scripts
         public bool avoidMountains = true;
         public bool avoidTowns = true;
         public bool avoidRivers = true;
+        [HideInInspector, Tooltip("Legacy setting retained for serialized compatibility. Use Can Spawn On Paths.")]
         public bool avoidRoads = true;
+        [Tooltip("Allow this prop on generated roads and town streets. Overrides Avoid Roads for explicitly permitted entities.")]
+        public bool canSpawnOnPaths;
         public bool avoidTrails = true;
         public bool avoidBeaches = true;
         public bool avoidGround = true;
@@ -83,7 +86,8 @@ namespace Project.Scripts
             public bool avoidMountains = true;
             public bool avoidTowns = true;
             public bool avoidRivers = true;
-            public bool avoidRoads = true;
+            [HideInInspector] public bool avoidRoads = true;
+            public bool canSpawnOnPaths;
             public bool avoidTrails = true;
             public bool avoidBeaches = true;
             public bool avoidGround = true;

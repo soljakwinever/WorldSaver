@@ -201,14 +201,22 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                     offsetY + y);
 
                 TileData floorTile = data.floorTiles[tileIndex];
+                bool isRoad = data.isRoad[tileIndex];
                 TileData tileData;
                 Color color;
                 if (floorTile != null)
                 {
                     tileData = floorTile;
-                    color = terrainKind == TerrainKind.Wall
+                    color = isRoad
+                        ? biome.pathColor
+                        : terrainKind == TerrainKind.Wall
                         ? biome.cliffColor
                         : Color.white;
+                }
+                else if (isRoad && !isWater && terrainKind == TerrainKind.Floor)
+                {
+                    tileData = biome.dominantBiome.overridePathTile ?? PathTile;
+                    color = biome.pathColor;
                 }
                 else
                 {
@@ -392,6 +400,12 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                 var prop = nodePool.Spawn(propSpawnData.NodeId, propSpawnData, nodeData, propSpawnData.terrainSample,
                     this);
                 prop.transform.SetParent(_nodeTransform);
+
+                if (!string.IsNullOrWhiteSpace(propSpawnData.generatedTownName))
+                {
+                    prop.GetComponentInChildren<Project.Scripts.Gameplay.TownCore>()?
+                        .SetGeneratedName(propSpawnData.generatedTownName);
+                }
 
                 props.Add(prop);
                 _persistenceRoot.RegisterGeneratedEntity(

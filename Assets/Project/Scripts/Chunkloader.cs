@@ -39,7 +39,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
 
     public bool ShouldLoadChunk(Vector2Int chunkPosition)
     {
-        if (_portalPinnedChunks.Contains(chunkPosition))
+        if (_portalPinnedChunks.Contains(chunkPosition) ||
+            _transitPinnedChunks.Contains(chunkPosition))
             return true;
         if (track == null)
             return false;
@@ -84,6 +85,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     private Dictionary<Vector2Int, ChunkInstance> _loadedChunks = new Dictionary<Vector2Int, ChunkInstance>();
     private readonly Queue<Chunk> _biomeColorRefreshQueue = new();
     private readonly HashSet<Vector2Int> _portalPinnedChunks = new();
+    private readonly HashSet<Vector2Int> _transitPinnedChunks = new();
     private float _biomeColorRefreshCellsPerSecond;
     private float _biomeColorRefreshCellAccumulator;
 
@@ -366,6 +368,14 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
             else if (!requestedChunks.Contains(pinned))
                 requestedChunks.Add(pinned);
         }
+
+        foreach (Vector2Int pinned in _transitPinnedChunks)
+        {
+            if (_loadedChunks.TryGetValue(pinned, out ChunkInstance loaded))
+                loaded.Touch();
+            else if (!requestedChunks.Contains(pinned))
+                requestedChunks.Add(pinned);
+        }
         
         Vector2 trackedPosition = track.position;
         float chunkHalfSize = ChunkBuildResult.ChunkSize * 0.5f;
@@ -505,6 +515,21 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
         _portalPinnedChunks.Add(new Vector2Int(x - 1, y));
         _portalPinnedChunks.Add(new Vector2Int(x, y - 1));
         _portalPinnedChunks.Add(new Vector2Int(x - 1, y - 1));
+        TouchChunks();
+    }
+
+    /// <summary>Keeps an authored elevator/lobby chunk alive during plane travel.</summary>
+    public void SetTransitSpacePinned(Vector2 worldPosition, bool enabled)
+    {
+        _transitPinnedChunks.Clear();
+        if (enabled)
+        {
+            float size = ChunkBuildResult.ChunkSize;
+            _transitPinnedChunks.Add(new Vector2Int(
+                Mathf.FloorToInt(worldPosition.x / size),
+                Mathf.FloorToInt(worldPosition.y / size)));
+        }
+
         TouchChunks();
     }
 

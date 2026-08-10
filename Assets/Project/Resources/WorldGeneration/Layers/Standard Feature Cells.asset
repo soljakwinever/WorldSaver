@@ -12,9 +12,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a00000000000000000000000000000a, type: 3}
   m_Name: Standard Feature Cells
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.FeatureCellLayerData
-  cellSize: 512
-  chancePerCell: 0.25
+  cellSize: 32
+  chancePerCell: 1
   features:
   - {fileID: 11400000, guid: c9000000000000000000000000000009, type: 2}
   - {fileID: 11400000, guid: a5000000000000000000000000000005, type: 2}
   - {fileID: 11400000, guid: a1700000000000000000000000000007, type: 2}
+  - {fileID: 11400000, guid: 3692680514cab484da577c8d67f33826, type: 2}
+  generateRoads: 1
+  maximumRoadDistance: 4096
+  roadPathStep: 4
+  roadWidth: 2
+  roadSteeringWeight: 0.65
+  roadSteeringPasses: 2
+  roadJitter: 1.25
+  generateRoadBranches: 1
+  maximumRoadBranchDistance: 96
+  entityClearanceFromPaths: 3
+  roadSlopeCost: 18
+  roadWaterCost: 30
+  roadTile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}

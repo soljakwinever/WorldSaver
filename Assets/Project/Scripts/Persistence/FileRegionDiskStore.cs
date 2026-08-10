@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using Project.Scripts.DataTypes;
@@ -9,6 +11,9 @@ namespace Project.Scripts.Persistence
 {
     public sealed class FileRegionDiskStore : IRegionDiskStore
     {
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim>
+            SaveLocks = new(StringComparer.OrdinalIgnoreCase);
+
         private readonly string _regionDirectory;
         public string RegionDirectory => _regionDirectory;
 
@@ -73,52 +78,64 @@ namespace Project.Scripts.Persistence
             string path = GetPath(snapshot.coordinate);
             string tempPath = path + ".tmp";
             string backupPath = path + ".bak";
+            SemaphoreSlim saveLock = SaveLocks.GetOrAdd(
+                path,
+                static _ => new SemaphoreSlim(1, 1));
 
-            await Awaitable.BackgroundThreadAsync();
+            await saveLock.WaitAsync();
 
             try
             {
-                Directory.CreateDirectory(_regionDirectory);
+                await Awaitable.BackgroundThreadAsync();
 
-                using (FileStream stream = new(
-                           tempPath,
-                           FileMode.Create,
-                           FileAccess.Write,
-                           FileShare.None,
-                           4096,
-                           FileOptions.WriteThrough))
+                try
                 {
-                    RegionSaveCodec.Write(stream, snapshot);
-                    stream.Flush(flushToDisk: true);
-                }
+                    Directory.CreateDirectory(_regionDirectory);
 
-                if (File.Exists(path))
-                {
-                    try
+                    using (FileStream stream = new(
+                               tempPath,
+                               FileMode.Create,
+                               FileAccess.Write,
+                               FileShare.None,
+                               4096,
+                               FileOptions.WriteThrough))
                     {
-                        File.Replace(tempPath, path, backupPath);
+                        RegionSaveCodec.Write(stream, snapshot);
+                        stream.Flush(flushToDisk: true);
                     }
-                    catch (PlatformNotSupportedException)
+
+                    if (File.Exists(path))
                     {
-                        // Desktop platforms normally support File.Replace. This
-                        // fallback is less crash-safe and should be replaced with
-                        // the platform's atomic rename API when shipping there.
-                        File.Copy(path, backupPath, overwrite: true);
-                        File.Delete(path);
+                        try
+                        {
+                            File.Replace(tempPath, path, backupPath);
+                        }
+                        catch (PlatformNotSupportedException)
+                        {
+                            // Desktop platforms normally support File.Replace. This
+                            // fallback is less crash-safe and should be replaced with
+                            // the platform's atomic rename API when shipping there.
+                            File.Copy(path, backupPath, overwrite: true);
+                            File.Delete(path);
+                            File.Move(tempPath, path);
+                        }
+                    }
+                    else
+                    {
                         File.Move(tempPath, path);
                     }
                 }
-                else
+                finally
                 {
-                    File.Move(tempPath, path);
+                    if (File.Exists(tempPath))
+                        File.Delete(tempPath);
+
+                    await Awaitable.MainThreadAsync();
                 }
             }
             finally
             {
-                if (File.Exists(tempPath))
-                    File.Delete(tempPath);
-
-                await Awaitable.MainThreadAsync();
+                saveLock.Release();
             }
         }
 

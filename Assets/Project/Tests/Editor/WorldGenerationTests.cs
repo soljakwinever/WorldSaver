@@ -88,6 +88,66 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void LegacyRuntimePresetCarriesConfiguredFeatures()
+        {
+            FeatureData village = ScriptableObject.CreateInstance<TownFeatureData>();
+            try
+            {
+                _worldData.legacyFeatures = new[] { village };
+                WorldGenerationPresetData fallback =
+                    WorldGenerationPresetDefaults.CreateFromLegacy(_worldData);
+                try
+                {
+                    Assert.That(fallback.features.features,
+                        Is.EqualTo(new[] { village }));
+                }
+                finally
+                {
+                    DestroyPreset(fallback);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(village);
+            }
+        }
+
+        [Test]
+        public void GuaranteedVillageIsAtLeastOneRegionFromWorldSpawn()
+        {
+            TownFeatureData village = ScriptableObject.CreateInstance<TownFeatureData>();
+            try
+            {
+                village.persistentId = "guaranteed-test-village";
+                village.guaranteeNearWorldSpawn = true;
+                village.minimumSpawnDistanceRegions = 1;
+                village.maximumSpawnDistanceRegions = 2;
+                village.requireLand = false;
+                _preset.features.features = new FeatureData[] { village };
+
+                WorldGeneration generator = new(
+                    _worldData,
+                    new WorldGenerationSelection(_worldData.seed, _preset),
+                    null);
+                Vector2 spawn = generator.WorldSpawnPosition;
+
+                Assert.That(generator.TryGetGuaranteedTownPosition(out Vector2 town), Is.True);
+                float oneRegion = WorldPartition.RegionSizeInChunks * ChunkBuildResult.ChunkSize;
+                Assert.That(Vector2.Distance(spawn, town), Is.GreaterThanOrEqualTo(oneRegion - 0.01f));
+                Assert.That(
+                    generator.IsProceduralRoad(
+                        Mathf.RoundToInt(spawn.x),
+                        Mathf.RoundToInt(spawn.y)),
+                    Is.True,
+                    "The guaranteed village route must begin at the spawn platform.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(village);
+            }
+        }
+
+        [Test]
         public void GetTileReturnsDeterministicPopulatedOutputs()
         {
             int firstTile = _generator.GetTile(37, -19, out BiomeBlend firstBiome,

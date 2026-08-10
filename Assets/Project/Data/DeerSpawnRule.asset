@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f0601214a8eb444409db783645d86b44, type: 3}
-  m_Name: BunnySpawnRule
+  m_Name: DeerSpawnRule
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemySpawnRule
   rules: []
-  enemyData: {fileID: 11400000, guid: 29351ecf21b921c4a9e2c86398a503d0, type: 2}
+  enemyData: {fileID: 11400000, guid: 92f47732dbfa22649a2592235201f4bf, type: 2}
   persistentNodeData: {fileID: 0}
   persistence: 0
   minimumPerChunk: 1
@@ -22,9 +22,7 @@ MonoBehaviour:
   minimumSpacing: 2
   maxAllowed: 20
   spawnIntervalTicks: 15
-  variations:
-  - enemyData: {fileID: 11400000, guid: 5e6bc61b1c40b5944bb6da9b3428ed69, type: 2}
-    chance: 0.24
+  variations: []
   recycleOffscreenIdle: 1
   minimumLifetimeTicks: 60
   idleTicksBeforeRecycle: 30
@@ -35,5 +33,5 @@ MonoBehaviour:
   restrictedBiomes: []
   requiredEvent: 
   requiredWeather: []
-  minimumTemperature: -0.2
-  maximumTemperature: 0.3
+  minimumTemperature: -1
+  maximumTemperature: 1

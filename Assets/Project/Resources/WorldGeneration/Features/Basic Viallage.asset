@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6b308c668164615b84155dc81cc544d, type: 3}
+  m_Name: Basic Viallage
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TownFeatureData
+  persistentId: basic.village
+  selectionWeight: 3
+  canBeSensed: 0
+  senseIcon: {fileID: 0}
+  senseName: 
+  minimumRadius: 24
+  maximumRadius: 64
+  minimumAspect: 0.65
+  maximumAspect: 1
+  edgeWarp: 0.18
+  requireLand: 1
+  heightRange: {x: 0.2, y: 1}
+  moistureRange: {x: 0, y: 1}
+  temperatureRange: {x: 0, y: 1}
+  allowedBiomes: []
+  connectToRoads: 1
+  roadConnectionOffset: {x: 0, y: 0}
+  maximumRoadConnections: 0
+  allowedRoadConnections: []
+  generators: []
+  townCoreEntity: {fileID: 11400000, guid: 422e13454383c094ab75de8047c4c8bd, type: 2}
+  doorEntity: {fileID: 11400000, guid: f74c213de6711904991fbdf8cf3ac675, type: 2}
+  streetTile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+  townCorePlazaTile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+  buildingFloorTile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+  buildingWallTile: {fileID: 11400000, guid: 0a99515bf4a32e0418f75da9c89e0a89, type: 2}
+  alternateLotChance: 0.2
+  alternateLotProps: []
+  alternateLotTile: {fileID: 0}
+  guaranteeNearWorldSpawn: 1
+  minimumSpawnDistanceRegions: 1
+  maximumSpawnDistanceRegions: 2
+  namePrefixes:
+  - Oak
+  - River
+  - Stone
+  - Green
+  - High
+  nameSuffixes:
+  - rest
+  - ford
+  - haven
+  - wick
+  - stead
+  layoutGenerator:
+    rid: 4542294973613343585
+  references:
+    version: 2
+    RefIds:
+    - rid: 4542294973613343585
+      type: {class: VillageTownLayoutGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        streetWidth: 2
+        branchStreetWidth: 1
+        minimumStreetPoints: 4
+        maximumStreetPoints: 7
+        townCorePlazaRadius: 4
+        minimumBuildings: 3
+        maximumBuildings: 8
+        minimumBuildingSize: {x: 7, y: 6}
+        maximumBuildingSize: {x: 11, y: 9}
+        extraRoomChance: 0.65

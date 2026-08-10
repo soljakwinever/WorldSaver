@@ -96,5 +96,6 @@ namespace Project.Scripts
         public AccessIdentity accessIdentity;
         public bool damageImmune;
         public bool clearReservedAreaCoverage;
+        public string generatedTownName;
     }
 }

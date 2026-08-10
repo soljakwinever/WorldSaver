@@ -28,13 +28,8 @@ MonoBehaviour:
   effects:
     globalTemperatureOffset: 0
     weather: {fileID: 0}
-    enabledEnemySpawnRules:
-    - {fileID: 11400000, guid: cf64f022f75de3d49b41b7422dd19445, type: 2}
-    featureBuildings:
-    - building: {fileID: 11400000, guid: a5000000000000000000000000000005, type: 2}
-      spawnMode: 0
-      count: 10
-      excludedRegionRadiusFromPlayer: 0
+    enabledEnemySpawnRules: []
+    featureBuildings: []
     portals: []
     buildings:
     - {fileID: 11400000, guid: a5000000000000000000000000000005, type: 2}
