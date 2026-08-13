@@ -236,6 +236,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Fps
   pollingTime: 0.5
+--- !u!1 &194412630 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 684982620336431732, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
+  m_PrefabInstance: {fileID: 3971600864741615749}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &276298478
 GameObject:
   m_ObjectHideFlags: 0
@@ -360,6 +365,20 @@ Camera:
   m_CorrespondingSourceObject: {fileID: 6792366499409147753, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
   m_PrefabInstance: {fileID: 3971600864741615749}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &519420036
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 194412630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86c6556701af9e04380698b89f691b6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FMODUnity::FMODUnity.StudioListener
+  nonRigidbodyVelocity: 0
+  attenuationObject: {fileID: 0}
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0
@@ -660,6 +679,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: '::'
   cursor: {fileID: 0}
   LoadDistance: 4
+  chunkInitializationBudgetMilliseconds: 2
+  maxChunkLoadNotificationsPerFrame: 1
   biomeColorCellsPerChunkStep: 64
   maxBiomeColorCellsPerFrame: 4096
   track: {fileID: 1074488191}
@@ -1419,7 +1440,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7233313233766692928, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
       propertyPath: m_AssetsPPU
-      value: 32
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 7233313233766692928, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
       propertyPath: m_CropFrame
@@ -1433,10 +1454,14 @@ PrefabInstance:
       propertyPath: m_RenderPostProcessing
       value: 1
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 6065441442916219306, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 684982620336431732, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 519420036}
     - targetCorrespondingSourceObject: {fileID: 5257792847225494739, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 880366238}
