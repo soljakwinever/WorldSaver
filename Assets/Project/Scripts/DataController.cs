@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
@@ -34,6 +35,8 @@ namespace Project.Scripts
         private bool _regionalSimulationInProgress;
         private bool _saveRequested;
         private bool _saveInProgress;
+        private readonly SemaphoreSlim _restoreGate = new(1, 1);
+
 
         private sealed class ActiveChunk
         {
@@ -106,6 +109,7 @@ namespace Project.Scripts
 
             _activeChunks[position] = active;
 
+            bool restoreGateAcquired = false;
             try
             {
                 Vector2Int regionPosition =
@@ -118,20 +122,57 @@ namespace Project.Scripts
                 if (!IsCurrent(position, root, version))
                     return;
 
+                await _restoreGate.WaitAsync();
+                restoreGateAcquired = true;
+                if (!IsCurrent(position, root, version))
+                    return;
+
                 active.region = region;
 
                 ushort localIndex =
                     WorldPartition.GetLocalChunkIndex(position);
 
                 region.TryGetChunkState(localIndex, out ChunkState state);
-                root.Restore(state);
+                await Awaitable.NextFrameAsync();
+                if (!IsCurrent(position, root, version))
+                    return;
+                if (!await root.RestoreIncrementallyAsync(
+                        state,
+                        () => IsCurrent(position, root, version)))
+                {
+                    return;
+                }
 
                 long currentTick = _worldClock.CurrentTick;
                 long regionFromTick =
                     await SimulateRegionAsync(region, currentTick);
-                SimulateChunk(root, state, regionFromTick, currentTick);
+                await Awaitable.NextFrameAsync();
+                if (!IsCurrent(position, root, version))
+                    return;
+                if (offlineSimulationPolicy != OfflineSimulationPolicy.None &&
+                    state != null)
+                {
+                    long fromTick = Math.Max(
+                        state.lastSimulatedTick,
+                        regionFromTick);
+                    if (!await root.SimulateOfflineIncrementallyAsync(
+                            fromTick,
+                            currentTick,
+                            offlineSimulationPolicy,
+                            () => IsCurrent(position, root, version)))
+                    {
+                        return;
+                    }
+                }
 
-                root.CompleteRestore();
+                await Awaitable.NextFrameAsync();
+                if (!IsCurrent(position, root, version))
+                    return;
+                if (!await root.CompleteRestoreIncrementallyAsync(
+                        () => IsCurrent(position, root, version)))
+                {
+                    return;
+                }
                 active.restoreComplete = true;
             }
             catch (Exception exception)
@@ -141,6 +182,11 @@ namespace Project.Scripts
 
                 Debug.LogException(exception, root);
                 throw;
+            }
+            finally
+            {
+                if (restoreGateAcquired)
+                    _restoreGate.Release();
             }
         }
 

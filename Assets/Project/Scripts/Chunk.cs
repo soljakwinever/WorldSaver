@@ -87,6 +87,16 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         new("Chunk.Init.RegisterRenderer");
     private static readonly ProfilerMarker InitPropsMarker =
         new("Chunk.Init.SpawnProps");
+    private static readonly ProfilerMarker InitRestoreMarker =
+        new("Chunk.Init.PersistenceRestore");
+    private static readonly ProfilerMarker RestoreTilesMarker =
+        new("Chunk.Restore.TileOverrides");
+    private static readonly ProfilerMarker RestoreReservationsMarker =
+        new("Chunk.Restore.Reservations");
+    private static readonly ProfilerMarker RestoreNotificationsMarker =
+        new("Chunk.Restore.Notifications");
+    private static readonly object ExpensiveInitializationStep = new();
+    private const int InitializationCellsPerStep = 32;
     private static readonly ProfilerMarker CoverageTilemapMarker =
         new("TileCoverage.ApplyTilemapChanges");
 
@@ -112,6 +122,7 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
     private bool _initializationFailed;
     private int _initializationGeneration;
     internal bool IsFullyInitialized { get; private set; }
+    internal bool LastInitializationStepWasExpensive { get; private set; }
     private readonly List<WorldTilemapRenderer.CellData> _initGroundChanges = new();
     private readonly List<WorldTilemapRenderer.CellData> _initWaterChanges = new();
     private readonly List<WorldTilemapRenderer.CellData> _initWallChanges = new();
@@ -145,6 +156,7 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         CancelInit();
         _initializationFailed = false;
         IsFullyInitialized = false;
+        LastInitializationStepWasExpensive = false;
         _initialization = Initialize(data).GetEnumerator();
     }
 
@@ -157,10 +169,15 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                 : ChunkInitializationStatus.Completed;
 
         using ProfilerMarker.AutoScope scope = InitMarker.Auto();
+        LastInitializationStepWasExpensive = false;
         bool hasMore;
         try
         {
             hasMore = _initialization.MoveNext();
+            LastInitializationStepWasExpensive =
+                hasMore && ReferenceEquals(
+                    _initialization.Current,
+                    ExpensiveInitializationStep);
         }
         catch (Exception exception)
         {
@@ -175,7 +192,9 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
             _initialization.Dispose();
             _initialization = null;
             IsFullyInitialized = true;
-            RevealInitializedProps();
+            using (InitPropsMarker.Auto())
+                RevealInitializedProps();
+            LastInitializationStepWasExpensive = true;
             return ChunkInitializationStatus.Completed;
         }
 
@@ -399,7 +418,8 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                     _baselineTiles[(int)PersistentTileLayer.Water][tileIndex] = tileData;
                     _baselineColors[(int)PersistentTileLayer.Water][tileIndex] = waterColor;
                 }
-                yield return null;
+                if ((tileIndex + 1) % InitializationCellsPerStep == 0)
+                    yield return null;
             }
         }
 
@@ -413,6 +433,7 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                 wallTiles,
                 ceilingTiles);
         }
+        yield return ExpensiveInitializationStep;
         if (worldGeneration.Preset.heightMapDebug)
             yield break;
 
@@ -452,12 +473,18 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
             props.Add(prop);
             _persistenceRoot.RegisterGeneratedEntity(
                 prop.GetComponent<PersistentEntity>());
-            yield return null;
+            yield return ExpensiveInitializationStep;
         }
 
         int generation = _initializationGeneration;
         bool? restoreSucceeded = null;
-        RestorePersistentState(generation, succeeded => restoreSucceeded = succeeded);
+        using (InitRestoreMarker.Auto())
+        {
+            RestorePersistentState(
+                generation,
+                succeeded => restoreSucceeded = succeeded);
+        }
+        yield return ExpensiveInitializationStep;
         while (!restoreSucceeded.HasValue && generation == _initializationGeneration)
             yield return null;
         if (restoreSucceeded == false)
@@ -756,14 +783,31 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
             await dataController.RestoreChunkAsync(this);
             if (generation != _initializationGeneration)
                 return;
-            ApplyPersistentTileOverrides();
-            _coverage.CompleteRestore(weatherService);
-            ClearFeatureEntityCoverage();
-            RebuildReservationsAndSuppressConflictingGeneratedProps();
+            await Awaitable.NextFrameAsync();
+            if (!await ApplyPersistentTileOverridesIncrementallyAsync(generation))
+                return;
+            await Awaitable.NextFrameAsync();
+            if (!await _coverage.CompleteRestoreIncrementallyAsync(
+                    weatherService,
+                    () => generation == _initializationGeneration))
+            {
+                return;
+            }
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return;
+            if (!await RestoreReservationsIncrementallyAsync(generation))
+                return;
             _reservationsReady = true;
             _roomTopologyReady = true;
-            roomDetectionSystem?.NotifyChunkRestored(this);
-            NotifyNavigationChanged();
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return;
+            using (RestoreNotificationsMarker.Auto())
+            {
+                roomDetectionSystem?.NotifyChunkRestored(this);
+                NotifyNavigationChanged();
+            }
             succeeded = true;
         }
         catch (Exception)
@@ -853,6 +897,126 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                 TileReservationSystem.IsReserved(cell, entity))
                 node.gameObject.SetActive(false);
         }
+    }
+
+    private async Awaitable<bool> RestoreReservationsIncrementallyAsync(
+        int generation)
+    {
+        for (int i = 0; i < props.Count; i++)
+        {
+            using (RestoreReservationsMarker.Auto())
+            {
+                Node node = props[i];
+                if (node != null && node.ClearReservedAreaCoverage)
+                {
+                    SpaceReservationComponent reservation =
+                        node.GetComponentInChildren<SpaceReservationComponent>();
+                    if (reservation != null)
+                        _coverage.ClearWorldArea(reservation.ReservedArea);
+                }
+            }
+
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return false;
+        }
+
+        _reservations.Clear();
+        for (int i = 0; i < props.Count; i++)
+        {
+            using (RestoreReservationsMarker.Auto())
+            {
+                Node node = props[i];
+                if (node != null && node.gameObject.activeInHierarchy)
+                {
+                    _reservationScratch.Clear();
+                    node.GetComponentsInChildren(false, _reservationScratch);
+                    _reservations.AddRange(_reservationScratch);
+                }
+            }
+
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return false;
+        }
+
+        for (int i = 0; i < _reservations.Count; i++)
+        {
+            using (RestoreReservationsMarker.Auto())
+                _reservations[i].ReleaseReservation();
+            if ((i + 1) % 8 != 0)
+                continue;
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return false;
+        }
+
+        using (RestoreReservationsMarker.Auto())
+        {
+            _reservations.Sort((left, right) =>
+            {
+                PersistentEntity leftEntity =
+                    left.GetComponentInParent<PersistentEntity>();
+                PersistentEntity rightEntity =
+                    right.GetComponentInParent<PersistentEntity>();
+                int leftPriority = leftEntity != null
+                    ? GetReservationPriority(leftEntity.PersistenceKind)
+                    : int.MaxValue;
+                int rightPriority = rightEntity != null
+                    ? GetReservationPriority(rightEntity.PersistenceKind)
+                    : int.MaxValue;
+                return leftPriority.CompareTo(rightPriority);
+            });
+        }
+
+        _failedReservations.Clear();
+        for (int i = 0; i < _reservations.Count; i++)
+        {
+            using (RestoreReservationsMarker.Auto())
+            {
+                SpaceReservationComponent reservation = _reservations[i];
+                if (!reservation.RefreshReservation())
+                {
+                    PersistentEntity entity =
+                        reservation.GetComponentInParent<PersistentEntity>();
+                    if (entity != null)
+                        _failedReservations.Add(entity);
+                }
+            }
+
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return false;
+        }
+
+        for (int i = 0; i < props.Count; i++)
+        {
+            using (RestoreReservationsMarker.Auto())
+            {
+                Node node = props[i];
+                if (node != null && node.gameObject.activeInHierarchy)
+                {
+                    PersistentEntity entity = node.GetComponent<PersistentEntity>();
+                    if (entity != null &&
+                        entity.PersistenceKind == EntityPersistenceKind.Procedural)
+                    {
+                        Vector2Int cell =
+                            Vector2Int.FloorToInt(node.transform.position);
+                        if (_failedReservations.Contains(entity) ||
+                            TileReservationSystem.IsReserved(cell, entity))
+                        {
+                            node.gameObject.SetActive(false);
+                        }
+                    }
+                }
+            }
+
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return false;
+        }
+
+        return true;
     }
 
     private static int GetReservationPriority(EntityPersistenceKind kind)
@@ -1747,6 +1911,91 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         RebuildLinkedCeilings();
         RebuildWallDamageVisuals();
         GetComponent<PersistentTileWater>()?.RefreshAllColors();
+    }
+
+    private async Awaitable<bool> ApplyPersistentTileOverridesIncrementallyAsync(
+        int generation)
+    {
+        int processed = 0;
+        foreach (TileOverrideData tileOverride in _persistenceRoot.TileOverrides)
+        {
+            using (RestoreTilesMarker.Auto())
+                ApplyPersistentTileOverride(tileOverride);
+
+            if (++processed % 8 != 0)
+                continue;
+
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return false;
+        }
+
+        for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
+        {
+            using (RestoreTilesMarker.Auto())
+            {
+                for (int x = 0; x < ChunkBuildResult.ChunkSize; x++)
+                {
+                    Vector3Int worldCell = LocalToWorldCell(new Vector3Int(x, y));
+                    worldTilemapRenderer.TryGetTileData(
+                        PersistentTileLayer.Wall,
+                        worldCell,
+                        out TileData wall);
+                    ApplyLinkedCeiling(worldCell, wall);
+                }
+            }
+
+            await Awaitable.NextFrameAsync();
+            if (generation != _initializationGeneration)
+                return false;
+        }
+
+        using (RestoreTilesMarker.Auto())
+        {
+            RebuildWallDamageVisuals();
+            GetComponent<PersistentTileWater>()?.RefreshAllColors();
+        }
+        return true;
+    }
+
+    private void ApplyPersistentTileOverride(TileOverrideData tileOverride)
+    {
+        Vector3Int localCell = new(tileOverride.localX, tileOverride.localY);
+        Vector3Int worldCell = LocalToWorldCell(localCell);
+        if (tileOverride.kind == TileOverrideKind.Clear)
+        {
+            worldTilemapRenderer.SetTile(
+                tileOverride.layer, worldCell, null, Color.white);
+            return;
+        }
+
+        if (!worldData.TryGetTileData(tileOverride.tileId, out TileData tileData) ||
+            !tileData.HasVisual)
+        {
+            Debug.LogWarning(
+                $"Chunk {Position} references missing persistent tile ID {tileOverride.tileId}.",
+                this);
+            return;
+        }
+
+        TerrainSample sample = worldGeneration.GetTerrainSample(
+            worldCell.x, worldCell.y);
+        Color color = GetTileColor(tileData, sample.biomeBlend, tileOverride.tint);
+        PersistentTileLayer restoredLayer = tileData.IsWall
+            ? PersistentTileLayer.Wall
+            : tileOverride.layer;
+        if (restoredLayer == PersistentTileLayer.Water)
+        {
+            int index = localCell.x + localCell.y * ChunkBuildResult.ChunkSize;
+            color = WaterTilePayload.Encode(
+                color, _waterDepths[index], tileData.waterTextureIndex);
+        }
+        worldTilemapRenderer.SetTile(restoredLayer, worldCell, tileData, color);
+        if (restoredLayer == PersistentTileLayer.Wall)
+        {
+            worldTilemapRenderer.SetTile(
+                PersistentTileLayer.Ground, worldCell, null, Color.white);
+        }
     }
 
     private void RebuildWallDamageVisuals()

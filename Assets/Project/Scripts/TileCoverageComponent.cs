@@ -127,6 +127,8 @@ namespace Project.Scripts
             new("TileCoverage.SimulateCells");
         private static readonly ProfilerMarker VisualMarker =
             new("TileCoverage.ResolveVisuals");
+        private static readonly ProfilerMarker RestoreMarker =
+            new("Chunk.Restore.CoverageCells");
 
         [SerializeField, Min(0f)]
         [Tooltip("Seconds taken for mined coverage to recede through the accumulation shader.")]
@@ -294,6 +296,85 @@ namespace Project.Scripts
 
             _ready = true;
             RefreshAllVisuals(force: true);
+        }
+
+        public async Awaitable<bool> CompleteRestoreIncrementallyAsync(
+            IRegionalWeatherService weather,
+            Func<bool> isCurrent)
+        {
+            int sampledWeatherCount = 0;
+            int processed = 0;
+            try
+            {
+                foreach (LayerState layer in _layers.Values)
+                {
+                    foreach (CellState cell in layer.Cells.Values)
+                    {
+                        using (RestoreMarker.Auto())
+                        {
+                            if (!TileAllowsCoverage(layer, cell.LocalIndex))
+                            {
+                                if (!cell.Initialized)
+                                {
+                                    cell.Amount = 0f;
+                                    cell.Initialized = true;
+                                }
+                            }
+                            else
+                            {
+                                WeatherSample sample = GetCellWeather(
+                                    weather, cell, ref sampledWeatherCount);
+                                if (TryGetWeatherOverrideCoverage(
+                                        layer.Data,
+                                        sample,
+                                        _indoorCells[cell.LocalIndex],
+                                        out float overrideCoverage))
+                                {
+                                    cell.Amount = overrideCoverage;
+                                    cell.Initialized = true;
+                                }
+                                else if (!cell.Initialized)
+                                {
+                                    bool weatherAllowsAccumulation =
+                                        WeatherAllowsAccumulation(layer.Data, sample);
+                                    cell.Amount = TemperatureAllowsPersistence(
+                                            layer.Data, sample)
+                                        ? _chunk.TryGetNeighborCoverageSeed(
+                                            cell.LocalIndex,
+                                            layer.Data,
+                                            out float neighborAmount)
+                                            ? neighborAmount
+                                            : AllowsWeatherAccumulation(
+                                                _indoorCells[cell.LocalIndex],
+                                                weatherAllowsAccumulation)
+                                                ? layer.Data.InitialCoverage
+                                                : 0f
+                                        : 0f;
+                                    cell.Initialized = true;
+                                }
+                            }
+                        }
+
+                        if (++processed % 32 != 0)
+                            continue;
+
+                        await Awaitable.NextFrameAsync();
+                        if (!isCurrent())
+                            return false;
+                    }
+                }
+            }
+            finally
+            {
+                ClearWeatherSampleCache(sampledWeatherCount);
+            }
+
+            if (!isCurrent())
+                return false;
+
+            _ready = true;
+            RefreshAllVisuals(force: true);
+            return true;
         }
 
         public void Advance(

@@ -7,6 +7,7 @@ using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using Project.Scripts.Gameplay;
 using UnityEngine;
+using Unity.Profiling;
 using Zenject;
 
 namespace Project.Scripts.Core
@@ -22,6 +23,15 @@ namespace Project.Scripts.Core
         private Vector2Int _chunkPosition;
         private bool _restoreCompleted;
         private Func<PersistentEntityRecord, PersistentEntity> _runtimeEntityFactory;
+
+        private static readonly ProfilerMarker ComponentRestoreMarker =
+            new("Chunk.Restore.Components");
+        private static readonly ProfilerMarker EntityRestoreMarker =
+            new("Chunk.Restore.Entities");
+        private static readonly ProfilerMarker OfflineSimulationMarker =
+            new("Chunk.Restore.OfflineSimulation");
+        private static readonly ProfilerMarker PersistenceReadyMarker =
+            new("Chunk.Restore.PersistenceReady");
 
         [InjectOptional] private IWorldClock _worldClock;
         [InjectOptional] private WorldData _worldData;
@@ -138,6 +148,93 @@ namespace Project.Scripts.Core
             }
         }
 
+        public async Awaitable<bool> RestoreIncrementallyAsync(
+            ChunkState state,
+            Func<bool> isCurrent)
+        {
+            if (state == null)
+                return isCurrent();
+
+            await RestoreChunkComponentsIncrementallyAsync(
+                state.components, isCurrent);
+            if (!isCurrent())
+                return false;
+
+            if (state.tileOverrides != null)
+            {
+                for (int i = 0; i < state.tileOverrides.Count; i++)
+                {
+                    TileOverrideData tileOverride = state.tileOverrides[i];
+                    if (tileOverride != null)
+                    {
+                        _tileOverrides[GetTileKey(
+                            tileOverride.localX,
+                            tileOverride.localY,
+                            tileOverride.layer)] = tileOverride.CreateSnapshot();
+                    }
+
+                    if ((i + 1) % 32 == 0)
+                    {
+                        await Awaitable.NextFrameAsync();
+                        if (!isCurrent())
+                            return false;
+                    }
+                }
+            }
+
+            if (state.wallHealth != null)
+            {
+                for (int i = 0; i < state.wallHealth.Count; i++)
+                {
+                    WallHealthData record = state.wallHealth[i];
+                    if (record != null)
+                    {
+                        _wallHealth[GetWallHealthKey(
+                            record.localX,
+                            record.localY)] = record.CreateSnapshot();
+                    }
+
+                    if ((i + 1) % 32 == 0)
+                    {
+                        await Awaitable.NextFrameAsync();
+                        if (!isCurrent())
+                            return false;
+                    }
+                }
+            }
+
+            if (state.entities == null)
+                return isCurrent();
+
+            for (int i = 0; i < state.entities.Count; i++)
+            {
+                PersistentEntityRecord record = state.entities[i];
+                if (record != null)
+                {
+                    using (EntityRestoreMarker.Auto())
+                    {
+                        switch (record.existenceState)
+                        {
+                            case EntityExistenceState.Removed:
+                                RestoreRemovedEntity(record);
+                                break;
+                            case EntityExistenceState.Exists:
+                                RestoreExistingEntity(record);
+                                break;
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+                    }
+                }
+
+                await Awaitable.NextFrameAsync();
+                if (!isCurrent())
+                    return false;
+            }
+
+            return true;
+        }
+
         public void CompleteRestore()
         {
             _restoreCompleted = true;
@@ -148,6 +245,34 @@ namespace Project.Scripts.Core
 
             foreach (PersistentEntity entity in _entities.Values)
                 entity.SetPersistenceReady(true);
+        }
+
+        public async Awaitable<bool> CompleteRestoreIncrementallyAsync(
+            Func<bool> isCurrent)
+        {
+            _restoreCompleted = true;
+            if (_worldClock != null)
+                ProcessRespawns(_worldClock.CurrentTick);
+
+            GetComponent<PersistentTileWater>()?.RefreshAllColors();
+            await Awaitable.NextFrameAsync();
+            if (!isCurrent())
+                return false;
+
+            int processed = 0;
+            foreach (PersistentEntity entity in _entities.Values)
+            {
+                using (PersistenceReadyMarker.Auto())
+                    entity.SetPersistenceReady(true);
+                if (++processed % 16 != 0)
+                    continue;
+
+                await Awaitable.NextFrameAsync();
+                if (!isCurrent())
+                    return false;
+            }
+
+            return true;
         }
 
         private void Update()
@@ -223,6 +348,49 @@ namespace Project.Scripts.Core
                     }
                 }
             }
+        }
+
+        public async Awaitable<bool> SimulateOfflineIncrementallyAsync(
+            long fromTick,
+            long toTick,
+            OfflineSimulationPolicy policy,
+            Func<bool> isCurrent)
+        {
+            if (policy == OfflineSimulationPolicy.None || toTick <= fromTick)
+                return isCurrent();
+
+            MonoBehaviour[] chunkBehaviours = GetComponents<MonoBehaviour>();
+            foreach (MonoBehaviour behaviour in chunkBehaviours)
+            {
+                if (behaviour is IOfflineSimulatable simulatable)
+                {
+                    using (OfflineSimulationMarker.Auto())
+                        simulatable.SimulateOffline(fromTick, toTick, policy);
+                    await Awaitable.NextFrameAsync();
+                    if (!isCurrent())
+                        return false;
+                }
+            }
+
+            PersistentEntity[] entities = new PersistentEntity[_entities.Count];
+            _entities.Values.CopyTo(entities, 0);
+            foreach (PersistentEntity entity in entities)
+            {
+                foreach (IPersistentComponent component
+                         in entity.GetPersistentComponents())
+                {
+                    if (component is not IOfflineSimulatable simulatable)
+                        continue;
+
+                    using (OfflineSimulationMarker.Auto())
+                        simulatable.SimulateOffline(fromTick, toTick, policy);
+                    await Awaitable.NextFrameAsync();
+                    if (!isCurrent())
+                        return false;
+                }
+            }
+
+            return true;
         }
 
         public void FailRestore()
@@ -511,6 +679,43 @@ namespace Project.Scripts.Core
                     new(saved.data ?? Array.Empty<byte>(), writable: false);
                 using BinaryReader reader = new(stream);
                 component.ReadState(reader, saved.version);
+            }
+        }
+
+        private async Awaitable RestoreChunkComponentsIncrementallyAsync(
+            List<PersistenceComponentRecord> records,
+            Func<bool> isCurrent)
+        {
+            if (records == null || records.Count == 0)
+                return;
+
+            Dictionary<ushort, IPersistentComponent> components = new();
+            foreach (MonoBehaviour behaviour in GetComponents<MonoBehaviour>())
+            {
+                if (behaviour is IPersistentComponent component)
+                    components.TryAdd(component.PersistentTypeId, component);
+            }
+
+            for (int i = 0; i < records.Count; i++)
+            {
+                PersistenceComponentRecord saved = records[i];
+                if (saved != null &&
+                    components.TryGetValue(
+                        saved.typeId,
+                        out IPersistentComponent component))
+                {
+                    using (ComponentRestoreMarker.Auto())
+                    {
+                        using MemoryStream stream =
+                            new(saved.data ?? Array.Empty<byte>(), writable: false);
+                        using BinaryReader reader = new(stream);
+                        component.ReadState(reader, saved.version);
+                    }
+                }
+
+                await Awaitable.NextFrameAsync();
+                if (!isCurrent())
+                    return;
             }
         }
 
