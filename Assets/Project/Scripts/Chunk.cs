@@ -87,6 +87,8 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         new("Chunk.Init.RegisterRenderer");
     private static readonly ProfilerMarker InitPropsMarker =
         new("Chunk.Init.SpawnProps");
+    private static readonly ProfilerMarker CoverageTilemapMarker =
+        new("TileCoverage.ApplyTilemapChanges");
 
     private readonly TileData[][] _baselineTiles = CreateLayerBuffers<TileData>();
     private readonly Color[][] _baselineColors = CreateLayerBuffers<Color>();
@@ -2084,6 +2086,8 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         }
 
         EnsureTilemaps();
+        using ProfilerMarker.AutoScope coverageScope =
+            CoverageTilemapMarker.Auto();
         int sourceOffset = 0;
         int remaining = count;
         while (remaining > 0)
@@ -2148,14 +2152,6 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
             remaining -= batchSize;
         }
 
-        for (int i = 0; i < count; i++)
-        {
-            ushort localIndex = localIndices[i];
-            _coverageTilemap.RefreshTile(
-                new Vector3Int(
-                    localIndex % ChunkBuildResult.ChunkSize,
-                    localIndex / ChunkBuildResult.ChunkSize));
-        }
     }
 
     internal bool TryGetCoverageGroundTile(

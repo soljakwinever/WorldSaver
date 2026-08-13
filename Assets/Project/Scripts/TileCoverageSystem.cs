@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.TimeAndWeather;
+using Unity.Profiling;
 using UnityEngine;
 using Zenject;
 
@@ -14,17 +15,24 @@ namespace Project.Scripts
         private readonly IWorldClock _clock;
         private readonly List<Chunk> _loadedChunks = new();
         private readonly Queue<CoverageWork> _pendingWork = new();
+        private readonly Dictionary<Chunk, CoverageWork> _pendingByChunk =
+            new();
         private long _lastTick = -1;
+
+        private static readonly ProfilerMarker ScheduleMarker =
+            new("TileCoverage.Schedule");
+        private static readonly ProfilerMarker ProcessMarker =
+            new("TileCoverage.ProcessChunk");
 
         public int MaxChunksProcessedPerFrame { get; set; } = 2;
         public int PendingChunkUpdates => _pendingWork.Count;
 
-        private readonly struct CoverageWork
+        private sealed class CoverageWork
         {
-            public readonly Chunk Chunk;
-            public readonly Vector2Int Position;
-            public readonly int Generation;
-            public readonly long ElapsedTicks;
+            public Chunk Chunk;
+            public Vector2Int Position;
+            public int Generation;
+            public long ElapsedTicks;
 
             public CoverageWork(
                 Chunk chunk,
@@ -34,6 +42,16 @@ namespace Project.Scripts
                 Position = chunk.Position;
                 Generation = chunk.CoverageGeneration;
                 ElapsedTicks = elapsedTicks;
+            }
+
+            public void AddElapsedTicks(long elapsedTicks)
+            {
+                if (elapsedTicks <= 0)
+                    return;
+
+                ElapsedTicks = ElapsedTicks > long.MaxValue - elapsedTicks
+                    ? long.MaxValue
+                    : ElapsedTicks + elapsedTicks;
             }
         }
 
@@ -60,11 +78,11 @@ namespace Project.Scripts
                 _lastTick = currentTick;
                 if (elapsed > 0)
                 {
-                    _chunkloader.CopyLoadedChunks(_loadedChunks);
-                    foreach (Chunk chunk in _loadedChunks)
+                    using (ScheduleMarker.Auto())
                     {
-                        _pendingWork.Enqueue(
-                            new CoverageWork(chunk, elapsed));
+                        _chunkloader.CopyLoadedChunks(_loadedChunks);
+                        foreach (Chunk chunk in _loadedChunks)
+                            Schedule(chunk, elapsed);
                     }
                 }
             }
@@ -73,6 +91,7 @@ namespace Project.Scripts
             while (budget-- > 0 && _pendingWork.Count > 0)
             {
                 CoverageWork work = _pendingWork.Dequeue();
+                _pendingByChunk.Remove(work.Chunk);
                 if (work.Chunk == null ||
                     work.Chunk.Position != work.Position ||
                     work.Chunk.CoverageGeneration != work.Generation)
@@ -80,10 +99,38 @@ namespace Project.Scripts
                     continue;
                 }
 
-                work.Chunk.AdvanceCoverage(
-                    _weather,
-                    work.ElapsedTicks);
+                using (ProcessMarker.Auto())
+                {
+                    work.Chunk.AdvanceCoverage(
+                        _weather,
+                        work.ElapsedTicks);
+                }
             }
+        }
+
+        private void Schedule(Chunk chunk, long elapsedTicks)
+        {
+            if (chunk == null)
+                return;
+
+            if (_pendingByChunk.TryGetValue(chunk, out CoverageWork pending))
+            {
+                if (pending.Position == chunk.Position &&
+                    pending.Generation == chunk.CoverageGeneration)
+                {
+                    pending.AddElapsedTicks(elapsedTicks);
+                    return;
+                }
+
+                pending.Position = chunk.Position;
+                pending.Generation = chunk.CoverageGeneration;
+                pending.ElapsedTicks = elapsedTicks;
+                return;
+            }
+
+            CoverageWork work = new(chunk, elapsedTicks);
+            _pendingByChunk.Add(chunk, work);
+            _pendingWork.Enqueue(work);
         }
 
         public bool TryGetCoverage(

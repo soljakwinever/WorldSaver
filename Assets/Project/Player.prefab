@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 7370695922686599983}
   - component: {fileID: 6792366499409147753}
-  - component: {fileID: 6065441442916219306}
   - component: {fileID: 8527912579199793683}
   - component: {fileID: 7233313233766692928}
+  - component: {fileID: 2094864853791445976}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -86,14 +86,6 @@ Camera:
   m_OcclusionCulling: 0
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!81 &6065441442916219306
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 684982620336431732}
-  m_Enabled: 1
 --- !u!114 &8527912579199793683
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -162,6 +154,20 @@ MonoBehaviour:
   m_CropFrameX: 0
   m_CropFrameY: 0
   m_StretchFill: 0
+--- !u!114 &2094864853791445976
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 684982620336431732}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86c6556701af9e04380698b89f691b6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FMODUnity::FMODUnity.StudioListener
+  nonRigidbodyVelocity: 0
+  attenuationObject: {fileID: 0}
 --- !u!1 &5257792847225494739
 GameObject:
   m_ObjectHideFlags: 0
@@ -215,6 +221,8 @@ GameObject:
   - component: {fileID: 5396985804537661568}
   - component: {fileID: 741189492784426053}
   - component: {fileID: 5270779672569552003}
+  - component: {fileID: 3462617492022370215}
+  - component: {fileID: 1754711544689834817}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -269,6 +277,10 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 1
   facingPoint: {fileID: 4205758892811910621}
+  attackForce: 1
+  validCursorColor: {r: 0.25, g: 1, b: 0.25, a: 1}
+  invalidCursorColor: {r: 1, g: 0.25, b: 0.25, a: 1}
+  cursorSortingOrder: 1000
   craftingWindowTitle: Inventory Crafting
   craftingLayout: {fileID: 0}
   craftingRecipeList: {fileID: 11400000, guid: e8bd74f6bb214b6a9b2182f4a97d9051, type: 2}
@@ -295,6 +307,9 @@ MonoBehaviour:
   level: 1
   experience: 0
   unspentStatPoints: 0
+  unspentSkillPoints: 1
+  unlockedSkillTreeNodes: []
+  unlockedSkills: []
   strength: 5
   constitution: 5
   dexterity: 5
@@ -302,6 +317,15 @@ MonoBehaviour:
   intelligence: 5
   luck: 5
   mana: 1
+  hasSpawnPoint: 0
+  spawnPoint: {x: 0, y: 0, z: 0}
+  hasSpawnTown: 0
+  spawnTownId: 0
+  spawnPlaneId: 
+  currentPlaneId: 
+  visitedTowns: []
+  resolveDeathInstantly: 1
+  deathDropLifetimeTicks: 1800
 --- !u!114 &9103112176375882134
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -312,7 +336,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 43f94f6d0dde49f2bd1b1b84bcdf0d4a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.PlayerNeedsController
   healthRegenerationPerSecond: 0.25
   manaRegenerationPerSecond: 0.25
@@ -626,6 +650,31 @@ MonoBehaviour:
     - rid: 1367514813384360045
       type: {class: ShadowShape2DProvider_SpriteRenderer, ns: UnityEngine.Rendering.Universal, asm: Unity.RenderPipelines.Universal.2D.Runtime}
       data: 
+--- !u!114 &3462617492022370215
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5983356817421055969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 848e093c34ee45e4b47a96c71cbb3bf8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.PlayerEquipmentController
+--- !u!114 &1754711544689834817
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5983356817421055969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 796202cb0bdc3a64a9223e7f236e01c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.SkillRuntime
+  startingPassives: []
 --- !u!1 &7174080208376920790
 GameObject:
   m_ObjectHideFlags: 0

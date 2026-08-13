@@ -6,6 +6,7 @@ using Project.Scripts.DataTypes;
 using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using Project.Scripts.TimeAndWeather;
+using Unity.Profiling;
 using UnityEngine;
 
 namespace Project.Scripts
@@ -45,10 +46,14 @@ namespace Project.Scripts
         private sealed class LayerState
         {
             public CoverageData Data;
+            public bool VisibleCoverageDirty = true;
+            public bool HasVisibleCoverage;
             public readonly Dictionary<ushort, CellState> Cells =
                 new(MaximumSavedCells);
             private readonly CellState[] _cellPool =
                 new CellState[MaximumSavedCells];
+            private readonly byte[] _tileEligibility =
+                new byte[MaximumSavedCells];
 
             public CellState AcquireCell(
                 ushort localIndex,
@@ -71,7 +76,25 @@ namespace Project.Scripts
             {
                 Data = null;
                 Cells.Clear();
+                VisibleCoverageDirty = true;
+                HasVisibleCoverage = false;
+                Array.Clear(_tileEligibility, 0, _tileEligibility.Length);
             }
+
+            public bool TryGetTileEligibility(
+                ushort localIndex,
+                out bool eligible)
+            {
+                byte cached = _tileEligibility[localIndex];
+                eligible = cached == 2;
+                return cached != 0;
+            }
+
+            public void SetTileEligibility(ushort localIndex, bool eligible) =>
+                _tileEligibility[localIndex] = eligible ? (byte)2 : (byte)1;
+
+            public void InvalidateTileEligibility(ushort localIndex) =>
+                _tileEligibility[localIndex] = 0;
         }
 
         private readonly Dictionary<string, LayerState> _layers =
@@ -93,6 +116,17 @@ namespace Project.Scripts
             new Coroutine[MaximumSavedCells];
         private readonly float[] _animatedCoverageAmounts =
             new float[MaximumSavedCells];
+        private readonly WeatherSample[] _weatherSamples =
+            new WeatherSample[MaximumSavedCells];
+        private readonly bool[] _weatherSampled =
+            new bool[MaximumSavedCells];
+        private readonly ushort[] _sampledWeatherCells =
+            new ushort[MaximumSavedCells];
+
+        private static readonly ProfilerMarker SimulationMarker =
+            new("TileCoverage.SimulateCells");
+        private static readonly ProfilerMarker VisualMarker =
+            new("TileCoverage.ResolveVisuals");
 
         [SerializeField, Min(0f)]
         [Tooltip("Seconds taken for mined coverage to recede through the accumulation shader.")]
@@ -201,11 +235,12 @@ namespace Project.Scripts
 
         public void CompleteRestore(IRegionalWeatherService weather)
         {
+            int sampledWeatherCount = 0;
             foreach (LayerState layer in _layers.Values)
             {
                 foreach (CellState cell in layer.Cells.Values)
                 {
-                    if (!TileAllowsCoverage(layer.Data, cell.LocalIndex))
+                    if (!TileAllowsCoverage(layer, cell.LocalIndex))
                     {
                         if (!cell.Initialized)
                         {
@@ -215,9 +250,8 @@ namespace Project.Scripts
                         continue;
                     }
 
-                    WeatherSample sample = SampleCellWeather(
-                        weather,
-                        cell);
+                    WeatherSample sample = GetCellWeather(
+                        weather, cell, ref sampledWeatherCount);
                     if (TryGetWeatherOverrideCoverage(
                             layer.Data,
                             sample,
@@ -256,6 +290,8 @@ namespace Project.Scripts
                 }
             }
 
+            ClearWeatherSampleCache(sampledWeatherCount);
+
             _ready = true;
             RefreshAllVisuals(force: true);
         }
@@ -269,87 +305,84 @@ namespace Project.Scripts
 
             float ticks = Mathf.Min(elapsedTicks, int.MaxValue);
             int dirtyCount = 0;
+            int sampledWeatherCount = 0;
 
-            foreach (LayerState layer in _layers.Values)
+            using (SimulationMarker.Auto())
             {
-                foreach (CellState cell in layer.Cells.Values)
+                foreach (LayerState layer in _layers.Values)
                 {
-                    if (!TileAllowsCoverage(layer.Data, cell.LocalIndex))
-                        continue;
-
-                    WeatherSample sample = SampleCellWeather(
-                        weather,
-                        cell);
-                    float previous = cell.Amount;
-                    if (TryGetWeatherOverrideCoverage(
-                            layer.Data,
-                            sample,
-                            _indoorCells[cell.LocalIndex],
-                            out float overrideCoverage))
+                    foreach (CellState cell in layer.Cells.Values)
                     {
-                        cell.Amount = overrideCoverage;
-                        if (previous != cell.Amount &&
-                            !_dirtyCellFlags[cell.LocalIndex])
+                        if (!TileAllowsCoverage(layer, cell.LocalIndex))
+                            continue;
+
+                        WeatherSample sample = GetCellWeather(
+                            weather, cell, ref sampledWeatherCount);
+                        float previous = cell.Amount;
+                        if (TryGetWeatherOverrideCoverage(
+                                layer.Data,
+                                sample,
+                                _indoorCells[cell.LocalIndex],
+                                out float overrideCoverage))
                         {
-                            _dirtyCellFlags[cell.LocalIndex] = true;
-                            _dirtyCells[dirtyCount++] = cell.LocalIndex;
+                            cell.Amount = overrideCoverage;
                         }
-                        continue;
-                    }
+                        else
+                        {
+                            bool accumulationAllowed =
+                                WeatherAllowsAccumulation(layer.Data, sample);
+                            if (!TemperatureAllowsPersistence(layer.Data, sample))
+                            {
+                                cell.Amount = layer.Data.SlowlyDecayWhenTemperatureFails
+                                    ? Mathf.Clamp01(
+                                        cell.Amount - layer.Data.DecayRate * ticks)
+                                    : 0f;
+                            }
+                            else
+                            {
+                                cell.Amount = ApplyWeatherAccumulation(
+                                    cell.Amount,
+                                    layer.Data.AccumulationRate *
+                                    cell.AccumulationMultiplier * ticks,
+                                    _indoorCells[cell.LocalIndex],
+                                    accumulationAllowed);
+                            }
+                        }
 
-                    bool accumulationAllowed =
-                        WeatherAllowsAccumulation(layer.Data, sample);
-                    if (!TemperatureAllowsPersistence(layer.Data, sample))
-                    {
-                        cell.Amount = layer.Data.SlowlyDecayWhenTemperatureFails
-                            ? Mathf.Clamp01(
-                                cell.Amount -
-                                layer.Data.DecayRate * ticks)
-                            : 0f;
-                    }
-                    else
-                    {
-                        cell.Amount = ApplyWeatherAccumulation(
-                            cell.Amount,
-                            layer.Data.AccumulationRate *
-                            cell.AccumulationMultiplier *
-                            ticks,
-                            _indoorCells[cell.LocalIndex],
-                            accumulationAllowed);
-                    }
-
-                    // Exact comparison is intentional: when Clamp01 produces
-                    // the final 1.0 value, the coverage tile must get one last
-                    // visual update even if the delta is approximately zero.
-                    if (previous != cell.Amount &&
-                        !_dirtyCellFlags[cell.LocalIndex])
-                    {
-                        _dirtyCellFlags[cell.LocalIndex] = true;
-                        _dirtyCells[dirtyCount++] = cell.LocalIndex;
+                        if (previous != cell.Amount)
+                        {
+                            layer.VisibleCoverageDirty = true;
+                            if (!_dirtyCellFlags[cell.LocalIndex])
+                            {
+                                _dirtyCellFlags[cell.LocalIndex] = true;
+                                _dirtyCells[dirtyCount++] = cell.LocalIndex;
+                            }
+                        }
                     }
                 }
             }
+            ClearWeatherSampleCache(sampledWeatherCount);
 
             int visualCount = 0;
             bool navigationChanged = false;
-            for (int i = 0; i < dirtyCount; i++)
+            using (VisualMarker.Auto())
             {
-                ushort index = _dirtyCells[i];
-                _dirtyCellFlags[index] = false;
-                CoverageData previousCoverage = _displayedData[index];
-                if (UpdateDisplayedVisual(index, force: false))
+                for (int i = 0; i < dirtyCount; i++)
                 {
-                    CoverageData currentCoverage = _displayedData[index];
-                    navigationChanged |=
-                        HasPathingHint(previousCoverage) ||
-                        HasPathingHint(currentCoverage);
-                    // An active mining fade owns this cell's rendered alpha.
-                    // Keep its persisted target current without snapping the
-                    // tile to that target during weather accumulation.
-                    if (_coverageFadeRoutines[index] != null)
-                        continue;
+                    ushort index = _dirtyCells[i];
+                    _dirtyCellFlags[index] = false;
+                    CoverageData previousCoverage = _displayedData[index];
+                    if (UpdateDisplayedVisual(index, force: false))
+                    {
+                        CoverageData currentCoverage = _displayedData[index];
+                        navigationChanged |=
+                            HasPathingHint(previousCoverage) ||
+                            HasPathingHint(currentCoverage);
+                        if (_coverageFadeRoutines[index] != null)
+                            continue;
 
-                    _visualChanges[visualCount++] = index;
+                        _visualChanges[visualCount++] = index;
+                    }
                 }
             }
 
@@ -382,6 +415,28 @@ namespace Project.Scripts
                     cell.LocalIndex / size +
                     0.5f),
                 cell.TerrainTemperature);
+        }
+
+        private WeatherSample GetCellWeather(
+            IRegionalWeatherService weather,
+            CellState cell,
+            ref int sampledCount)
+        {
+            ushort index = cell.LocalIndex;
+            if (_weatherSampled[index])
+                return _weatherSamples[index];
+
+            WeatherSample sample = SampleCellWeather(weather, cell);
+            _weatherSamples[index] = sample;
+            _weatherSampled[index] = true;
+            _sampledWeatherCells[sampledCount++] = index;
+            return sample;
+        }
+
+        private void ClearWeatherSampleCache(int sampledCount)
+        {
+            for (int i = 0; i < sampledCount; i++)
+                _weatherSampled[_sampledWeatherCells[i]] = false;
         }
 
         private float CalculateAccumulationMultiplier(
@@ -422,10 +477,10 @@ namespace Project.Scripts
             amount = 0f;
             if (!_ready ||
                 coverage == null ||
-                !TileAllowsCoverage(coverage, localIndex) ||
                 !_layers.TryGetValue(
                     coverage.CoverageId,
                     out LayerState layer) ||
+                !TileAllowsCoverage(layer, localIndex) ||
                 !layer.Cells.TryGetValue(
                     localIndex,
                     out CellState cell))
@@ -444,10 +499,10 @@ namespace Project.Scripts
         {
             if (!_ready ||
                 coverage == null ||
-                !TileAllowsCoverage(coverage, localIndex) ||
                 !_layers.TryGetValue(
                     coverage.CoverageId,
                     out LayerState layer) ||
+                !TileAllowsCoverage(layer, localIndex) ||
                 !layer.Cells.TryGetValue(
                     localIndex,
                     out CellState cell))
@@ -457,6 +512,7 @@ namespace Project.Scripts
 
             cell.Amount = Mathf.Clamp01(amount);
             cell.Initialized = true;
+            layer.VisibleCoverageDirty = true;
             RefreshVisual(localIndex, force: true);
             RefreshMaterialProperties();
             return true;
@@ -505,6 +561,7 @@ namespace Project.Scripts
 
             cell.Amount = Mathf.Max(0f, cell.Amount - amount);
             cell.Initialized = true;
+            layer.VisibleCoverageDirty = true;
 
             UpdateDisplayedVisual(localIndex, force: true);
             StartCoverageFade(
@@ -517,6 +574,11 @@ namespace Project.Scripts
 
         public void RefreshCell(ushort localIndex)
         {
+            foreach (LayerState layer in _layers.Values)
+            {
+                layer.InvalidateTileEligibility(localIndex);
+                layer.VisibleCoverageDirty = true;
+            }
             RefreshVisual(localIndex, force: true);
             RefreshMaterialProperties();
         }
@@ -535,6 +597,7 @@ namespace Project.Scripts
 
                 cell.Amount = 0f;
                 cell.Initialized = true;
+                layer.VisibleCoverageDirty = true;
                 found = true;
             }
 
@@ -592,6 +655,7 @@ namespace Project.Scripts
                         amountChanged |= cell.Amount > 0f;
                         cell.Amount = 0f;
                         cell.Initialized = true;
+                        layer.VisibleCoverageDirty = true;
                     }
 
                     if (_ready &&
@@ -660,14 +724,22 @@ namespace Project.Scripts
             RefreshVisual(localIndex, force: true);
 
         private bool TileAllowsCoverage(
-            CoverageData data,
+            LayerState layer,
             ushort localIndex)
         {
-            return _chunk != null &&
-                   _chunk.TryGetCoverageGroundTile(
-                       localIndex,
-                       out TileData tile) &&
-                   data.AllowsTile(tile);
+            if (localIndex >= MaximumSavedCells)
+                return false;
+
+            if (layer.TryGetTileEligibility(localIndex, out bool eligible))
+                return eligible;
+
+            eligible = _chunk != null &&
+                       _chunk.TryGetCoverageGroundTile(
+                           localIndex,
+                           out TileData tile) &&
+                       layer.Data.AllowsTile(tile);
+            layer.SetTileEligibility(localIndex, eligible);
+            return eligible;
         }
 
         public void PrepareForPool()
@@ -1124,7 +1196,7 @@ namespace Project.Scripts
                         localIndex,
                         out CellState cell) ||
                     cell.Amount <= 0f ||
-                    !TileAllowsCoverage(layer.Data, localIndex))
+                    !TileAllowsCoverage(layer, localIndex))
                 {
                     continue;
                 }
@@ -1152,22 +1224,7 @@ namespace Project.Scripts
 
             foreach (LayerState layer in _layers.Values)
             {
-                bool hasCoverage = false;
-                foreach (CellState cell in layer.Cells.Values)
-                {
-                    if (cell.Amount <= 0f ||
-                        !TileAllowsCoverage(
-                            layer.Data,
-                            cell.LocalIndex))
-                    {
-                        continue;
-                    }
-
-                    hasCoverage = true;
-                    break;
-                }
-
-                if (!hasCoverage)
+                if (!LayerHasVisibleCoverage(layer))
                     continue;
 
                 if (winner == null ||
@@ -1186,6 +1243,28 @@ namespace Project.Scripts
 
             _displayedMaterialData = winner;
             _chunk?.ApplyCoverageMaterial(winner, 0f);
+        }
+
+        private bool LayerHasVisibleCoverage(LayerState layer)
+        {
+            if (!layer.VisibleCoverageDirty)
+                return layer.HasVisibleCoverage;
+
+            layer.HasVisibleCoverage = false;
+            foreach (CellState cell in layer.Cells.Values)
+            {
+                if (cell.Amount <= 0f ||
+                    !TileAllowsCoverage(layer, cell.LocalIndex))
+                {
+                    continue;
+                }
+
+                layer.HasVisibleCoverage = true;
+                break;
+            }
+
+            layer.VisibleCoverageDirty = false;
+            return layer.HasVisibleCoverage;
         }
     }
 }
