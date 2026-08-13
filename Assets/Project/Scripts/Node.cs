@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Project.Scripts;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
@@ -31,10 +32,16 @@ public class Node : MonoBehaviour, INode
     public bool ClearReservedAreaCoverage { get; private set; }
 
     private GameObject _overrideVisual;
+    private MaterialPropertyBlock _propertyBlock;
+    private EntityDamageReceiver _damageReceiver;
+    private EntityDamageVisual _damageVisual;
+    private readonly List<Renderer> _rendererScratch = new();
+    private readonly List<Renderer> _initializationHiddenRenderers = new();
     
     public void Initialize(NodeId nodeId, PropSpawnData spawnData, NodeData nodeData, TerrainSample terrainSample,
         Chunk chunk, int archetypeId = 0)
     {
+        SetInitializationHidden(false);
         ClearOverrideVisual();
         ClearPersistentComponents();
         
@@ -72,26 +79,25 @@ public class Node : MonoBehaviour, INode
             nodeData,
             chunk,
             spawnData.persistenceKind,
-            spawnData.accessIdentity);
+            spawnData.accessIdentity,
+            spawnData.usesVillageDoorAccess);
 
         PersistentHealth health =
             _persistentComponentHost.GetComponentInChildren<PersistentHealth>(
                 includeInactive: true);
-        EntityDamageReceiver damageReceiver =
-            GetComponent<EntityDamageReceiver>();
-        damageReceiver ??=
+        _damageReceiver ??= GetComponent<EntityDamageReceiver>();
+        _damageReceiver ??=
             _container.InstantiateComponent<EntityDamageReceiver>(gameObject);
-        damageReceiver.Initialize(
+        _damageReceiver.Initialize(
             nodeData,
             _persistentEntity,
             health);
-        damageReceiver.SetDamageImmune(spawnData.damageImmune);
+        _damageReceiver.SetDamageImmune(spawnData.damageImmune);
 
-        EntityDamageVisual damageVisual =
-            GetComponent<EntityDamageVisual>();
-        damageVisual ??=
+        _damageVisual ??= GetComponent<EntityDamageVisual>();
+        _damageVisual ??=
             _container.InstantiateComponent<EntityDamageVisual>(gameObject);
-        damageVisual.Initialize(health);
+        _damageVisual.Initialize(health);
         
         // var persistentTransform = GetComponent<Project.Scripts.Gameplay.PersistentTransform>();
         // if (persistentTransform == null)
@@ -116,32 +122,59 @@ public class Node : MonoBehaviour, INode
                 spriteRenderer.material = nodeData.overrideMaterial;
                 spriteRenderer.color = terrainSample.biomeBlend.groundColor;
                 
-                var propertyBlock = new MaterialPropertyBlock();
-                spriteRenderer.GetPropertyBlock(propertyBlock);
+                _propertyBlock ??= new MaterialPropertyBlock();
+                _propertyBlock.Clear();
+                spriteRenderer.GetPropertyBlock(_propertyBlock);
                 
                 if (nodeData.overrideMaterial.HasColor("_TintColor"))
                 {
     
-                    propertyBlock.SetColor("_TintColor", nodeData.tintColor);
+                    _propertyBlock.SetColor("_TintColor", nodeData.tintColor);
                 }
     
                 if (nodeData.overrideMaterial.HasProperty("_Lightness"))
                 {
-                    propertyBlock.SetFloat("_Lightness", nodeData.lightness);
-                    propertyBlock.SetFloat("_LightnessVariance", nodeData.lightnessVariance);
+                    _propertyBlock.SetFloat("_Lightness", nodeData.lightness);
+                    _propertyBlock.SetFloat("_LightnessVariance", nodeData.lightnessVariance);
                 }
     
                 if (nodeData.overrideMaterial.HasProperty("_Seed"))
                 {
-                    propertyBlock.SetVector("_Seed", transform.position);
+                    _propertyBlock.SetVector("_Seed", transform.position);
                 }
                 
-                spriteRenderer.SetPropertyBlock(propertyBlock);
+                spriteRenderer.SetPropertyBlock(_propertyBlock);
             }
             else
             {
                 spriteRenderer.material = _defaultMaterial;
                 spriteRenderer.color = Color.white;
+                spriteRenderer.SetPropertyBlock(null);
+            }
+        }
+    }
+
+    public void SetInitializationHidden(bool hidden)
+    {
+        if (!hidden)
+        {
+            foreach (Renderer renderer in _initializationHiddenRenderers)
+            {
+                if (renderer != null)
+                    renderer.enabled = true;
+            }
+            _initializationHiddenRenderers.Clear();
+            return;
+        }
+
+        _rendererScratch.Clear();
+        GetComponentsInChildren(true, _rendererScratch);
+        foreach (Renderer renderer in _rendererScratch)
+        {
+            if (renderer != null && renderer.enabled)
+            {
+                renderer.enabled = false;
+                _initializationHiddenRenderers.Add(renderer);
             }
         }
     }
@@ -150,7 +183,8 @@ public class Node : MonoBehaviour, INode
         NodeData nodeData,
         Chunk chunk,
         EntityPersistenceKind persistenceKind,
-        AccessIdentity accessIdentity)
+        AccessIdentity accessIdentity,
+        bool usesVillageDoorAccess)
     {
         var hostObject = new GameObject("Persistent Components");
         _persistentComponentHost = hostObject.AddComponent<PersistentComponentHost>();
@@ -163,7 +197,8 @@ public class Node : MonoBehaviour, INode
             this,
             chunk,
             persistenceKind,
-            accessIdentity);
+            accessIdentity,
+            usesVillageDoorAccess);
 
         if (nodeData.persistentComponents != null)
         {
@@ -232,6 +267,7 @@ public class Node : MonoBehaviour, INode
 
     private void CleanUp()
     {
+        SetInitializationHidden(false);
         name = "Empty";
         ClearOverrideVisual();
         ClearPersistentComponents();

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Project.Scripts.DataTypes;
 using UnityEngine;
 
 namespace Project.Scripts.Interface
@@ -10,13 +11,22 @@ namespace Project.Scripts.Interface
         IInventory FuelInventory { get; }
         IInventory IngredientInventory { get; }
         IInventory OutputInventory { get; }
+        IReadOnlyList<CraftingRecipeData> Recipes { get; }
+        EntityTag AcceptedFuelTag { get; }
         float Progress01 { get; }
         bool IsBurning { get; }
+        bool CanQueueRecipe(CraftingRecipeData recipe, IInventory source);
+        bool HasFuelForRecipe(CraftingRecipeData recipe, IInventory source);
+        bool TryQueueRecipe(
+            CraftingRecipeData recipe,
+            IInventory source,
+            out string reason);
         bool TryInsertFuel(IInventory source, IItemStack stack);
         bool TryInsertIngredient(IInventory source, IItemStack stack);
         bool TryCollectIngredient(IInventory destination, IItemStack stack);
         bool TryCollectOutput(IInventory destination, IItemStack stack);
         int CollectAll(IInventory destination);
+        bool TryCollectAll(IInventory destination, out int collected);
     }
 
     public interface IComponentWindowSection

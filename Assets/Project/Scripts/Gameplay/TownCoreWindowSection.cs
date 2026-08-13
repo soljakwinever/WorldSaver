@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
+using Project.Scripts.Entities;
 using UnityEngine;
 
 namespace Project.Scripts.Gameplay
@@ -16,6 +17,7 @@ namespace Project.Scripts.Gameplay
         private enum TownTab
         {
             Overview,
+            Inventory,
             WorkPolicy
         }
 
@@ -26,6 +28,8 @@ namespace Project.Scripts.Gameplay
         private TownTab _activeTab;
         private Vector2 _offeringScroll;
         private Vector2 _playerScroll;
+        private Vector2 _stockpileScroll;
+        private Vector2 _inventoryPlayerScroll;
         private bool _editingName;
         private string _editedName;
 
@@ -118,6 +122,11 @@ namespace Project.Scripts.Gameplay
                     GUI.skin.button))
                 _activeTab = TownTab.Overview;
             if (GUILayout.Toggle(
+                    _activeTab == TownTab.Inventory,
+                    "Inventory",
+                    GUI.skin.button))
+                _activeTab = TownTab.Inventory;
+            if (GUILayout.Toggle(
                     _activeTab == TownTab.WorkPolicy,
                     "Work Policy",
                     GUI.skin.button))
@@ -125,12 +134,77 @@ namespace Project.Scripts.Gameplay
             GUILayout.EndHorizontal();
 
             GUILayout.Space(8f);
-            if (_activeTab == TownTab.WorkPolicy)
-                DrawWorkPolicyStub();
-            else
-                DrawOverview(context);
+            switch (_activeTab)
+            {
+                case TownTab.Inventory:
+                    DrawVillageInventory(context);
+                    break;
+                case TownTab.WorkPolicy:
+                    DrawWorkPolicy(context);
+                    break;
+                default:
+                    DrawOverview(context);
+                    break;
+            }
 
             GUILayout.EndVertical();
+        }
+
+        private void DrawVillageInventory(ComponentWindowContext context)
+        {
+            GUILayout.Label("Village Inventory", HeaderStyle());
+            IInventory stockpile = _town.StockpileInventory;
+            if (stockpile == null)
+            {
+                GUILayout.Label("This village has no stockpile.");
+                return;
+            }
+
+            GUILayout.Label(
+                $"Storage: {stockpile.OccupiedSlots}/{stockpile.Size} slots");
+            GUILayout.Label("Click a stack to take it.");
+            _stockpileScroll = GUILayout.BeginScrollView(
+                _stockpileScroll,
+                GUI.skin.box,
+                GUILayout.Height(205f));
+            DrawInventoryGrid(
+                stockpile,
+                "The village inventory is empty.",
+                stack =>
+                {
+                    context.StatusMessage = TryTransfer(
+                        stockpile,
+                        _playerInventory,
+                        stack)
+                        ? $"Took {stack.Item.name} x{stack.Count}."
+                        : "Your inventory does not have enough space.";
+                },
+                2,
+                105f);
+            GUILayout.EndScrollView();
+
+            GUILayout.Space(8f);
+            GUILayout.Label("Player Inventory", GUI.skin.box);
+            GUILayout.Label("Click a stack to store it.");
+            _inventoryPlayerScroll = GUILayout.BeginScrollView(
+                _inventoryPlayerScroll,
+                GUI.skin.box,
+                GUILayout.Height(185f));
+            DrawInventoryGrid(
+                _playerInventory,
+                "Your inventory is empty.",
+                stack =>
+                {
+                    context.StatusMessage = TryTransfer(
+                        _playerInventory,
+                        stockpile,
+                        stack)
+                        ? $"Stored {stack.Item.name} x{stack.Count}."
+                        : "The village inventory does not have enough space.";
+                },
+                2,
+                105f);
+            GUILayout.EndScrollView();
         }
 
         private void DrawOverview(ComponentWindowContext context)
@@ -138,9 +212,7 @@ namespace Project.Scripts.Gameplay
             DrawNameEditor(context);
             GUILayout.Space(10f);
 
-            // Population remains intentionally disconnected from villager
-            // assignment until the job system owns residency.
-            DrawStat("Population", "0/10");
+            DrawStat("Population", $"{_town.Population}/{_town.MaxPopulation}");
             DrawMana();
             DrawCurrentEffect(context);
 
@@ -298,18 +370,84 @@ namespace Project.Scripts.Gameplay
             }
         }
 
-        private static void DrawWorkPolicyStub()
+        private void DrawWorkPolicy(ComponentWindowContext context)
         {
-            GUILayout.FlexibleSpace();
             GUILayout.Label(
                 "Work Policy",
                 HeaderStyle(),
                 GUILayout.ExpandWidth(true));
-            GUILayout.Label(
-                "Coming soon",
-                HeaderStyle(),
-                GUILayout.ExpandWidth(true));
-            GUILayout.FlexibleSpace();
+            ITownJobBoard board = _town.JobBoard;
+            if (board == null)
+            {
+                GUILayout.Label("This Town Core has no job board.");
+                return;
+            }
+
+            foreach (VillagerJobType type in Enum.GetValues(typeof(VillagerJobType)))
+            {
+                if (type < VillagerJobType.Gather || type > VillagerJobType.Farm)
+                    continue;
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(type.ToString(), GUILayout.Width(75f));
+                TownJobPriority priority = board.GetPriority(type);
+                if (GUILayout.Button(priority.ToString()))
+                {
+                    TownJobPriority next = priority == TownJobPriority.Emergency
+                        ? TownJobPriority.Off
+                        : (TownJobPriority)((int)priority + 1);
+                    board.SetPriority(type, next);
+                    context.StatusMessage = $"{type} priority set to {next}.";
+                }
+                GUILayout.EndHorizontal();
+            }
+
+            GUILayout.Space(8f);
+            GUILayout.Label("Residents", GUI.skin.box);
+            bool foundResident = false;
+            foreach (VillagerEntityBridge villager in VillagerEntityBridge.All)
+            {
+                if (villager == null || !string.Equals(
+                        villager.TownId,
+                        _town.PersistentEntity?.Id.ToString(),
+                        StringComparison.Ordinal))
+                    continue;
+                foundResident = true;
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(villager.VillagerName, GUILayout.Width(90f));
+                if (GUILayout.Button(villager.Role.ToString()))
+                {
+                    VillagerRole next = villager.Role == VillagerRole.Farmer
+                        ? VillagerRole.Generalist
+                        : (VillagerRole)((int)villager.Role + 1);
+                    VillagerJobMask jobs = next == VillagerRole.Generalist
+                        ? VillagerJobMask.All
+                        : (VillagerJobMask)(1 << ((int)next - 1));
+                    villager.SetAssignment(next, jobs);
+                    context.StatusMessage =
+                        $"{villager.VillagerName} assigned as {next}.";
+                }
+                GUILayout.EndHorizontal();
+            }
+            if (!foundResident)
+                GUILayout.Label("No loaded residents.");
+
+            GUILayout.Space(8f);
+            GUILayout.Label("Jobs", GUI.skin.box);
+            if (board.Jobs.Count == 0)
+                GUILayout.Label("No jobs queued.");
+            foreach (TownJobView job in board.Jobs)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"#{job.Id} {job.Type}: {job.Status}");
+                if (job.Status is not TownJobStatus.Completed and
+                    not TownJobStatus.Cancelled &&
+                    GUILayout.Button("X", GUILayout.Width(24f)))
+                    board.TryCancel(job.Id);
+                GUILayout.EndHorizontal();
+                if (job.Status == TownJobStatus.Blocked &&
+                    !string.IsNullOrEmpty(job.BlockedReason))
+                    GUILayout.Label(job.BlockedReason);
+            }
         }
 
         private static void DrawStat(string label, string value)
@@ -324,7 +462,9 @@ namespace Project.Scripts.Gameplay
         private static void DrawInventoryGrid(
             IInventory inventory,
             string emptyMessage,
-            Action<IItemStack> clicked)
+            Action<IItemStack> clicked,
+            int columns = 4,
+            float itemWidth = 112f)
         {
             var stacks = new List<IItemStack>(inventory.Stacks);
             if (stacks.Count == 0)
@@ -333,7 +473,7 @@ namespace Project.Scripts.Gameplay
                 return;
             }
 
-            const int columns = 4;
+            columns = Mathf.Max(1, columns);
             for (int index = 0; index < stacks.Count; index += columns)
             {
                 GUILayout.BeginHorizontal();
@@ -353,7 +493,7 @@ namespace Project.Scripts.Gameplay
                         : $"\n{stack.Rarity}";
                     if (GUILayout.Button(
                             $"{stack.Item.name}\nx{stack.Count}{rarity}",
-                            GUILayout.Width(112f),
+                            GUILayout.Width(itemWidth),
                             GUILayout.Height(62f)))
                     {
                         clicked(stack);

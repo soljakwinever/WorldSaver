@@ -96,6 +96,26 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void ProceduralResidentsReceiveStarterFoodOnlyOnce()
+        {
+            TownCore town = ConfigureTown(
+                _gameObject,
+                maximumPopulation: 2,
+                starterFood: _offering,
+                starterFoodPerResident: 2,
+                procedural: true);
+            TownStockpile stockpile =
+                _gameObject.GetComponent<TownStockpile>();
+
+            Assert.That(town.TryRegisterResident("villager-a"), Is.True);
+            Assert.That(stockpile.GetCount(_offering), Is.EqualTo(2));
+            Assert.That(town.TryRegisterResident("villager-a"), Is.False);
+            Assert.That(stockpile.GetCount(_offering), Is.EqualTo(2));
+            Assert.That(town.TryRegisterResident("villager-b"), Is.True);
+            Assert.That(stockpile.GetCount(_offering), Is.EqualTo(4));
+        }
+
+        [Test]
         public void ClaimedAndResourceAreasUseTheirConfiguredRadii()
         {
             TownCore town = CreateTown(maximumPopulation: 1);
@@ -204,18 +224,33 @@ namespace Project.Tests.EditMode
             }
         }
 
+        [Test]
+        public void ResourceRadiusIncludesThreeUnitSearchBonus()
+        {
+            TownCore town = CreateTown(maximumPopulation: 10);
+            Assert.That(town.ResourceRadius, Is.EqualTo(13f));
+        }
+
         private TownCore CreateTown(int maximumPopulation) =>
             ConfigureTown(_gameObject, maximumPopulation);
 
         private static TownCore ConfigureTown(
             GameObject gameObject,
             int maximumPopulation,
-            TownEffect[] effects = null)
+            TownEffect[] effects = null,
+            ItemData starterFood = null,
+            int starterFoodPerResident = 0,
+            bool procedural = false)
         {
             PersistentInventory inventory =
                 gameObject.GetComponent<PersistentInventory>() ??
                 gameObject.AddComponent<PersistentInventory>();
             inventory.Initialize(4);
+
+            TownStockpile stockpile =
+                gameObject.GetComponent<TownStockpile>() ??
+                gameObject.AddComponent<TownStockpile>();
+            stockpile.Initialize(8);
 
             PersistentHealth health =
                 gameObject.GetComponent<PersistentHealth>() ??
@@ -236,7 +271,10 @@ namespace Project.Tests.EditMode
                 structureRefreshTicks: 10,
                 structureLayerMask: ~0,
                 effects: effects ?? Array.Empty<TownEffect>(),
-                upgradeDefinitions: Array.Empty<TownUpgradeDefinition>());
+                upgradeDefinitions: Array.Empty<TownUpgradeDefinition>(),
+                grantStarterFood: procedural,
+                configuredStarterFood: starterFood,
+                configuredStarterFoodPerResident: starterFoodPerResident);
             return town;
         }
 

@@ -18,9 +18,15 @@ namespace Project.Scripts.Interface
         float ResourceRadius { get; }
         Vector3 Position { get; }
         IReadOnlyList<GameObject> Buildings { get; }
+        IReadOnlyCollection<string> ResidentIds { get; }
+        IInventory StockpileInventory { get; }
+        ITownJobBoard JobBoard { get; }
 
         bool ContainsTownPosition(Vector3 worldPosition);
         bool ContainsResourcePosition(Vector3 worldPosition);
         bool TryFastTravel(Transform traveller);
+        bool TryRegisterResident(string persistentId);
+        bool UnregisterResident(string persistentId);
+        bool TryIssueJob(TownJobRequest request, out long jobId);
     }
 }

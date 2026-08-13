@@ -985,6 +985,12 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         {
             if (_runningBakeChunks.Contains(candidate))
                 continue;
+            if (!_chunks.TryGetValue(candidate, out ChunkRenderData chunk) ||
+                chunk.Owner == null ||
+                !chunk.Owner.IsFullyInitialized)
+            {
+                continue;
+            }
 
             selected = candidate;
             found = true;

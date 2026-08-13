@@ -49,8 +49,11 @@ MonoBehaviour:
         spawnPointOffset: 1.25
         maximumHealth: 250
         offeringInventorySize: 16
+        stockpileInventorySize: 32
+        starterFoodItem: {fileID: 11400000, guid: 151dc7aaec443e74e9129700df0ff137, type: 2}
+        starterFoodPerResident: 2
         townRadius: 32
-        resourceRadius: 48
+        resourceRadius: 128
         maximumPopulation: 10
         maximumMana: 100
         passiveManaPerTick: 0.01

@@ -34,6 +34,11 @@ MonoBehaviour:
   generators: []
   townCoreEntity: {fileID: 11400000, guid: 422e13454383c094ab75de8047c4c8bd, type: 2}
   doorEntity: {fileID: 11400000, guid: f74c213de6711904991fbdf8cf3ac675, type: 2}
+  bedEntity: {fileID: 11400000, guid: 2b716986c7cc4ad3b5395ee32c96f147, type: 2}
+  torchEntity: {fileID: 11400000, guid: b02b705c21214be5b6be820773c87871, type: 2}
+  campfireEntity: {fileID: 11400000, guid: e21beea26085b634d98b8bd8013229bc, type: 2}
+  furnaceEntity: {fileID: 11400000, guid: 045af8d724364408845a68c687d21bf1, type: 2}
+  villagerEntity: {fileID: 11400000, guid: d51cd22aeadf007488cbba8a508ea6a5, type: 2}
   streetTile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
   townCorePlazaTile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
   buildingFloorTile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}

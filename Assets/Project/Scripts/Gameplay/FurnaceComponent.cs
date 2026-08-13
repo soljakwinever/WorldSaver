@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
@@ -47,6 +48,9 @@ namespace Project.Scripts.Gameplay
         public IInventory FuelInventory => _fuel;
         public IInventory IngredientInventory => _ingredients;
         public IInventory OutputInventory => _output;
+        public IReadOnlyList<CraftingRecipeData> Recipes =>
+            recipeList?.Recipes ?? Array.Empty<CraftingRecipeData>();
+        public EntityTag AcceptedFuelTag => fuelTag;
         public float Progress01 => ticksPerCycle <= 0
             ? 0f
             : Mathf.Clamp01(_progressTicks / (float)GetActiveRecipeTicks());
@@ -219,6 +223,122 @@ namespace Project.Scripts.Gameplay
                 collected = checked(collected + count);
             }
             return collected;
+        }
+
+        public bool CanQueueRecipe(
+            CraftingRecipeData recipe,
+            IInventory source)
+        {
+            return TryBuildQueueChanges(
+                recipe,
+                source,
+                out _,
+                out _,
+                out _,
+                out _);
+        }
+
+        public bool HasFuelForRecipe(
+            CraftingRecipeData recipe,
+            IInventory source)
+        {
+            if (recipe == null || recipeList == null ||
+                !Recipes.Contains(recipe))
+                return false;
+            long available = GetAvailableFuelUnits();
+            if (source != null)
+            {
+                foreach (IItemStack stack in source.Stacks)
+                    if (stack?.Item != null && IsValidFuel(stack.Item))
+                        available = checked(available + checked(
+                            (long)stack.Count *
+                            stack.Item.GetFuelUnits(stack.Rarity)));
+            }
+            return available >= GetRequiredFuelUnits(recipe);
+        }
+
+        /// <summary>
+        /// Atomically transfers one recipe batch and enough fuel for it from
+        /// the supplied inventory. The furnace performs the actual craft over
+        /// world ticks after the villager has serviced it.
+        /// </summary>
+        public bool TryQueueRecipe(
+            CraftingRecipeData recipe,
+            IInventory source,
+            out string reason)
+        {
+            if (!TryBuildQueueChanges(
+                    recipe,
+                    source,
+                    out List<InventoryChange> sourceChanges,
+                    out List<InventoryChange> ingredientChanges,
+                    out List<InventoryChange> fuelChanges,
+                    out reason))
+                return false;
+
+            if (!source.TryApplyChanges(sourceChanges))
+            {
+                reason = "The town stockpile changed before the furnace could be loaded.";
+                return false;
+            }
+
+            if (!_ingredients.TryApplyChanges(ingredientChanges))
+            {
+                source.TryApplyChanges(Invert(sourceChanges));
+                reason = "The furnace ingredient inventory changed while it was being loaded.";
+                return false;
+            }
+
+            if (!_fuel.TryApplyChanges(fuelChanges))
+            {
+                _ingredients.TryApplyChanges(Invert(ingredientChanges));
+                source.TryApplyChanges(Invert(sourceChanges));
+                reason = "The furnace fuel inventory changed while it was being loaded.";
+                return false;
+            }
+
+            reason = string.Empty;
+            return true;
+        }
+
+        /// <summary>Collects every completed output as one inventory transaction.</summary>
+        public bool TryCollectAll(IInventory destination, out int collected)
+        {
+            collected = 0;
+            if (destination == null || _output.Stacks.Count == 0)
+                return false;
+
+            var additions = new List<InventoryChange>(_output.Stacks.Count);
+            var removals = new List<InventoryChange>(_output.Stacks.Count);
+            foreach (IItemStack stack in _output.Stacks)
+            {
+                additions.Add(new InventoryChange(
+                    stack.Item,
+                    stack.Count,
+                    stack.Rarity,
+                    stack.Durability));
+                removals.Add(new InventoryChange(
+                    stack.Item,
+                    -stack.Count,
+                    stack.Rarity,
+                    stack.Durability));
+                collected = checked(collected + stack.Count);
+            }
+
+            if (!destination.CanApplyChanges(additions) ||
+                !_output.CanApplyChanges(removals) ||
+                !destination.TryApplyChanges(additions))
+            {
+                collected = 0;
+                return false;
+            }
+
+            if (_output.TryApplyChanges(removals))
+                return true;
+
+            destination.TryApplyChanges(Invert(additions));
+            collected = 0;
+            return false;
         }
 
         public bool CanInteract(InteractionContext context) =>
@@ -655,6 +775,158 @@ namespace Project.Scripts.Gameplay
                     return false;
             }
             return true;
+        }
+
+        private bool TryBuildQueueChanges(
+            CraftingRecipeData recipe,
+            IInventory source,
+            out List<InventoryChange> sourceChanges,
+            out List<InventoryChange> ingredientChanges,
+            out List<InventoryChange> fuelChanges,
+            out string reason)
+        {
+            sourceChanges = new List<InventoryChange>();
+            ingredientChanges = new List<InventoryChange>();
+            fuelChanges = new List<InventoryChange>();
+            reason = string.Empty;
+            if (source == null || recipe == null ||
+                recipeList == null || !Recipes.Contains(recipe) ||
+                !IsValidRecipe(recipe))
+            {
+                reason = "The furnace recipe is unavailable.";
+                return false;
+            }
+
+            var available = new List<AvailableStack>();
+            foreach (IItemStack stack in source.Stacks)
+            {
+                available.Add(new AvailableStack(
+                    stack.Item,
+                    stack.Rarity,
+                    stack.Durability,
+                    stack.Count));
+            }
+
+            var allocatedIngredients = new Dictionary<ItemRarityKey, int>();
+            for (int pass = 0; pass < 2; pass++)
+            {
+                CraftingRecipeData.IngredientMatchType type = pass == 0
+                    ? CraftingRecipeData.IngredientMatchType.ExactItem
+                    : CraftingRecipeData.IngredientMatchType.Tag;
+                for (int i = 0; i < recipe.ingredients.Length; i++)
+                {
+                    CraftingRecipeData.RecipeIngredient ingredient =
+                        recipe.ingredients[i];
+                    if (ingredient.matchType != type)
+                        continue;
+                    if (!TryAllocateIngredient(
+                            ingredient,
+                            available,
+                            allocatedIngredients))
+                    {
+                        reason = "The town stockpile is missing furnace ingredients.";
+                        return false;
+                    }
+                }
+            }
+
+            var allocatedFuel = new Dictionary<ItemRarityKey, int>();
+            long missingFuel = Math.Max(
+                0L,
+                GetRequiredFuelUnits(recipe) - GetAvailableFuelUnits());
+            for (int rarity = (int)ItemData.Rarity.Common;
+                 rarity <= (int)ItemData.Rarity.Legendary && missingFuel > 0;
+                 rarity++)
+            {
+                foreach (AvailableStack stack in available)
+                {
+                    if ((int)stack.Rarity != rarity || stack.Remaining <= 0 ||
+                        !IsValidFuel(stack.Item))
+                        continue;
+                    long unitsPerItem = stack.Item.GetFuelUnits(stack.Rarity);
+                    if (unitsPerItem <= 0)
+                        continue;
+                    int wanted = (int)Math.Min(
+                        stack.Remaining,
+                        Math.Max(1L, (missingFuel + unitsPerItem - 1L) /
+                                     unitsPerItem));
+                    if (wanted <= 0)
+                        continue;
+                    stack.Remaining -= wanted;
+                    ItemRarityKey key = new(
+                        stack.Item,
+                        stack.Rarity,
+                        stack.Durability);
+                    allocatedFuel.TryGetValue(key, out int previous);
+                    allocatedFuel[key] = checked(previous + wanted);
+                    missingFuel = Math.Max(
+                        0L,
+                        missingFuel - checked(unitsPerItem * wanted));
+                }
+            }
+
+            if (missingFuel > 0)
+            {
+                reason = "The town stockpile has no compatible furnace fuel.";
+                return false;
+            }
+
+            var sourceTotals = new Dictionary<ItemRarityKey, int>();
+            foreach (KeyValuePair<ItemRarityKey, int> pair in
+                     allocatedIngredients)
+            {
+                AddAllocation(sourceTotals, pair.Key, pair.Value);
+                ingredientChanges.Add(ToChange(pair.Key, pair.Value));
+            }
+            foreach (KeyValuePair<ItemRarityKey, int> pair in allocatedFuel)
+            {
+                AddAllocation(sourceTotals, pair.Key, pair.Value);
+                fuelChanges.Add(ToChange(pair.Key, pair.Value));
+            }
+            foreach (KeyValuePair<ItemRarityKey, int> pair in sourceTotals)
+                sourceChanges.Add(ToChange(pair.Key, -pair.Value));
+
+            if (!source.CanApplyChanges(sourceChanges) ||
+                !_ingredients.CanApplyChanges(ingredientChanges) ||
+                !_fuel.CanApplyChanges(fuelChanges))
+            {
+                reason = "The furnace or town stockpile does not have enough inventory space.";
+                return false;
+            }
+            return true;
+        }
+
+        private static void AddAllocation(
+            Dictionary<ItemRarityKey, int> totals,
+            ItemRarityKey key,
+            int amount)
+        {
+            totals.TryGetValue(key, out int previous);
+            totals[key] = checked(previous + amount);
+        }
+
+        private static InventoryChange ToChange(
+            ItemRarityKey key,
+            int amount) => new(
+            key.Item,
+            amount,
+            key.Rarity,
+            key.Durability);
+
+        private static List<InventoryChange> Invert(
+            IReadOnlyList<InventoryChange> changes)
+        {
+            var result = new List<InventoryChange>(changes.Count);
+            for (int i = 0; i < changes.Count; i++)
+            {
+                InventoryChange change = changes[i];
+                result.Add(new InventoryChange(
+                    change.Item,
+                    -change.CountDelta,
+                    change.Rarity,
+                    change.Durability));
+            }
+            return result;
         }
 
         private static bool TryTransferInto(

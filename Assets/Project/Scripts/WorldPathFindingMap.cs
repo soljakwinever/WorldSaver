@@ -19,12 +19,15 @@ namespace Project.Scripts.Pathfinding
         ILocalPathFindingMap,
         IContextualLocalPathFindingMap,
         IPathTraversalHandler,
+        IAutomaticDoorTraversalHandler,
         IDisposable
     {
         private readonly WorldGeneration _worldGeneration;
         private readonly MapSignalBus _mapSignals;
         private readonly Chunkloader _chunkloader;
         private Dictionary<Vector2Int, LocalChunk> _localChunks = new();
+        private readonly Dictionary<string, AutomaticDoorPassage>
+            _automaticDoorPassages = new(StringComparer.Ordinal);
 
         public WorldPathFindingMap(
             WorldGeneration worldGeneration,
@@ -42,6 +45,10 @@ namespace Project.Scripts.Pathfinding
 
         public void Dispose()
         {
+            foreach (KeyValuePair<string, AutomaticDoorPassage> passage in
+                     _automaticDoorPassages)
+                passage.Value.Door?.ReleaseAutomaticTraversal(passage.Key);
+            _automaticDoorPassages.Clear();
             _mapSignals.ChunkBuilt -= OnChunkBuilt;
             _mapSignals.ChunkUnloaded -= OnChunkUnloaded;
             _mapSignals.NavigationCellChanged -= OnNavigationCellChanged;
@@ -104,13 +111,6 @@ namespace Project.Scripts.Pathfinding
         {
             Dictionary<Vector2Int, LocalChunk> chunks =
                 Volatile.Read(ref _localChunks);
-            if (!ContainsCell(chunks, start) ||
-                !ContainsCell(chunks, destination))
-            {
-                snapshot = null;
-                return false;
-            }
-
             snapshot = CreateHintedSnapshot(
                 chunks,
                 start,
@@ -127,13 +127,6 @@ namespace Project.Scripts.Pathfinding
         {
             Dictionary<Vector2Int, LocalChunk> chunks =
                 Volatile.Read(ref _localChunks);
-            if (!ContainsCell(chunks, start) ||
-                !ContainsCell(chunks, destination))
-            {
-                snapshot = null;
-                return false;
-            }
-
             snapshot = CreateHintedSnapshot(
                 chunks,
                 start,
@@ -149,6 +142,62 @@ namespace Project.Scripts.Pathfinding
             return !DoorComponent.TryGetAt(worldCell, out DoorComponent door) ||
                    door.IsOpen ||
                    door.TryOpenFor(query);
+        }
+
+        public bool TryBeginAutomaticTraversal(string actorId,
+            Vector2Int worldCell, PathFindingQuery query)
+        {
+            if (string.IsNullOrWhiteSpace(actorId)) return false;
+            if (!DoorComponent.TryGetAt(worldCell, out DoorComponent door))
+                return true;
+
+            if (_automaticDoorPassages.TryGetValue(actorId,
+                    out AutomaticDoorPassage existing))
+            {
+                if (existing.Door == door && door.isActiveAndEnabled)
+                    return true;
+                existing.Door?.ReleaseAutomaticTraversal(actorId);
+                _automaticDoorPassages.Remove(actorId);
+            }
+
+            if (!door.TryAcquireAutomaticTraversal(actorId, query))
+                return false;
+            _automaticDoorPassages[actorId] =
+                new AutomaticDoorPassage(door);
+            return true;
+        }
+
+        public void UpdateAutomaticTraversal(string actorId,
+            Vector2Int currentCell)
+        {
+            if (string.IsNullOrWhiteSpace(actorId) ||
+                !_automaticDoorPassages.TryGetValue(actorId,
+                    out AutomaticDoorPassage passage)) return;
+            if (passage.Door == null || !passage.Door.isActiveAndEnabled ||
+                !DoorComponent.TryGetAt(passage.Door.WorldCell,
+                    out DoorComponent registered) || registered != passage.Door)
+            {
+                passage.Door?.ReleaseAutomaticTraversal(actorId);
+                _automaticDoorPassages.Remove(actorId);
+                return;
+            }
+            if (currentCell == passage.Door.WorldCell)
+            {
+                passage.Entered = true;
+                return;
+            }
+            if (!passage.Entered) return;
+            passage.Door.ReleaseAutomaticTraversal(actorId);
+            _automaticDoorPassages.Remove(actorId);
+        }
+
+        public void CancelAutomaticTraversal(string actorId)
+        {
+            if (string.IsNullOrWhiteSpace(actorId) ||
+                !_automaticDoorPassages.TryGetValue(actorId,
+                    out AutomaticDoorPassage passage)) return;
+            passage.Door?.ReleaseAutomaticTraversal(actorId);
+            _automaticDoorPassages.Remove(actorId);
         }
 
         public float GetEffectiveTraversalCost(
@@ -256,7 +305,6 @@ namespace Project.Scripts.Pathfinding
                     bool walkable = copy.Walkable[index];
                     float cost = copy.TraversalCosts[index];
                     ApplyCachedQueryHints(
-                        pair.Key,
                         source,
                         index,
                         query,
@@ -267,7 +315,7 @@ namespace Project.Scripts.Pathfinding
                 }
             }
 
-            return new LocalSnapshot(captured);
+            return new LocalSnapshot(captured, _worldGeneration);
         }
 
         private void ApplyLoadedCellHints(
@@ -292,7 +340,6 @@ namespace Project.Scripts.Pathfinding
             walkable = local.HintWalkable[index];
             traversalCost = local.HintTraversalCosts[index];
             ApplyCachedQueryHints(
-                chunkPosition,
                 local,
                 index,
                 query,
@@ -315,7 +362,7 @@ namespace Project.Scripts.Pathfinding
                 local.TraversalCosts,
                 local.HintTraversalCosts,
                 local.TraversalCosts.Length);
-            Array.Clear(local.DoorCells, 0, local.DoorCells.Length);
+            Array.Clear(local.Doors, 0, local.Doors.Length);
             Array.Clear(
                 local.GroundHazardImmunities,
                 0,
@@ -357,9 +404,9 @@ namespace Project.Scripts.Pathfinding
                     wall != null &&
                     wall.IsWall)
                 {
-                    if (DoorComponent.TryGetAt(cell2D, out _))
+                    if (DoorComponent.TryGetAt(cell2D, out DoorComponent door))
                     {
-                        local.DoorCells[index] = true;
+                        local.Doors[index] = door.CapturePathingState();
                         local.HintWalkable[index] = true;
                     }
                     else
@@ -413,7 +460,7 @@ namespace Project.Scripts.Pathfinding
                             Mathf.Clamp01(amount)));
                 }
 
-                if (local.DoorCells[index] ||
+                if (local.Doors[index].HasDoor ||
                     !string.IsNullOrWhiteSpace(
                         local.GroundHazardImmunities[index]) ||
                     !string.IsNullOrWhiteSpace(
@@ -427,23 +474,16 @@ namespace Project.Scripts.Pathfinding
         }
 
         private static void ApplyCachedQueryHints(
-            Vector2Int chunkPosition,
             LocalChunk local,
             int index,
             PathFindingQuery query,
             ref bool walkable,
             ref float traversalCost)
         {
-            if (local.DoorCells[index])
+            DoorPathingState door = local.Doors[index];
+            if (door.HasDoor)
             {
-                Vector2Int cell = new(
-                    chunkPosition.x * ChunkBuildResult.ChunkSize +
-                    index % ChunkBuildResult.ChunkSize,
-                    chunkPosition.y * ChunkBuildResult.ChunkSize +
-                    index / ChunkBuildResult.ChunkSize);
-                walkable =
-                    DoorComponent.TryGetAt(cell, out DoorComponent door) &&
-                    (door.IsOpen || door.AllowsFreeTraversal(query));
+                walkable = door.Allows(query);
                 if (!walkable)
                     traversalCost = float.PositiveInfinity;
             }
@@ -522,13 +562,6 @@ namespace Project.Scripts.Pathfinding
             }
         }
 
-        private static bool ContainsCell(
-            Dictionary<Vector2Int, LocalChunk> chunks,
-            Vector2Int cell)
-        {
-            return chunks.ContainsKey(ToChunkPosition(cell));
-        }
-
         private static bool TryGetLocalCell(
             Dictionary<Vector2Int, LocalChunk> chunks,
             Vector2Int cell,
@@ -570,7 +603,7 @@ namespace Project.Scripts.Pathfinding
             public readonly float[] TraversalCosts;
             public readonly bool[] HintWalkable;
             public readonly float[] HintTraversalCosts;
-            public readonly bool[] DoorCells;
+            public readonly DoorPathingState[] Doors;
             public readonly string[] GroundHazardImmunities;
             public readonly string[] CoverageHazardImmunities;
             public readonly List<int> ContextualIndices = new();
@@ -582,40 +615,60 @@ namespace Project.Scripts.Pathfinding
                 TraversalCosts = traversalCosts;
                 HintWalkable = new bool[walkable.Length];
                 HintTraversalCosts = new float[traversalCosts.Length];
-                DoorCells = new bool[walkable.Length];
+                Doors = new DoorPathingState[walkable.Length];
                 GroundHazardImmunities = new string[walkable.Length];
                 CoverageHazardImmunities = new string[walkable.Length];
             }
         }
 
+        private sealed class AutomaticDoorPassage
+        {
+            public readonly DoorComponent Door;
+            public bool Entered;
+
+            public AutomaticDoorPassage(DoorComponent door) => Door = door;
+        }
+
         private sealed class LocalSnapshot : IPathFindingMap
         {
             private readonly Dictionary<Vector2Int, LocalChunk> _chunks;
+            private readonly WorldGeneration _worldGeneration;
 
-            public LocalSnapshot(Dictionary<Vector2Int, LocalChunk> chunks)
+            public LocalSnapshot(Dictionary<Vector2Int, LocalChunk> chunks,
+                WorldGeneration worldGeneration)
             {
                 _chunks = chunks;
+                _worldGeneration = worldGeneration;
             }
 
             public bool IsWalkable(Vector2Int worldCell)
             {
-                return TryGetLocalCell(
-                           _chunks,
-                           worldCell,
-                           out LocalChunk chunk,
-                           out int index) &&
-                       chunk.Walkable[index];
+                if (TryGetLocalCell(
+                        _chunks,
+                        worldCell,
+                        out LocalChunk chunk,
+                        out int index))
+                    return chunk.Walkable[index];
+
+                return _worldGeneration
+                    .GetTerrainSample(worldCell.x, worldCell.y)
+                    .IsWalkable;
             }
 
             public float GetTraversalCost(Vector2Int worldCell)
             {
-                return TryGetLocalCell(
-                    _chunks,
-                    worldCell,
-                    out LocalChunk chunk,
-                    out int index)
-                    ? chunk.TraversalCosts[index]
-                    : float.PositiveInfinity;
+                if (TryGetLocalCell(
+                        _chunks,
+                        worldCell,
+                        out LocalChunk chunk,
+                        out int index))
+                    return chunk.TraversalCosts[index];
+
+                TerrainSample sample = _worldGeneration.GetTerrainSample(
+                    worldCell.x, worldCell.y);
+                if (!sample.IsWalkable)
+                    return float.PositiveInfinity;
+                return sample.isRoad ? 1f : sample.isTrail ? 1.1f : 1.25f;
             }
         }
     }

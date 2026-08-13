@@ -33,17 +33,20 @@ namespace Project.Scripts.DataTypes
         public readonly Object Chunk;
         public readonly EntityPersistenceKind PersistenceKind;
         public readonly AccessIdentity AccessIdentity;
+        public readonly bool UsesVillageDoorAccess;
 
         public NodeComponentSpawnContext(
             Object node,
             Object chunk,
             EntityPersistenceKind persistenceKind,
-            AccessIdentity accessIdentity = default)
+            AccessIdentity accessIdentity = default,
+            bool usesVillageDoorAccess = false)
         {
             Node = node;
             Chunk = chunk;
             PersistenceKind = persistenceKind;
             AccessIdentity = accessIdentity;
+            UsesVillageDoorAccess = usesVillageDoorAccess;
         }
     }
 }

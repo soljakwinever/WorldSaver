@@ -29,6 +29,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     }
 
     public int LoadedChunks => _loadedChunks.Count;
+    public int PendingChunkInitializations => _pendingInitializations.Count;
     public Vector2Int WorldSpawnPosition => worldGeneration.WorldSpawnPosition;
     public PlaneData CurrentPlane => planeSelection.Plane;
     public string CurrentPlaneId => planeSelection.PlaneId;
@@ -71,6 +72,10 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
 
     public int LoadDistance = 3;
 
+    [Header("Chunk Initialization")]
+    [SerializeField, Min(0.1f)]
+    private float chunkInitializationBudgetMilliseconds = 2f;
+
     [Header("Seasonal Color Refresh")]
     [SerializeField, Min(1)]
     private int biomeColorCellsPerChunkStep = 64;
@@ -86,8 +91,21 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     private readonly Queue<Chunk> _biomeColorRefreshQueue = new();
     private readonly HashSet<Vector2Int> _portalPinnedChunks = new();
     private readonly HashSet<Vector2Int> _transitPinnedChunks = new();
+    private readonly List<PendingChunkInitialization> _pendingInitializations = new();
     private float _biomeColorRefreshCellsPerSecond;
     private float _biomeColorRefreshCellAccumulator;
+
+    private sealed class PendingChunkInitialization
+    {
+        public readonly Chunk Chunk;
+        public readonly Vector2Int Position;
+
+        public PendingChunkInitialization(Chunk chunk, Vector2Int position)
+        {
+            Chunk = chunk;
+            Position = position;
+        }
+    }
 
     [Inject] private Chunk.Pool chunkPool;
 
@@ -141,6 +159,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
         DebugLogConsole.RemoveCommand(DebugPrintCurrentRegion);
         DebugLogConsole.RemoveCommand(ReloadChunks);
         DebugLogConsole.RemoveCommand<string>(DebugCreatePlanePortal);
+        while (_pendingInitializations.Count > 0)
+            CancelPendingInitialization(_pendingInitializations.Count - 1);
     }
 
     private void DebugPrintCurrentRegion()
@@ -323,12 +343,80 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     private void MapSignalBusOnChunkBuilt(ChunkBuildResult result)
     {
         Chunk chunk = chunkPool.Spawn(result);
-        _loadedChunks.Add(result.chunkPosition, new ChunkInstance {chunk = chunk});
-        mapSignalBus.RaiseChunkLoaded(result.chunkPosition, chunk);
+        _pendingInitializations.Add(
+            new PendingChunkInitialization(chunk, result.chunkPosition));
+    }
+
+    private void ProcessChunkInitializations()
+    {
+        if (_pendingInitializations.Count == 0)
+            return;
+
+        Vector2 trackedPosition = track != null ? track.position : Vector2.zero;
+        Vector2 centerOffset = Vector2.one *
+                               (ChunkBuildResult.ChunkSize * 0.5f);
+        _pendingInitializations.Sort((left, right) =>
+        {
+            Vector2 leftCenter = (Vector2)left.Position *
+                                 ChunkBuildResult.ChunkSize + centerOffset;
+            Vector2 rightCenter = (Vector2)right.Position *
+                                  ChunkBuildResult.ChunkSize + centerOffset;
+            return (leftCenter - trackedPosition).sqrMagnitude.CompareTo(
+                (rightCenter - trackedPosition).sqrMagnitude);
+        });
+
+        double deadline = Time.realtimeSinceStartupAsDouble +
+                          chunkInitializationBudgetMilliseconds / 1000d;
+        int index = 0;
+        do
+        {
+            if (index >= _pendingInitializations.Count)
+                index = 0;
+
+            PendingChunkInitialization pending = _pendingInitializations[index];
+            if (!ShouldLoadChunk(pending.Position))
+            {
+                CancelPendingInitialization(index);
+                continue;
+            }
+
+            ChunkInitializationStatus status = pending.Chunk.AdvanceInit(deadline);
+            if (status == ChunkInitializationStatus.InProgress)
+            {
+                index++;
+                continue;
+            }
+
+            _pendingInitializations.RemoveAt(index);
+            if (status == ChunkInitializationStatus.Failed)
+            {
+                worldTilemapRenderer.RemoveChunk(pending.Position);
+                chunkPool.Despawn(pending.Chunk);
+                chunkGenerator.ChunkUnloaded(pending.Position);
+                continue;
+            }
+
+            _loadedChunks.Add(
+                pending.Position,
+                new ChunkInstance { chunk = pending.Chunk });
+            mapSignalBus.RaiseChunkLoaded(pending.Position, pending.Chunk);
+        } while (_pendingInitializations.Count > 0 &&
+                 Time.realtimeSinceStartupAsDouble < deadline);
+    }
+
+    private void CancelPendingInitialization(int index)
+    {
+        PendingChunkInitialization pending = _pendingInitializations[index];
+        _pendingInitializations.RemoveAt(index);
+        worldTilemapRenderer.RemoveChunk(pending.Position);
+        chunkPool.Despawn(pending.Chunk);
+        chunkGenerator.ChunkUnloaded(pending.Position);
     }
 
     public void ReloadChunks()
     {
+        while (_pendingInitializations.Count > 0)
+            CancelPendingInitialization(_pendingInitializations.Count - 1);
         UnloadChunks(new List<Vector2Int>(_loadedChunks.Keys));
         TouchChunks();
     }
@@ -473,6 +561,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     // Update is called once per frame
     void Update()
     {
+        ProcessChunkInitializations();
         ProcessBiomeColorRefresh();
 
         tickTimer += Time.deltaTime;

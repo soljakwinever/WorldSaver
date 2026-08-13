@@ -1,11 +1,13 @@
 using Project.Scripts.Gameplay;
+using Project.Scripts.Interface;
 using Project.Scripts.DataTypes;
 using Project.Scripts.TimeAndWeather;
 using UnityEngine;
 
 namespace Project.Scripts
 {
-    public sealed class RoomIndoorWeatherMask : IIndoorWeatherMask
+    public sealed class RoomIndoorWeatherMask : IIndoorWeatherMask,
+        IIndoorLocationService
     {
         private readonly RoomDetectionSystem _rooms;
         private readonly Grid _grid;
@@ -69,6 +71,28 @@ namespace Project.Scripts
 
             Vector3Int cell = _grid.WorldToCell(worldPosition);
             return _rooms.TryGetRoom(cell, out _);
+        }
+
+        public bool TryFindNearestIndoorPosition(Vector2 origin,
+            Vector2 areaCenter, float areaRadius, out Vector2 position)
+        {
+            position = default;
+            if (_rooms == null) return false;
+            float radiusSquared = Mathf.Max(0f, areaRadius) *
+                                  Mathf.Max(0f, areaRadius);
+            float best = float.PositiveInfinity;
+            foreach (Room room in _rooms.Rooms)
+                foreach (Vector3Int cell in room.InteriorCells)
+                {
+                    Vector2 candidate = new(cell.x + 0.5f, cell.y + 0.5f);
+                    if ((candidate - areaCenter).sqrMagnitude > radiusSquared)
+                        continue;
+                    float distance = (candidate - origin).sqrMagnitude;
+                    if (distance >= best) continue;
+                    best = distance;
+                    position = candidate;
+                }
+            return !float.IsPositiveInfinity(best);
         }
     }
 }

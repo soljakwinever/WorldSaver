@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fc1bd44f627541f4bb26a31878c026a1, type: 3}
-  m_Name: Zombie Conditional Skills
+  m_Name: Skeleton
   m_EditorClassIdentifier: Playwinever.AI::Project.Scripts.AI.AiNodeData
   _root:
     rid: 1001
@@ -20,23 +20,28 @@ MonoBehaviour:
     - rid: 1001
       type: {class: RootNode, ns: Project.Scripts.AI, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         firstChild:
           rid: 1002
     - rid: 1002
       type: {class: ReactiveSelector, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         children:
         - rid: 1003
         - rid: 1010
     - rid: 1003
       type: {class: ReactiveSequence, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         children:
         - rid: 1004
+        - rid: 4542294991362326763
         - rid: 1005
     - rid: 1004
       type: {class: DetectNearby, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         distance: 8
         layerMask:
           serializedVersion: 2
@@ -45,26 +50,31 @@ MonoBehaviour:
     - rid: 1005
       type: {class: ReactiveSelector, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         children:
         - rid: 1006
         - rid: 1009
     - rid: 1006
       type: {class: SequenceNode, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         children:
         - rid: 1007
         - rid: 1008
     - rid: 1007
       type: {class: EvaluateConditionalSkills, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
-      data: {}
+      data:
+        _floatBindings: []
     - rid: 1008
       type: {class: AttackWithConditionalSkill, ns: Project.Scripts.AI.Leaves.Actions, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         targetKey: 1
         maximumRange: 8
     - rid: 1009
       type: {class: MoveToTarget, ns: Project.Scripts.AI.Leaves.Actions, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         targetKey: 1
         movementSpeed: 2
         arrivalTolerance: 0.08
@@ -73,8 +83,18 @@ MonoBehaviour:
     - rid: 1010
       type: {class: Wander, ns: Project.Scripts.AI.Leaves.Actions, asm: Playwinever.AI}
       data:
+        _floatBindings: []
         radius: 4
         movementSpeed: 2
         arrivalTolerance: 0.08
         candidateAttempts: 16
         maximumVisitedTiles: 4096
+    - rid: 4542294991362326763
+      type: {class: HasLineOfSight, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        fromKey: 0
+        toKey: 1
+        blockingLayers:
+          serializedVersion: 2
+          m_Bits: 64

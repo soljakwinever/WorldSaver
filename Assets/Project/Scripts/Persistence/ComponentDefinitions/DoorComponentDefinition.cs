@@ -63,7 +63,9 @@ namespace Project.Scripts.Persistence
                 configuration.startsOpen,
                 configuration.openPrompt,
                 configuration.closePrompt,
-                configuration.accessPolicy,
+                context.UsesVillageDoorAccess
+                    ? DoorAccessPolicy.Village
+                    : configuration.accessPolicy,
                 context.AccessIdentity,
                 configuration.startsLocked,
                 configuration.lockpickDifficulty,

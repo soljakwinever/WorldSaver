@@ -1,5 +1,6 @@
 using System;
 using Project.Scripts.AI.GraphEditor;
+using Project.Scripts.Interface;
 using UnityEngine;
 
 namespace Project.Scripts.AI.Leaves.Sensors
@@ -72,6 +73,23 @@ namespace Project.Scripts.AI.Leaves.Sensors
                 nearestDistanceSquared = candidateDistanceSquared;
             }
 
+            if (string.Equals(tag, "Player", StringComparison.Ordinal))
+            {
+                foreach (IEnemyTarget registered in EnemyTargetRegistry.All)
+                {
+                    GameObject candidateObject = registered?.TargetObject;
+                    if (candidateObject == null || !candidateObject.activeInHierarchy)
+                        continue;
+                    float candidateDistanceSquared =
+                        (candidateObject.transform.position - self.transform.position).sqrMagnitude;
+                    if (candidateDistanceSquared > distance * distance ||
+                        candidateDistanceSquared >= nearestDistanceSquared)
+                        continue;
+                    nearest = candidateObject;
+                    nearestDistanceSquared = candidateDistanceSquared;
+                }
+            }
+
             if (nearest != null)
             {
                 Blackboard.Set<Transform>(
@@ -85,8 +103,25 @@ namespace Project.Scripts.AI.Leaves.Sensors
             return state;
         }
 
-        private bool IsMatchingTarget(GameObject candidate) =>
-            candidate != null &&
-            (string.IsNullOrWhiteSpace(tag) || candidate.CompareTag(tag));
+        private bool IsMatchingTarget(GameObject candidate)
+        {
+            if (candidate == null)
+                return false;
+            if (string.IsNullOrWhiteSpace(tag) || candidate.CompareTag(tag))
+                return true;
+
+            // Existing hostile trees search for the Player tag. Villager ECS
+            // bridges deliberately retain the NPC tag but opt into the same
+            // enemy target group through this marker.
+            if (!string.Equals(tag, "Player", StringComparison.Ordinal))
+                return false;
+
+            MonoBehaviour[] behaviours =
+                candidate.GetComponentsInParent<MonoBehaviour>(true);
+            foreach (MonoBehaviour behaviour in behaviours)
+                if (behaviour is Project.Scripts.Interface.IEnemyTarget)
+                    return true;
+            return false;
+        }
     }
 }

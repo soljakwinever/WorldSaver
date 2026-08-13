@@ -38,7 +38,10 @@ namespace Project.Scripts.Persistence
                 configuration.toolType,
                 configuration.itemData,
                 configuration.minimumItemsSpawned,
-                configuration.maximumItemsSpawned);
+                configuration.maximumItemsSpawned,
+                configuration.useRarity,
+                ItemData.Rarity.Common,
+                configuration.destroyOnPickup);
         }
     }
 }

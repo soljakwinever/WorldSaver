@@ -226,6 +226,83 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void VillagerServiceQueuesOneBatchAndCollectsItsOutput()
+        {
+            EntityTag fuelTag = CreateTag();
+            ItemData fuel = CreateItem("fuel", 20, fuelTag);
+            ItemData ingredient = CreateItem("raw-food", 20);
+            ItemData output = CreateItem("cooked-food", 20);
+            CraftingRecipeData recipe = CreateRecipe(ingredient, 2, output);
+            FurnaceComponent furnace = new GameObject("Furnace")
+                .AddComponent<FurnaceComponent>();
+            _objects.Add(furnace.gameObject);
+            furnace.Initialize(
+                "Furnace",
+                "Use furnace",
+                fuelTag,
+                CreateRecipeList(recipe),
+                2,
+                10,
+                1);
+
+            Inventory stockpile = new(3);
+            stockpile.TryAdd(fuel, 3, out _);
+            stockpile.TryAdd(ingredient, 4, out _);
+
+            Assert.That(
+                furnace.TryQueueRecipe(recipe, stockpile, out string reason),
+                Is.True,
+                reason);
+            Assert.That(stockpile.GetCount(
+                ingredient, ItemData.Rarity.Common), Is.EqualTo(2));
+            Assert.That(stockpile.GetCount(
+                fuel, ItemData.Rarity.Common), Is.EqualTo(2));
+            Assert.That(furnace.IngredientInventory.GetCount(ingredient),
+                Is.EqualTo(2));
+
+            furnace.SimulateOffline(
+                0, 10, OfflineSimulationPolicy.CatchUp);
+            Assert.That(
+                furnace.TryCollectAll(stockpile, out int collected),
+                Is.True);
+            Assert.That(collected, Is.EqualTo(1));
+            Assert.That(stockpile.GetCount(
+                output, ItemData.Rarity.Common), Is.EqualTo(1));
+            Assert.That(furnace.OutputInventory.OccupiedSlots, Is.Zero);
+        }
+
+        [Test]
+        public void VillagerServiceWithoutFuelDoesNotConsumeIngredients()
+        {
+            EntityTag fuelTag = CreateTag();
+            ItemData ingredient = CreateItem("raw-food", 20);
+            ItemData output = CreateItem("cooked-food", 20);
+            CraftingRecipeData recipe = CreateRecipe(ingredient, 2, output);
+            FurnaceComponent furnace = new GameObject("Furnace")
+                .AddComponent<FurnaceComponent>();
+            _objects.Add(furnace.gameObject);
+            furnace.Initialize(
+                "Furnace",
+                "Use furnace",
+                fuelTag,
+                CreateRecipeList(recipe),
+                2,
+                10,
+                1);
+            Inventory stockpile = new(1);
+            stockpile.TryAdd(ingredient, 2, out _);
+
+            Assert.That(
+                furnace.TryQueueRecipe(recipe, stockpile, out string reason),
+                Is.False);
+            Assert.That(reason, Does.Contain("fuel"));
+            Assert.That(stockpile.GetCount(
+                ingredient, ItemData.Rarity.Common), Is.EqualTo(2));
+            Assert.That(furnace.IngredientInventory.OccupiedSlots, Is.Zero);
+            Assert.That(furnace.FuelInventory.OccupiedSlots, Is.Zero);
+        }
+
+        [Test]
         public void InvalidSavedIngredientDiscardsFurnaceWithoutThrowing()
         {
             EntityTag fuelTag = CreateTag();

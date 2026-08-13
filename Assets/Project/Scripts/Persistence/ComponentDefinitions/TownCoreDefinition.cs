@@ -1,5 +1,6 @@
 using System;
 using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Gameplay;
 using UnityEngine;
 using Zenject;
@@ -15,6 +16,10 @@ namespace Project.Scripts.Persistence
         [Min(0f)] public float spawnPointOffset = 1.25f;
         [Min(1)] public int maximumHealth = 250;
         [Min(1)] public int offeringInventorySize = 16;
+        [Min(1)] public int stockpileInventorySize = 32;
+        [Tooltip("Food granted for each resident joining a procedurally generated town.")]
+        public ItemData starterFoodItem;
+        [Min(0)] public int starterFoodPerResident = 2;
         [Min(0f)] public float townRadius = 12f;
         [Min(0f)] public float resourceRadius = 30f;
         [Min(0)] public int maximumPopulation = 10;
@@ -56,9 +61,26 @@ namespace Project.Scripts.Persistence
                 1,
                 configuration.offeringInventorySize));
 
+            TownStockpile stockpile = host.GetComponent<TownStockpile>();
+            if (stockpile == null)
+                stockpile = container.InstantiateComponent<TownStockpile>(host);
+            stockpile.Initialize(Math.Max(1, configuration.stockpileInventorySize));
+
+            if (host.GetComponent<TownJobBoard>() == null)
+                container.InstantiateComponent<TownJobBoard>(host);
+            if (host.GetComponent<TownConstructionQueue>() == null)
+                container.InstantiateComponent<TownConstructionQueue>(host);
+
             TownCore component = host.GetComponent<TownCore>();
             if (component == null)
                 component = container.InstantiateComponent<TownCore>(host);
+
+            // Discovery components resolve TownCore during Awake, so install
+            // them only after the injected TownCore exists on the host.
+            if (host.GetComponent<TownWorkDiscovery>() == null)
+                container.InstantiateComponent<TownWorkDiscovery>(host);
+            if (host.GetComponent<VillagerResourceDiscovery>() == null)
+                container.InstantiateComponent<VillagerResourceDiscovery>(host);
 
             component.Initialize(
                 configuration.initialName,
@@ -74,7 +96,10 @@ namespace Project.Scripts.Persistence
                 configuration.upgrades,
                 configuration.windowTitle,
                 configuration.interactionPrompt,
-                configuration.spawnPointOffset);
+                configuration.spawnPointOffset,
+                context.PersistenceKind == EntityPersistenceKind.Procedural,
+                configuration.starterFoodItem,
+                configuration.starterFoodPerResident);
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Project.Scripts.Core;
+using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
@@ -18,6 +19,7 @@ namespace Project.Scripts.Gameplay
     {
         public const ushort TypeId = 14;
         private const ushort CurrentVersion = 1;
+        private const float ResourceSearchRadiusBonus = 3f;
 
         [Header("Identity")]
         [SerializeField] private string townName = "New Village";
@@ -33,6 +35,9 @@ namespace Project.Scripts.Gameplay
 
         [Header("Population")]
         [SerializeField, Min(0)] private int baseMaxPopulation = 10;
+        [SerializeField] private bool grantsProceduralStarterFood;
+        [SerializeField] private ItemData starterFoodItem;
+        [SerializeField, Min(0)] private int starterFoodPerResident = 2;
 
         [Header("Mana")]
         [SerializeField, Min(0f)] private float manaPool;
@@ -55,6 +60,8 @@ namespace Project.Scripts.Gameplay
 
         private PersistentInventory _inventory;
         private PersistentHealth _health;
+        private TownStockpile _stockpile;
+        private TownJobBoard _jobBoard;
         private IWorldClock _clock;
         private IComponentWindowService _windowService;
         private long _lastTick;
@@ -81,6 +88,22 @@ namespace Project.Scripts.Gameplay
         public Vector3 Position => transform.position;
         public IReadOnlyList<GameObject> Buildings => _buildings;
         public IInventory OfferingInventory => ResolveInventory();
+        public IInventory StockpileInventory
+        {
+            get
+            {
+                ResolveComponents();
+                return _stockpile;
+            }
+        }
+        public ITownJobBoard JobBoard
+        {
+            get
+            {
+                ResolveComponents();
+                return _jobBoard;
+            }
+        }
         public IReadOnlyCollection<string> ResidentIds => _residentIds;
         public IReadOnlyCollection<string> ActiveEffectIds => _activeEffectIds;
         public IReadOnlyList<TownEffect> AvailableEffects => availableEffects;
@@ -105,7 +128,8 @@ namespace Project.Scripts.Gameplay
         public float TownRadius =>
             townRadius + SumUpgrade(x => x.TownRadiusIncrease);
         public float ResourceRadius =>
-            resourceRadius + SumUpgrade(x => x.ResourceRadiusIncrease);
+            resourceRadius + SumUpgrade(x => x.ResourceRadiusIncrease) +
+            ResourceSearchRadiusBonus;
         public int MaxPopulation =>
             baseMaxPopulation + SumUpgrade(x => x.PopulationCapacityIncrease);
         public float MaxMana =>
@@ -135,7 +159,10 @@ namespace Project.Scripts.Gameplay
             TownUpgradeDefinition[] upgradeDefinitions,
             string title = "Town Core",
             string prompt = "Visit town shrine",
-            float playerSpawnOffset = 1.25f)
+            float playerSpawnOffset = 1.25f,
+            bool grantStarterFood = false,
+            ItemData configuredStarterFood = null,
+            int configuredStarterFoodPerResident = 0)
         {
             townName = NormalizeName(initialName);
             windowTitle = string.IsNullOrWhiteSpace(title)
@@ -148,6 +175,11 @@ namespace Project.Scripts.Gameplay
             townRadius = Mathf.Max(0f, initialTownRadius);
             resourceRadius = Mathf.Max(townRadius, initialResourceRadius);
             baseMaxPopulation = Math.Max(0, maximumPopulation);
+            grantsProceduralStarterFood = grantStarterFood;
+            starterFoodItem = configuredStarterFood;
+            starterFoodPerResident = Math.Max(
+                0,
+                configuredStarterFoodPerResident);
             baseMaxMana = Mathf.Max(0f, maximumMana);
             passiveManaPerTick = Mathf.Max(0f, manaPerTick);
             ticksPerOffering = Math.Max(1, offeringIntervalTicks);
@@ -412,13 +444,44 @@ namespace Project.Scripts.Gameplay
                 Population >= MaxPopulation)
                 return false;
 
-            return _residentIds.Add(persistentId);
+            if (!_residentIds.Add(persistentId))
+                return false;
+
+            if (grantsProceduralStarterFood && starterFoodItem != null &&
+                starterFoodPerResident > 0)
+            {
+                ResolveComponents();
+                if (_stockpile == null ||
+                    !_stockpile.TryAdd(
+                        starterFoodItem,
+                        starterFoodPerResident,
+                        out int remainder) ||
+                    remainder != 0)
+                {
+                    Debug.LogWarning(
+                        $"Town '{townName}' could not store all starter food " +
+                        $"for resident '{persistentId}'.",
+                        this);
+                }
+            }
+            return true;
         }
 
         public bool UnregisterResident(string persistentId)
         {
             return !string.IsNullOrWhiteSpace(persistentId) &&
                    _residentIds.Remove(persistentId);
+        }
+
+        public bool TryIssueJob(TownJobRequest request, out long jobId)
+        {
+            ResolveComponents();
+            if (_jobBoard == null)
+            {
+                jobId = 0;
+                return false;
+            }
+            return _jobBoard.TryIssue(request, out jobId);
         }
 
         public bool SetEffectActive(string effectId, bool active)
@@ -589,6 +652,8 @@ namespace Project.Scripts.Gameplay
                 _health = GetComponent<PersistentHealth>();
             if (_health != null && _baseMaximumHealth <= 0)
                 _baseMaximumHealth = _health.MaxHealth;
+            _stockpile ??= GetComponent<TownStockpile>();
+            _jobBoard ??= GetComponent<TownJobBoard>();
         }
 
         private void ApplyHealthUpgrade()

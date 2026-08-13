@@ -9,6 +9,7 @@ using Project.Scripts.Persistence;
 using Project.Scripts.Pathfinding;
 using Project.Scripts.UI;
 using Project.Scripts.TimeAndWeather;
+using Project.Scripts.GameTime;
 using UnityEngine;
 using Zenject;
 
@@ -33,6 +34,8 @@ public class GameDataInstaller : MonoInstaller
             .To<CraftingService.UnityCraftingRandom>()
             .AsSingle();
         Container.Bind<ICraftingService>().To<CraftingService>().AsSingle();
+        Container.Bind<IVillagerWorldAdapter>()
+            .To<VillagerWorldAdapter>().AsSingle();
         Container.BindInterfacesAndSelfTo<ComponentWindowService>()
             .FromNewComponentOnNewGameObject()
             .AsSingle()
@@ -149,9 +152,14 @@ public class GameDataInstaller : MonoInstaller
             .FromComponentInHierarchy()
             .AsSingle();
         Container.BindInterfacesTo<PlayerGiveItemCommand>().AsSingle().NonLazy();
-        Container.Bind<ITimeController>()
+        Container.BindInterfacesTo<VillagerSpawnCommand>().AsSingle().NonLazy();
+        Container.BindInterfacesAndSelfTo<TimeController>()
             .FromComponentInHierarchy()
             .AsSingle();
+        Container.BindInterfacesAndSelfTo<VillagerNightService>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
         Container.BindInterfacesAndSelfTo<EventService>()
             .AsSingle()
             .NonLazy();
@@ -178,8 +186,7 @@ public class GameDataInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<TileCoverageSystem>()
             .AsSingle()
             .NonLazy();
-        Container.Bind<IIndoorWeatherMask>()
-            .To<RoomIndoorWeatherMask>()
+        Container.BindInterfacesAndSelfTo<RoomIndoorWeatherMask>()
             .AsSingle();
         Container.BindInterfacesAndSelfTo<WeatherEffectPresenter>()
             .AsSingle()

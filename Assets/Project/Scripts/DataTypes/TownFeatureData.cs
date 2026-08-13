@@ -10,6 +10,11 @@ namespace Project.Scripts.DataTypes
         [Header("Town Entities")]
         public NodeData townCoreEntity;
         public NodeData doorEntity;
+        public NodeData bedEntity;
+        public NodeData torchEntity;
+        public NodeData campfireEntity;
+        public NodeData furnaceEntity;
+        public NodeData villagerEntity;
 
         [Header("Town Surfaces")]
         public TileData streetTile;
@@ -88,13 +93,20 @@ namespace Project.Scripts.DataTypes
         public readonly NodeData entity;
         public readonly Vector2Int localCell;
         public readonly string generatedName;
+        public readonly string ownerPlacementId;
+        public readonly bool usesVillageDoorAccess;
 
-        public TownEntityPlacement(string id, NodeData entity, Vector2Int localCell, string generatedName = null)
+        public TownEntityPlacement(string id, NodeData entity,
+            Vector2Int localCell, string generatedName = null,
+            string ownerPlacementId = null,
+            bool usesVillageDoorAccess = false)
         {
             this.id = id;
             this.entity = entity;
             this.localCell = localCell;
             this.generatedName = generatedName;
+            this.ownerPlacementId = ownerPlacementId;
+            this.usesVillageDoorAccess = usesVillageDoorAccess;
         }
     }
 
@@ -211,6 +223,14 @@ namespace Project.Scripts.DataTypes
             string townName = town.GenerateTownName(seed);
             if (town.townCoreEntity != null)
                 layout.AddEntity(new TownEntityPlacement("TownCore", town.townCoreEntity, Vector2Int.zero, townName));
+            if (town.campfireEntity != null)
+                layout.AddEntity(new TownEntityPlacement(
+                    "TownCampfire", town.campfireEntity,
+                    new Vector2Int(-Mathf.Max(2, plazaRadius - 1), 0)));
+            if (town.furnaceEntity != null)
+                layout.AddEntity(new TownEntityPlacement(
+                    "TownFurnace", town.furnaceEntity,
+                    new Vector2Int(0, Mathf.Max(2, plazaRadius - 1))));
             return layout;
         }
 
@@ -248,6 +268,22 @@ namespace Project.Scripts.DataTypes
                 layout.SetCell(walkway, TownCellKind.Street);
                 walkway += outward;
             }
+
+            string villagerId = $"Building{index}:Villager";
+            if (town.bedEntity != null)
+                layout.AddEntity(new TownEntityPlacement(
+                    $"Building{index}:Bed", town.bedEntity,
+                    new Vector2Int(bounds.xMin + 1, bounds.yMin + 1),
+                    ownerPlacementId: town.villagerEntity != null
+                        ? villagerId : null));
+            if (town.torchEntity != null)
+                layout.AddEntity(new TownEntityPlacement(
+                    $"Building{index}:Torch", town.torchEntity,
+                    new Vector2Int(bounds.xMax - 2, bounds.yMax - 2)));
+            if (town.villagerEntity != null && town.bedEntity != null)
+                layout.AddEntity(new TownEntityPlacement(
+                    villagerId, town.villagerEntity,
+                    new Vector2Int(bounds.xMin + 2, bounds.yMin + 1)));
 
             if (Range(seed, 300 + index, 0, 999) >= extraRoomChance * 1000f || bounds.width < 8)
                 return;
@@ -323,7 +359,9 @@ namespace Project.Scripts.DataTypes
         {
             layout.SetCell(cell, TownCellKind.Door);
             if (town.doorEntity != null)
-                layout.AddEntity(new TownEntityPlacement(id, town.doorEntity, cell));
+                layout.AddEntity(new TownEntityPlacement(
+                    id, town.doorEntity, cell,
+                    usesVillageDoorAccess: true));
         }
     }
 

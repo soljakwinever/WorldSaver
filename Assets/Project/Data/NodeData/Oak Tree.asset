@@ -25,6 +25,7 @@ MonoBehaviour:
   lightnessVariance: 2
   persistentComponents:
   - rid: 4542294929125933529
+  - rid: 4542294991362326793
   droppedItem: {fileID: 0}
   dropChance: 1
   tags: []
@@ -44,3 +45,14 @@ MonoBehaviour:
         height: 1
         xOffset: 0
         yOffset: 0
+    - rid: 4542294991362326793
+      type: {class: HarvestableComponentData, ns: Project.Scripts.Persistence, asm: Assembly-CSharp}
+      data:
+        componentDefinition: {fileID: 11400000, guid: 07b8fd19ba6c5dd41bbf0403b5d2c7dd, type: 2}
+        interactionType: 1
+        toolType: 1
+        itemData: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
+        minimumItemsSpawned: 8
+        maximumItemsSpawned: 16
+        useRarity: 1
+        destroyOnPickup: 1

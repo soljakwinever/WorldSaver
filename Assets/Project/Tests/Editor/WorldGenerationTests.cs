@@ -148,6 +148,56 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void TownSurfaceOverrideClearsUnderlyingWaterAndCliffNavigation()
+        {
+            TownFeatureData village = ScriptableObject.CreateInstance<TownFeatureData>();
+            try
+            {
+                village.persistentId = "town-navigation-test";
+                village.guaranteeNearWorldSpawn = true;
+                village.minimumSpawnDistanceRegions = 1;
+                village.maximumSpawnDistanceRegions = 1;
+                village.requireLand = false;
+                _preset.features.features = new FeatureData[] { village };
+
+                WorldGeneration generator = new(
+                    _worldData,
+                    new WorldGenerationSelection(_worldData.seed, _preset),
+                    null);
+                _ = generator.WorldSpawnPosition;
+                Assert.That(generator.TryGetGuaranteedTownPosition(
+                    out Vector2 townPosition), Is.True);
+
+                Vector2Int plaza = Vector2Int.RoundToInt(townPosition);
+                TileData floor = null;
+                float height = generator.Elevation.waterHeight - 0.1f;
+                TerrainKind terrain = TerrainKind.Wall;
+                ChunkBuildResult.IsCliff cliff =
+                    new ChunkBuildResult.IsCliff(true, true);
+                bool isRoad = false;
+
+                generator.ApplyTownCell(
+                    plaza.x,
+                    plaza.y,
+                    ref floor,
+                    ref height,
+                    ref terrain,
+                    ref cliff,
+                    ref isRoad);
+
+                Assert.That(terrain, Is.EqualTo(TerrainKind.Floor));
+                Assert.That((bool)cliff, Is.False);
+                Assert.That(height,
+                    Is.GreaterThan(generator.Elevation.waterHeight));
+                Assert.That(isRoad, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(village);
+            }
+        }
+
+        [Test]
         public void GetTileReturnsDeterministicPopulatedOutputs()
         {
             int firstTile = _generator.GetTile(37, -19, out BiomeBlend firstBiome,

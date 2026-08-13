@@ -2058,6 +2058,7 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         int x,
         int y,
         ref TileData floorTile,
+        ref float height,
         ref TerrainKind terrainKind,
         ref ChunkBuildResult.IsCliff cliff,
         ref bool isRoad)
@@ -2069,12 +2070,14 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         {
             case TownCellKind.Street:
                 floorTile = town.streetTile ?? floorTile;
+                height = Mathf.Max(height, elevationLayer.waterHeight + 0.001f);
                 terrainKind = TerrainKind.Floor;
                 cliff = default;
                 isRoad = true;
                 break;
             case TownCellKind.TownCorePlaza:
                 floorTile = town.townCorePlazaTile ?? town.streetTile ?? floorTile;
+                height = Mathf.Max(height, elevationLayer.waterHeight + 0.001f);
                 terrainKind = TerrainKind.Floor;
                 cliff = default;
                 isRoad = true;
@@ -2082,11 +2085,13 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
             case TownCellKind.BuildingFloor:
             case TownCellKind.Door:
                 floorTile = town.buildingFloorTile ?? floorTile;
+                height = Mathf.Max(height, elevationLayer.waterHeight + 0.001f);
                 terrainKind = TerrainKind.Floor;
                 cliff = default;
                 break;
             case TownCellKind.AlternateLot:
                 floorTile = town.alternateLotTile ?? town.buildingFloorTile ?? floorTile;
+                height = Mathf.Max(height, elevationLayer.waterHeight + 0.001f);
                 terrainKind = TerrainKind.Floor;
                 cliff = default;
                 break;
@@ -2751,27 +2756,57 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
                 (candidate.position - instance.center).sqrMagnitude <= clearRadiusSquared);
             TownLayout layout = GetTownLayout(instance);
             IReadOnlyList<TownEntityPlacement> townEntities = layout.Entities;
-            for (int entityIndex = 0; entityIndex < townEntities.Count; entityIndex++)
+            var generatedIds = new Dictionary<string, NodeId>(
+                StringComparer.Ordinal);
+            var generatedCells = new Vector2Int[townEntities.Count];
+            for (int entityIndex = 0; entityIndex < townEntities.Count;
+                 entityIndex++)
             {
                 TownEntityPlacement placement = townEntities[entityIndex];
-                if (placement.entity == null)
-                    continue;
                 Vector2 local = placement.localCell;
                 Vector2 position = instance.center + new Vector2(
                     local.x * cosine - local.y * sine,
                     local.x * sine + local.y * cosine);
                 Vector2Int worldCell = Vector2Int.RoundToInt(position);
+                generatedCells[entityIndex] = worldCell;
+                string placementId =
+                    $"Town:{instance.feature.persistentId}:{placement.id}";
+                generatedIds[placement.id] = NodeId.Create(
+                    seed,
+                    worldCell,
+                    NodeId.CreateGeneratorType(placementId),
+                    (ushort)Mathf.Clamp(entityIndex, 0, ushort.MaxValue));
+            }
+            for (int entityIndex = 0; entityIndex < townEntities.Count; entityIndex++)
+            {
+                TownEntityPlacement placement = townEntities[entityIndex];
+                if (placement.entity == null)
+                    continue;
+                Vector2Int worldCell = generatedCells[entityIndex];
                 if (WorldPartition.WorldToChunk(worldCell) != chunkPosition)
                     continue;
                 string placementId = $"Town:{instance.feature.persistentId}:{placement.id}";
+                AccessIdentity accessIdentity = default;
+                bool usesVillageDoorAccess =
+                    placement.usesVillageDoorAccess &&
+                    generatedIds.ContainsKey("TownCore");
+                if (usesVillageDoorAccess &&
+                    generatedIds.TryGetValue("TownCore", out NodeId townCoreId))
+                {
+                    accessIdentity = new AccessIdentity(
+                        string.Empty, townCoreId.ToString(), string.Empty);
+                }
+                else if (!string.IsNullOrWhiteSpace(placement.ownerPlacementId) &&
+                    generatedIds.TryGetValue(placement.ownerPlacementId,
+                        out NodeId ownerId))
+                {
+                    accessIdentity = new AccessIdentity(
+                        ownerId.ToString(), string.Empty, string.Empty);
+                }
                 entities.RemoveAll(candidate => candidate.worldPosition == worldCell);
                 entities.Add(new PropSpawnData
                 {
-                    NodeId = NodeId.Create(
-                        seed,
-                        worldCell,
-                        NodeId.CreateGeneratorType(placementId),
-                        (ushort)Mathf.Clamp(entityIndex, 0, ushort.MaxValue)),
+                    NodeId = generatedIds[placement.id],
                     worldPosition = worldCell,
                     propName = placementId,
                     nodeData = placement.entity,
@@ -2783,6 +2818,8 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
                     scale = 1f,
                     terrainSample = GetTerrainSample(worldCell.x, worldCell.y),
                     persistenceKind = EntityPersistenceKind.Procedural,
+                    accessIdentity = accessIdentity,
+                    usesVillageDoorAccess = usesVillageDoorAccess,
                     generatedTownName = placement.generatedName
                 });
             }

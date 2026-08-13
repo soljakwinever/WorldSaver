@@ -94,6 +94,7 @@ namespace Project.Scripts
         public TerrainSample terrainSample;
         public EntityPersistenceKind persistenceKind;
         public AccessIdentity accessIdentity;
+        public bool usesVillageDoorAccess;
         public bool damageImmune;
         public bool clearReservedAreaCoverage;
         public string generatedTownName;

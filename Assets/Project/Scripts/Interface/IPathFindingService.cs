@@ -135,4 +135,19 @@ namespace Project.Scripts.Interface
         bool TryLockpickCell(Vector2Int worldCell, int skill);
         bool IsBreachableCell(Vector2Int worldCell);
     }
+
+    /// <summary>
+    /// Coordinates doors opened temporarily by moving agents. Implementations
+    /// keep shared doors open until every registered agent has crossed.
+    /// </summary>
+    public interface IAutomaticDoorTraversalHandler
+    {
+        bool TryBeginAutomaticTraversal(
+            string actorId,
+            Vector2Int worldCell,
+            PathFindingQuery query);
+
+        void UpdateAutomaticTraversal(string actorId, Vector2Int currentCell);
+        void CancelAutomaticTraversal(string actorId);
+    }
 }

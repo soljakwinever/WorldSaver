@@ -50,6 +50,7 @@ namespace Project.Scripts.Gameplay
 
             this.generateRarity = generateRarity;
             this.rarity = rarity;
+            this.despawnOnHarvest = despawnOnHarvest;
         }
 
         public Vector3 GetPosition() => transform.position;
@@ -103,5 +104,8 @@ namespace Project.Scripts.Gameplay
         }
 
         public IPersistentEntity PersistentEntity { get; set; }
+        public ItemData OutputItem => itemData;
+        public int MinimumOutput => Mathf.Max(1, minItemsCreated);
+        public int MaximumOutput => Mathf.Max(MinimumOutput, maxItemsCreated);
     }
 }

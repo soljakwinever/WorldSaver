@@ -1,0 +1,15 @@
+{
+  "name": "Playwinever.Entities",
+  "rootNamespace": "",
+  "references": [
+    "GUID:01774982fb3f4e5ba026295d79692e5d",
+    "Unity.Entities",
+    "Unity.Transforms",
+    "Unity.Mathematics",
+    "Unity.Collections",
+    "GUID:2665a8d13d1b3f18800f46e256720795",
+    "GUID:8819f35a0fc84499b990e90a4ca1911f",
+    "GUID:44dcb2bf5b9be4b5aa76674c8edcd1d5"
+  ],
+  "autoReferenced": true
+}

@@ -6,7 +6,16 @@ namespace Project.Scripts.Interface
     {
         public const int ChunkSize = 32;
 
-        public void Init(ChunkBuildResult result);
+        void BeginInit(ChunkBuildResult result);
+        ChunkInitializationStatus AdvanceInit(double deadline);
+        void CancelInit();
         Vector2Int Position { get; set; }
+    }
+
+    public enum ChunkInitializationStatus
+    {
+        InProgress,
+        Completed,
+        Failed
     }
 }

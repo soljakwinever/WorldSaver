@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
@@ -53,6 +55,27 @@ namespace Project.Scripts.Gameplay
         public Vector3 GetPosition()
         {
             return transform.position;
+        }
+
+        public IReadOnlyList<CraftingRecipeData> Recipes =>
+            recipeList?.Recipes ?? Array.Empty<CraftingRecipeData>();
+
+        public bool TryCraft(
+            CraftingRecipeData recipe,
+            IInventory source,
+            IInventory destination,
+            out CraftResult result)
+        {
+            if (_craftingService == null || recipe == null ||
+                !Recipes.Contains(recipe))
+            {
+                result = new CraftResult(
+                    false,
+                    CraftFailureReason.InvalidRecipe,
+                    Array.Empty<IItemStack>());
+                return false;
+            }
+            return _craftingService.TryCraft(recipe, source, destination, out result);
         }
 
         public bool CanInteract(InteractionContext context)
@@ -115,8 +138,17 @@ namespace Project.Scripts.Gameplay
             if (user == null)
                 return false;
 
-            inventory = user.GetComponentInParent<PersistentInventory>();
-            return inventory != null;
+            MonoBehaviour[] behaviours =
+                user.GetComponentsInParent<MonoBehaviour>(includeInactive: true);
+            foreach (MonoBehaviour behaviour in behaviours)
+            {
+                if (behaviour is IInventory found)
+                {
+                    inventory = found;
+                    return true;
+                }
+            }
+            return false;
         }
 
         private DefaultCraftingBenchLayout ResolveDefaultLayout()

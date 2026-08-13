@@ -8,7 +8,7 @@ using Zenject;
 
 namespace Project.Scripts.GameTime
 {
-    public class TimeController : MonoBehaviour, ITimeController
+    public class TimeController : MonoBehaviour, ITimeController, ITimeSkipController
     {
         [Inject] private WorldData _worldData;
         [Inject] private TimeSignalBus _timeSignalBus;
@@ -112,6 +112,18 @@ namespace Project.Scripts.GameTime
             {
                 AdvanceMonth();
             }
+        }
+
+        public void AdvanceToNextMorning(int morningHour = 7)
+        {
+            Initialize();
+            morningHour = Mathf.Clamp(morningHour, 0, HoursInDay - 1);
+            if (Hour >= morningHour)
+                AdvanceDay();
+
+            dayTime = morningHour / (float)HoursInDay * secondsPerDay;
+            _lastHour = morningHour;
+            _timeSignalBus.TriggerHourChanged(CreateTimeChangedArgs());
         }
 
         public void AdvanceMonth()

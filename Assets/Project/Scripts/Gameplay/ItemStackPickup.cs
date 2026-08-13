@@ -133,8 +133,17 @@ namespace Project.Scripts.Gameplay
             if (user == null)
                 return false;
 
-            inventory = user.GetComponentInParent<PersistentInventory>();
-            return inventory != null;
+            MonoBehaviour[] behaviours =
+                user.GetComponentsInParent<MonoBehaviour>(includeInactive: true);
+            foreach (MonoBehaviour behaviour in behaviours)
+            {
+                if (behaviour is IInventory found)
+                {
+                    inventory = found;
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void OnValidate()

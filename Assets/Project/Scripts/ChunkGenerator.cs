@@ -214,13 +214,6 @@ namespace Project.Scripts
                         out result.isCliff[index]);
                     
                     result.tileIndexes[index] = tileIndex;
-                    worldGeneration.ApplyTownCell(
-                        worldX,
-                        worldY,
-                        ref result.floorTiles[index],
-                        ref result.terrainKinds[index],
-                        ref result.isCliff[index],
-                        ref result.isRoad[index]);
                     if (result.isRoad[index] &&
                         result.floorTiles[index] == null &&
                         result.terrainKinds[index] == TerrainKind.Floor &&
@@ -312,6 +305,26 @@ namespace Project.Scripts
                             Mathf.Approximately(highestNeighbor, down) ||
                             Mathf.Approximately(highestNeighbor, up));
                 }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Town surfaces are authoritative terrain overrides. Apply them
+            // after cliff classification so the global terrain pass cannot
+            // silently turn a rendered house floor back into an unwalkable
+            // cliff (or leave it below the navigation water line).
+            for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
+            for (int x = 0; x < ChunkBuildResult.ChunkSize; x++)
+            {
+                int index = result.GetTileIndex(x, y);
+                worldGeneration.ApplyTownCell(
+                    offsetX + x,
+                    offsetY + y,
+                    ref result.floorTiles[index],
+                    ref result.heights[index],
+                    ref result.terrainKinds[index],
+                    ref result.isCliff[index],
+                    ref result.isRoad[index]);
             }
 
             cancellationToken.ThrowIfCancellationRequested();

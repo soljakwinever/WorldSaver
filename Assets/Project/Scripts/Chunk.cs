@@ -106,6 +106,15 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
     private bool _reservationsReady;
     private int _biomeColorRefreshIndex = -1;
     private int _biomeColorRefreshCount;
+    private IEnumerator<object> _initialization;
+    private bool _initializationFailed;
+    private int _initializationGeneration;
+    internal bool IsFullyInitialized { get; private set; }
+    private readonly List<WorldTilemapRenderer.CellData> _initGroundChanges = new();
+    private readonly List<WorldTilemapRenderer.CellData> _initWaterChanges = new();
+    private readonly List<WorldTilemapRenderer.CellData> _initWallChanges = new();
+    private readonly List<WorldTilemapRenderer.CellData> _initCeilingChanges = new();
+    private readonly Dictionary<string, NodeData> _propDataByName = new();
 
     public int RemainingBiomeColorRefreshCells =>
         _biomeColorRefreshIndex < 0
@@ -129,9 +138,57 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         return buffers;
     }
 
-    public void Init(ChunkBuildResult data)
+    public void BeginInit(ChunkBuildResult data)
     {
-        using ProfilerMarker.AutoScope initScope = InitMarker.Auto();
+        CancelInit();
+        _initializationFailed = false;
+        IsFullyInitialized = false;
+        _initialization = Initialize(data).GetEnumerator();
+    }
+
+    public ChunkInitializationStatus AdvanceInit(double deadline)
+    {
+        _ = deadline;
+        if (_initialization == null)
+            return _initializationFailed
+                ? ChunkInitializationStatus.Failed
+                : ChunkInitializationStatus.Completed;
+
+        using ProfilerMarker.AutoScope scope = InitMarker.Auto();
+        bool hasMore;
+        try
+        {
+            hasMore = _initialization.MoveNext();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception, this);
+            _initializationFailed = true;
+            CancelInit();
+            return ChunkInitializationStatus.Failed;
+        }
+
+        if (!hasMore)
+        {
+            _initialization.Dispose();
+            _initialization = null;
+            IsFullyInitialized = true;
+            RevealInitializedProps();
+            return ChunkInitializationStatus.Completed;
+        }
+
+        return ChunkInitializationStatus.InProgress;
+    }
+
+    public void CancelInit()
+    {
+        _initializationGeneration++;
+        _initialization?.Dispose();
+        _initialization = null;
+    }
+
+    private IEnumerable<object> Initialize(ChunkBuildResult data)
+    {
         using (InitTilemapsMarker.Auto())
         {
             ClearWallDamageVisuals();
@@ -158,21 +215,19 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         int offsetY = Position.y * ChunkBuildResult.ChunkSize;
 
         int cellCount = ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize;
-        List<WorldTilemapRenderer.CellData> changes =
-            UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Get();
-        List<WorldTilemapRenderer.CellData> waterTiles =
-            UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Get();
-        List<WorldTilemapRenderer.CellData> wallTiles =
-            UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Get();
-        List<WorldTilemapRenderer.CellData> ceilingTiles =
-            UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Get();
+        List<WorldTilemapRenderer.CellData> changes = _initGroundChanges;
+        List<WorldTilemapRenderer.CellData> waterTiles = _initWaterChanges;
+        List<WorldTilemapRenderer.CellData> wallTiles = _initWallChanges;
+        List<WorldTilemapRenderer.CellData> ceilingTiles = _initCeilingChanges;
+        changes.Clear();
+        waterTiles.Clear();
+        wallTiles.Clear();
+        ceilingTiles.Clear();
         EnsureCapacity(changes, cellCount);
         EnsureCapacity(waterTiles, cellCount);
         EnsureCapacity(wallTiles, cellCount);
         EnsureCapacity(ceilingTiles, cellCount);
 
-        using (InitTerrainMarker.Auto())
-        {
             for (int y = 0; y < ChunkBuildResult.ChunkSize; y++)
             {
                 for (int x = 0; x < ChunkBuildResult.ChunkSize; x++)
@@ -342,8 +397,8 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                     _baselineTiles[(int)PersistentTileLayer.Water][tileIndex] = tileData;
                     _baselineColors[(int)PersistentTileLayer.Water][tileIndex] = waterColor;
                 }
+                yield return null;
             }
-        }
         }
 
         using (InitRendererMarker.Auto())
@@ -356,64 +411,82 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                 wallTiles,
                 ceilingTiles);
         }
-        UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Release(changes);
-        UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Release(waterTiles);
-        UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Release(wallTiles);
-        UnityEngine.Pool.ListPool<WorldTilemapRenderer.CellData>.Release(ceilingTiles);
+        if (worldGeneration.Preset.heightMapDebug)
+            yield break;
 
-        if (worldGeneration.Preset.heightMapDebug) return;
-
-        using (InitPropsMarker.Auto())
+        foreach (var propSpawnData in data.props)
         {
-            foreach (var propSpawnData in data.props)
+            NodeData nodeData = propSpawnData.nodeData;
+            if (nodeData == null)
             {
-                NodeData nodeData = propSpawnData.nodeData;
-                if (nodeData == null)
-                {
-                    IReadOnlyList<PropSpawnRule> rules =
-                        worldGeneration.PropSpawnRules;
-                    for (int i = 0; i < rules.Count; i++)
-                    {
-                        PropSpawnRule candidate = rules[i];
-                        if (candidate.name != propSpawnData.propName)
-                            continue;
-
-                        nodeData = candidate.nodeData;
-                        break;
-                    }
-                }
-                if (nodeData == null)
-                {
-                    Debug.LogError(
-                        $"Generated prop '{propSpawnData.propName}' has no NodeData.",
-                        this);
-                    continue;
-                }
-
-                if (!SpaceReservationUtility.CanPlace(
-                        nodeData,
-                        propSpawnData.position))
-                {
-                    continue;
-                }
-
-                var prop = nodePool.Spawn(propSpawnData.NodeId, propSpawnData, nodeData, propSpawnData.terrainSample,
+                nodeData = ResolveGeneratedPropData(propSpawnData.propName);
+            }
+            if (nodeData == null)
+            {
+                Debug.LogError(
+                    $"Generated prop '{propSpawnData.propName}' has no NodeData.",
                     this);
-                prop.transform.SetParent(_nodeTransform);
+                continue;
+            }
 
-                if (!string.IsNullOrWhiteSpace(propSpawnData.generatedTownName))
-                {
-                    prop.GetComponentInChildren<Project.Scripts.Gameplay.TownCore>()?
-                        .SetGeneratedName(propSpawnData.generatedTownName);
-                }
+            if (!SpaceReservationUtility.CanPlace(nodeData, propSpawnData.position))
+                continue;
 
-                props.Add(prop);
-                _persistenceRoot.RegisterGeneratedEntity(
-                    prop.GetComponent<PersistentEntity>());
+            Node prop;
+            using (InitPropsMarker.Auto())
+            {
+                prop = nodePool.Spawn(propSpawnData.NodeId, propSpawnData,
+                    nodeData, propSpawnData.terrainSample, this);
+            }
+            prop.transform.SetParent(_nodeTransform);
+            prop.SetInitializationHidden(true);
+
+            if (!string.IsNullOrWhiteSpace(propSpawnData.generatedTownName))
+            {
+                prop.GetComponentInChildren<Project.Scripts.Gameplay.TownCore>()?
+                    .SetGeneratedName(propSpawnData.generatedTownName);
+            }
+
+            props.Add(prop);
+            _persistenceRoot.RegisterGeneratedEntity(
+                prop.GetComponent<PersistentEntity>());
+            yield return null;
+        }
+
+        int generation = _initializationGeneration;
+        bool? restoreSucceeded = null;
+        RestorePersistentState(generation, succeeded => restoreSucceeded = succeeded);
+        while (!restoreSucceeded.HasValue && generation == _initializationGeneration)
+            yield return null;
+        if (restoreSucceeded == false)
+            throw new InvalidOperationException(
+                $"Persistent restore failed for chunk {Position}.");
+
+    }
+
+    private void RevealInitializedProps()
+    {
+        foreach (Node prop in props)
+            prop?.SetInitializationHidden(false);
+    }
+
+    private NodeData ResolveGeneratedPropData(string propName)
+    {
+        if (_propDataByName.Count == 0)
+        {
+            IReadOnlyList<PropSpawnRule> rules = worldGeneration.PropSpawnRules;
+            for (int i = 0; i < rules.Count; i++)
+            {
+                PropSpawnRule rule = rules[i];
+                if (rule != null && !string.IsNullOrEmpty(rule.name))
+                    _propDataByName.TryAdd(rule.name, rule.nodeData);
             }
         }
 
-        RestorePersistentState();
+        return !string.IsNullOrEmpty(propName) &&
+               _propDataByName.TryGetValue(propName, out NodeData data)
+            ? data
+            : null;
     }
 
     private static void EnsureCapacity<T>(List<T> list, int capacity)
@@ -667,15 +740,20 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         node.GetComponent<PersistentEntity>().Initialize(
             id, EntityPersistenceKind.RuntimeSpawned, archetypeId);
         node.transform.SetParent(_nodeTransform);
+        if (!IsFullyInitialized)
+            node.SetInitializationHidden(true);
         props.Add(node);
         return node.GetComponent<PersistentEntity>();
     }
 
-    private async void RestorePersistentState()
+    private async void RestorePersistentState(int generation, Action<bool> completed)
     {
+        bool succeeded = false;
         try
         {
             await dataController.RestoreChunkAsync(this);
+            if (generation != _initializationGeneration)
+                return;
             ApplyPersistentTileOverrides();
             _coverage.CompleteRestore(weatherService);
             ClearFeatureEntityCoverage();
@@ -684,10 +762,16 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
             _roomTopologyReady = true;
             roomDetectionSystem?.NotifyChunkRestored(this);
             NotifyNavigationChanged();
+            succeeded = true;
         }
         catch (Exception)
         {
             // DataController logs the exception with the chunk as context.
+        }
+        finally
+        {
+            if (generation == _initializationGeneration)
+                completed?.Invoke(succeeded);
         }
     }
 
@@ -2804,13 +2888,15 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
     {
         protected override void Reinitialize(ChunkBuildResult result, Chunk item)
         {
-            item.Init(result);
+            item.BeginInit(result);
         }
 
         protected override void OnDespawned(Chunk item)
         {
+            item.CancelInit();
             item.dataController.CaptureBeforeUnload(item);
-            item.dataController.RequestSave();
+            if (item.IsFullyInitialized)
+                item.dataController.RequestSave();
             item._coverage.PrepareForPool();
             item.ClearWallDamageVisuals();
             item.UnloadProps();

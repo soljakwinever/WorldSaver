@@ -1293,7 +1293,7 @@ MonoBehaviour:
   console: {fileID: 11452418, guid: 67117722a812a2e46ab8cb8eafbf5f5e, type: 3}
   worldUi: {fileID: 1477034259}
   popTextSettings:
-    fontAsset: {fileID: 0}
+    fontAsset: {fileID: 11400000, guid: 2ad1870db61958645accb13554b89d46, type: 2}
   itemStackExplosionSettings:
     defaultImpulse: 2.5
     defaultImpulseVariation: 0.25

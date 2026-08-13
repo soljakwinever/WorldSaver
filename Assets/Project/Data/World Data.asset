@@ -99,6 +99,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -127,6 +128,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -155,6 +157,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -183,6 +186,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -211,6 +215,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -239,6 +244,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -268,6 +274,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -296,6 +303,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -327,6 +335,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -361,6 +370,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -394,6 +404,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -422,6 +433,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -450,6 +462,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -478,6 +491,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -506,6 +520,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -534,6 +549,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -563,6 +579,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -591,6 +608,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -620,6 +638,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -648,6 +667,7 @@ MonoBehaviour:
     avoidTowns: 0
     avoidRivers: 0
     avoidRoads: 0
+    canSpawnOnPaths: 0
     avoidTrails: 0
     avoidBeaches: 0
     avoidGround: 0
@@ -673,6 +693,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ab5122bbf35e44cfb0b6053256393442, type: 2}
   - {fileID: 11400000, guid: a1600000000000000000000000000006, type: 2}
   - {fileID: 11400000, guid: 6cfc70b5bc913b5418ce7254780c4119, type: 2}
+  - {fileID: 11400000, guid: 71165084e850c9341a063e93b15bc83f, type: 2}
   daysInMonth: 30
   minutesPerDay: 10
   startHour: 8

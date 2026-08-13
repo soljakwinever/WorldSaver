@@ -19,6 +19,7 @@ namespace Project.Scripts.DataTypes
     {
         public TileData tile;
         public PersistentTileLayer layer = PersistentTileLayer.Ground;
+        [Min(0.01f)] public float constructionWorkRequired = 1f;
     }
 
     /// <summary>Tool used by <c>ToolHotbarAction</c>.</summary>
@@ -117,6 +118,7 @@ namespace Project.Scripts.DataTypes
         public bool requireWalkableArea;
         public Vector2Int walkableAreaSize = Vector2Int.one;
         public Vector2Int walkableAreaOffset;
+        [Min(0.01f)] public float constructionWorkRequired = 1f;
     }
 
     [Serializable]
