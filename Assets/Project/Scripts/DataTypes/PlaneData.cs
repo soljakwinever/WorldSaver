@@ -16,6 +16,10 @@ namespace Project.Scripts.DataTypes
         [Tooltip("Fixed global ambient light used when the day/night cycle is disabled for this plane.")]
         [SerializeField] private Color ambientColor = Color.white;
 
+        [Header("Audio")]
+        [Tooltip("Default low-priority music for this plane.")]
+        [SerializeField] private SongData defaultMusic;
+
         [Header("Weather")]
         [Tooltip("Weather definitions that may occur on this plane. Leave empty to allow all weather.")]
         [SerializeField] private WeatherData[] validWeather =
@@ -25,6 +29,7 @@ namespace Project.Scripts.DataTypes
         public bool ParticipatesInDayNightCycle =>
             participatesInDayNightCycle;
         public Color AmbientColor => ambientColor;
+        public SongData DefaultMusic => defaultMusic;
         public WeatherData[] ValidWeather =>
             validWeather ?? Array.Empty<WeatherData>();
 

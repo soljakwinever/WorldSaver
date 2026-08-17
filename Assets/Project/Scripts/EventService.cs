@@ -43,6 +43,7 @@ namespace Project.Scripts
         private readonly Chunkloader _chunkloader;
         private readonly PlayerDataController _player;
         private readonly EntityBus _entities;
+        private readonly IAudioService _audio;
         private readonly Dictionary<EventData, RuntimeState> _states = new();
         private readonly Dictionary<EnemyData, int> _defeats = new();
         private readonly HashSet<EnemySpawnRule> _activeRules = new();
@@ -62,7 +63,8 @@ namespace Project.Scripts
             FeatureBuildingService buildings,
             Chunkloader chunkloader,
             PlayerDataController player,
-            EntityBus entities)
+            EntityBus entities,
+            IAudioService audio)
         {
             _world = world;
             _time = time;
@@ -71,6 +73,7 @@ namespace Project.Scripts
             _chunkloader = chunkloader;
             _player = player;
             _entities = entities;
+            _audio = audio;
         }
 
         public void Initialize()
@@ -101,6 +104,9 @@ namespace Project.Scripts
 
             bool restored = LoadState();
             RebuildEffects();
+            foreach (KeyValuePair<EventData, RuntimeState> pair in _states)
+                if (pair.Value.Active)
+                    SetEventMusic(pair.Key);
             if (!restored &&
                 _world.startingEvent != null &&
                 _states.TryGetValue(
@@ -404,6 +410,7 @@ namespace Project.Scripts
             foreach (KeyValuePair<EnemyData, int> pair in _defeats)
                 state.DefeatBaseline[pair.Key] = pair.Value;
             CaptureActivationBaselines(data.endCondition, state);
+            SetEventMusic(data);
             RebuildEffects();
             ApplyActivationEffectsAsync(data);
             MarkSaveDirty();
@@ -413,9 +420,26 @@ namespace Project.Scripts
         {
             state.Active = false;
             state.Finished = true;
+            _audio.ClearCurrentBgm(GetMusicOwner(data));
             RebuildEffects();
             MarkSaveDirty();
             DisablePortals(data);
+        }
+
+        private void SetEventMusic(EventData data)
+        {
+            _audio.SetCurrentBgm(
+                GetMusicOwner(data),
+                data.musicOverride,
+                MusicPriority.Event);
+        }
+
+        private static string GetMusicOwner(EventData data)
+        {
+            string id = data.persistentId?.Trim();
+            return "event:" + (string.IsNullOrEmpty(id)
+                ? data.name
+                : id);
         }
 
         private void RebuildEffects()

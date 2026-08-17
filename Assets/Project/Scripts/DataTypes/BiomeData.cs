@@ -15,6 +15,10 @@ namespace Project.Scripts
     {
         public string biomeName;
 
+        [Header("Audio")]
+        [Tooltip("Optional medium-priority music while the player is in this biome.")]
+        public SongData musicOverride;
+
         [Header("Map Naming")]
         [Tooltip("Optional deterministic vocabulary used to name this biome's regions on the world map.")]
         public AreaNameParts areaNameParts;

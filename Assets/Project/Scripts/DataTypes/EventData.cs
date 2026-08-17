@@ -39,6 +39,10 @@ namespace Project.Scripts.DataTypes
         [Tooltip("Stable ID used by conditions, saves, and enemy spawn rules.")]
         public string persistentId = "event";
 
+        [Header("Audio")]
+        [Tooltip("Optional high-priority music while this event is active.")]
+        public SongData musicOverride;
+
         [Header("Blackboard")]
         [Tooltip("Integer variables owned by this event at runtime.")]
         public List<EventVariable> blackboard = new();

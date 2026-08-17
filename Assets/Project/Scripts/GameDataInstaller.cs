@@ -166,6 +166,9 @@ public class GameDataInstaller : MonoInstaller
         
         Container.Bind<MapSignalBus>().FromNew().AsSingle().NonLazy();
         Container.Bind<TimeSignalBus>().FromNew().AsSingle().NonLazy();
+        Container.BindInterfacesAndSelfTo<AudioService>()
+            .AsSingle()
+            .NonLazy();
         Container.Bind<WeatherSimulationSettings>()
             .FromMethod(_ => LoadWeatherSettings())
             .AsSingle();
