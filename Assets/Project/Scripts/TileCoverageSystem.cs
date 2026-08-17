@@ -13,11 +13,13 @@ namespace Project.Scripts
         private readonly Chunkloader _chunkloader;
         private readonly IRegionalWeatherService _weather;
         private readonly IWorldClock _clock;
+        private readonly WorldData _worldData;
         private readonly List<Chunk> _loadedChunks = new();
         private readonly Queue<CoverageWork> _pendingWork = new();
         private readonly Dictionary<Chunk, CoverageWork> _pendingByChunk =
             new();
         private long _lastTick = -1;
+        private bool _startupPassScheduled;
 
         private static readonly ProfilerMarker ScheduleMarker =
             new("TileCoverage.Schedule");
@@ -58,16 +60,19 @@ namespace Project.Scripts
         public TileCoverageSystem(
             Chunkloader chunkloader,
             IRegionalWeatherService weather,
-            IWorldClock clock)
+            IWorldClock clock,
+            WorldData worldData)
         {
             _chunkloader = chunkloader;
             _weather = weather;
             _clock = clock;
+            _worldData = worldData;
         }
 
         public void Tick()
         {
             long currentTick = _clock.CurrentTick;
+            bool scheduledRegularPass = false;
             if (_lastTick < 0)
             {
                 _lastTick = currentTick;
@@ -75,16 +80,45 @@ namespace Project.Scripts
             else if (currentTick != _lastTick)
             {
                 long elapsed = currentTick - _lastTick;
-                _lastTick = currentTick;
-                if (elapsed > 0)
+                long interval = System.Math.Max(
+                    1L, _worldData?.coverageUpdateIntervalTicks ?? 60L);
+                if (elapsed > 0 && elapsed >= interval)
                 {
+                    long intervals = elapsed / interval;
+                    long simulatedTicks = intervals > long.MaxValue / interval
+                        ? long.MaxValue
+                        : intervals * interval;
+                    _lastTick = _lastTick > long.MaxValue - simulatedTicks
+                        ? currentTick
+                        : _lastTick + simulatedTicks;
                     using (ScheduleMarker.Auto())
                     {
                         _chunkloader.CopyLoadedChunks(_loadedChunks);
                         foreach (Chunk chunk in _loadedChunks)
-                            Schedule(chunk, elapsed);
+                            Schedule(chunk, simulatedTicks);
+                    }
+                    scheduledRegularPass = true;
+                }
+                else if (elapsed < 0)
+                {
+                    _lastTick = currentTick;
+                }
+            }
+
+            if (!_startupPassScheduled &&
+                _chunkloader.TryCopyVisibleLoadedChunks(_loadedChunks))
+            {
+                if (!scheduledRegularPass)
+                {
+                    long interval = System.Math.Max(
+                        1L, _worldData?.coverageUpdateIntervalTicks ?? 60L);
+                    using (ScheduleMarker.Auto())
+                    {
+                        foreach (Chunk chunk in _loadedChunks)
+                            Schedule(chunk, interval);
                     }
                 }
+                _startupPassScheduled = true;
             }
 
             int budget = Mathf.Max(1, MaxChunksProcessedPerFrame);

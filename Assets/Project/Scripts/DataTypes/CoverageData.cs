@@ -13,6 +13,12 @@ namespace Project.Scripts.DataTypes
         BiomePath
     }
 
+    public enum CoverageParticleBlendMode : byte
+    {
+        Alpha,
+        Multiply
+    }
+
     [CreateAssetMenu(
         fileName = "Coverage",
         menuName = "World Saver/Weather/Coverage")]
@@ -46,13 +52,13 @@ namespace Project.Scripts.DataTypes
         [SerializeField] private string[] requiredActiveEffectIds =
             Array.Empty<string>();
         [SerializeField, Min(0f)]
-        [Tooltip("Normalized coverage added per world tick during matching weather.")]
+        [Tooltip("Normalized coverage added per scheduled coverage update during matching weather.")]
         private float accumulationRate = 0.001f;
         [SerializeField, Range(0f, 1f)]
         [Tooltip("Deterministic per-tile variation around the accumulation rate. A value of 0.5 gives tiles rates between 50% and 150%.")]
         private float accumulationRateVariation;
         [SerializeField, Min(0f)]
-        [Tooltip("Normalized coverage removed per world tick outside the persistence temperature range.")]
+        [Tooltip("Normalized coverage removed per scheduled coverage update outside the persistence temperature range.")]
         private float decayRate = 0.001f;
         [SerializeField, Range(0f, 1f)]
         [Tooltip("Starting amount when a new tile loads during matching accumulation weather.")]
@@ -63,6 +69,14 @@ namespace Project.Scripts.DataTypes
 
         [Header("GroundTile.mat")]
         [SerializeField] private Vector2 coverageTiling = Vector2.one;
+
+        [Header("Player Particles")]
+        [SerializeField]
+        [Tooltip("Optional particle-system prefab played at the player while this coverage is the displayed layer beneath them.")]
+        private GameObject coverageParticlePrefab;
+        [SerializeField]
+        [Tooltip("Controls how the coverage particle effect blends with the world behind it.")]
+        private CoverageParticleBlendMode coverageParticleBlendMode;
 
         [Header("AI Pathing")]
         [SerializeField]
@@ -93,6 +107,9 @@ namespace Project.Scripts.DataTypes
         public bool SlowlyDecayWhenTemperatureFails =>
             slowlyDecayWhenTemperatureFails;
         public Vector2 CoverageTiling => coverageTiling;
+        public GameObject CoverageParticlePrefab => coverageParticlePrefab;
+        public CoverageParticleBlendMode CoverageParticleBlendMode =>
+            coverageParticleBlendMode;
         public Vector2 AmbientTemperatureRange =>
             ambientTemperatureRange;
         public TileData.AiPathingTerrain PathingTerrain => pathingTerrain;

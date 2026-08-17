@@ -401,6 +401,28 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void CoverageAccumulationAppliesOneConfiguredStep()
+        {
+            float amount = TileCoverageComponent.ApplyWeatherAccumulation(
+                0.25f,
+                0.01f,
+                isRoomInterior: false,
+                weatherAllowsAccumulation: true);
+
+            Assert.That(amount, Is.EqualTo(0.26f).Within(0.0001f));
+        }
+
+        [Test]
+        public void CoverageGradualDecayAppliesOneConfiguredStep()
+        {
+            float amount = TileCoverageComponent.ApplyGradualDecay(
+                0.6f,
+                0.01f);
+
+            Assert.That(amount, Is.EqualTo(0.59f).Within(0.0001f));
+        }
+
+        [Test]
         public void ChunkPersistenceRootCapturesAndRestoresChunkComponents()
         {
             GameObject gameObject = new("Chunk Persistence Test");

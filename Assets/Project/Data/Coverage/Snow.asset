@@ -19,7 +19,7 @@ MonoBehaviour:
   renderPriority: 1
   allowedTiles: []
   restrictedTiles: []
-  ambientTemperatureRange: {x: -1, y: -0.2}
+  ambientTemperatureRange: {x: -1, y: 0}
   allowedWeatherIds:
   - snow.blizzard
   - snow.blizzard.perma
@@ -27,9 +27,14 @@ MonoBehaviour:
   - snow.light
   allowedPhaseIds: []
   requiredActiveEffectIds: []
-  accumulationRate: 0.01
+  accumulationRate: 0.05
   accumulationRateVariation: 0.5
-  decayRate: 0.01
+  decayRate: 0.12
   initialCoverage: 0
   slowlyDecayWhenTemperatureFails: 1
   coverageTiling: {x: 1, y: 1}
+  coverageParticlePrefab: {fileID: 692305493387847361, guid: e5d2ee150a2e1a24ca9d1fa7d109c4ed, type: 3}
+  coverageParticleBlendMode: 1
+  pathingTerrain: 0
+  pathingCost: 1
+  hazardImmunityId: 

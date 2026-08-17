@@ -65,6 +65,16 @@ namespace Project.Scripts
         [Header("Tile Coverage")]
         [Tooltip("Coverage layers simulated on every non-water tile.")]
         public CoverageData[] coverageLayers = Array.Empty<CoverageData>();
+        [Min(1)]
+        [Tooltip("World ticks between loaded-chunk coverage simulation passes.")]
+        public long coverageUpdateIntervalTicks = 60;
+        [Header("Coverage Rendering")]
+        [Min(1f)] public float coveragePixelsPerUnit = 16f;
+        [Min(0.0001f)] public float coverageNoiseScale = 0.25f;
+        [Min(0.0001f)] public float coverageDetailScale = 1.5f;
+        [Range(0f, 1f)] public float coverageDetailStrength = 0.2f;
+        [Range(0.0001f, 1f)] public float coverageBlendSoftness = 0.1f;
+        [Range(0f, 1f)] public float coverageAlphaClipThreshold = 0.5f;
 
         public bool TryGetTileData(int tileId, out TileData tileData)
         {
@@ -96,6 +106,16 @@ namespace Project.Scripts
 
         private void OnValidate()
         {
+            coverageUpdateIntervalTicks = Math.Max(
+                1L, coverageUpdateIntervalTicks);
+            coveragePixelsPerUnit = Mathf.Max(1f, coveragePixelsPerUnit);
+            coverageNoiseScale = Mathf.Max(0.0001f, coverageNoiseScale);
+            coverageDetailScale = Mathf.Max(0.0001f, coverageDetailScale);
+            coverageDetailStrength = Mathf.Clamp01(coverageDetailStrength);
+            coverageBlendSoftness = Mathf.Clamp(
+                coverageBlendSoftness, 0.0001f, 1f);
+            coverageAlphaClipThreshold = Mathf.Clamp01(
+                coverageAlphaClipThreshold);
             HashSet<string> planeIds = new(StringComparer.OrdinalIgnoreCase);
             foreach (PlaneData plane in planes ?? Array.Empty<PlaneData>())
             {

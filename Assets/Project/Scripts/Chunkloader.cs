@@ -4,6 +4,7 @@ using System.Linq;
 using IngameDebugConsole;
 using Project.Scripts;
 using Project.Scripts.Bus;
+using Project.Scripts.Core;
 using Project.Scripts.Interface;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
@@ -60,6 +61,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     [Inject] private MapSignalBus mapSignalBus;
     [Inject] private TimeSignalBus timeSignalBus;
     [Inject] private WorldData worldData;
+    [Inject] private WorldClock worldClock;
     [Inject] private IRegionalWeatherService weatherService;
     [Inject] private WorldTilemapRenderer worldTilemapRenderer;
     [Inject] private RoomDetectionSystem roomDetectionSystem;
@@ -70,6 +72,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     
     private float tickTimer;
     public const int TickTime = 1;
+
+    public Material coverageMaterial;
 
     public int LoadDistance = 3;
 
@@ -113,6 +117,8 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
         new("Chunkloader.Unload");
     private float _biomeColorRefreshCellsPerSecond;
     private float _biomeColorRefreshCellAccumulator;
+    private CoverageAreaRenderer _coverageRenderer;
+    private CoverageParticlePresenter _coverageParticlePresenter;
 
     private sealed class PendingChunkInitialization
     {
@@ -147,6 +153,20 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        Camera coverageCamera = track != null
+            ? track.GetComponentInChildren<Camera>(includeInactive: true)
+            : null;
+        coverageCamera ??= Camera.main;
+        _coverageRenderer = new CoverageAreaRenderer(
+            transform,
+            worldData,
+            worldClock,
+            coverageCamera,
+            Position,
+            LoadDistance,
+            coverageMaterial);
+        _coverageParticlePresenter = new CoverageParticlePresenter(
+            track, worldData, _coverageRenderer);
         gameGrid = FindAnyObjectByType<Grid>();
         mapSignalBus.ChunkBuilt += MapSignalBusOnChunkBuilt;
         timeSignalBus.HourChanged += OnHourChanged;
@@ -171,6 +191,10 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
 
     private void OnDestroy()
     {
+        _coverageParticlePresenter?.Dispose();
+        _coverageParticlePresenter = null;
+        _coverageRenderer?.Dispose();
+        _coverageRenderer = null;
         mapSignalBus.ChunkBuilt -= MapSignalBusOnChunkBuilt;
         timeSignalBus.HourChanged -= OnHourChanged;
         timeSignalBus.DayChanged -= OnDayChanged;
@@ -434,6 +458,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
             _loadedChunks.Add(
                 pending.Position,
                 new ChunkInstance { chunk = pending.Chunk });
+            _coverageRenderer?.SetActive(pending.Position, true);
             _completedInitializations.Enqueue(pending);
             if (pending.Chunk.LastInitializationStepWasExpensive)
                 break;
@@ -574,6 +599,50 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
         }
     }
 
+    internal bool TryCopyVisibleLoadedChunks(List<Chunk> destination)
+    {
+        if (destination == null)
+            throw new ArgumentNullException(nameof(destination));
+
+        destination.Clear();
+        if (_coverageRenderer == null)
+            return false;
+
+        _coverageRenderer.GetVisibleChunkBoundsClamped(
+            out Vector2Int minimum,
+            out Vector2Int maximumExclusive);
+        if (maximumExclusive.x <= minimum.x ||
+            maximumExclusive.y <= minimum.y)
+            return false;
+
+        for (int y = minimum.y; y < maximumExclusive.y; y++)
+        {
+            for (int x = minimum.x; x < maximumExclusive.x; x++)
+            {
+                Vector2Int position = new(x, y);
+                if (!_loadedChunks.TryGetValue(
+                        position, out ChunkInstance instance) ||
+                    instance.chunk is not Chunk chunk)
+                {
+                    destination.Clear();
+                    return false;
+                }
+                destination.Add(chunk);
+            }
+        }
+        return destination.Count > 0;
+    }
+
+    internal void SubmitCoverage(
+        Vector2Int position,
+        Color32[] pixels,
+        CoverageData[] slots,
+        bool transition = false) =>
+        _coverageRenderer?.Submit(position, pixels, slots, transition);
+
+    internal void ClearCoverage(Vector2Int position) =>
+        _coverageRenderer?.Remove(position);
+
     private void CreateChunk(Vector2Int position)
     {
         chunkGenerator.RequestChunk(position);
@@ -611,14 +680,16 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     // Update is called once per frame
     void Update()
     {
+        _coverageRenderer?.SetFootprint(Position, LoadDistance);
         ProcessChunkLoadNotifications();
         ProcessChunkInitializations();
         ProcessBiomeColorRefresh();
+        _coverageRenderer?.Tick();
+        _coverageParticlePresenter?.Tick();
 
         tickTimer += Time.deltaTime;
         bool maintenanceTick = tickTimer >= TickTime;
         bool loaderMoved = !_hasTouchedPosition || Position != _lastPosition;
-
         if (loaderMoved || maintenanceTick)
         {
             if (loaderMoved)
@@ -713,6 +784,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
             // leaving the entry visible until afterwards allowed that path to
             // return the same pooled Chunk a second time.
             _loadedChunks.Remove(chunkPosition);
+            _coverageRenderer?.Remove(chunkPosition);
             chunkGenerator.ChunkUnloaded(chunkPosition);
             if (instance.chunk is Chunk roomChunk)
                 roomDetectionSystem?.NotifyChunkUnloading(roomChunk);

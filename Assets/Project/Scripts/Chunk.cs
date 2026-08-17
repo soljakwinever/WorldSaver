@@ -74,6 +74,20 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
     private TilemapRenderer _coverageRenderer;
     private static readonly int CoverageTilingId =
         Shader.PropertyToID("_CoverageTiling");
+    private static readonly Vector2[] CoverageSeedAnchors =
+    {
+        new(0f, 0f),
+        new(ChunkBuildResult.ChunkSize * 0.5f, 0f),
+        new(ChunkBuildResult.ChunkSize - 1f, 0f),
+        new(ChunkBuildResult.ChunkSize - 1f,
+            ChunkBuildResult.ChunkSize * 0.5f),
+        new(ChunkBuildResult.ChunkSize - 1f,
+            ChunkBuildResult.ChunkSize - 1f),
+        new(ChunkBuildResult.ChunkSize * 0.5f,
+            ChunkBuildResult.ChunkSize - 1f),
+        new(0f, ChunkBuildResult.ChunkSize - 1f),
+        new(0f, ChunkBuildResult.ChunkSize * 0.5f)
+    };
     private static readonly int WorldOffsetId =
         Shader.PropertyToID("_WorldOffset");
     private static EntityArchetype[] _resourceArchetypes;
@@ -793,6 +807,7 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
             {
                 return;
             }
+            ReconcileLoadedCoverageNeighbors();
             await Awaitable.NextFrameAsync();
             if (generation != _initializationGeneration)
                 return;
@@ -2179,9 +2194,22 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                    out amount);
     }
 
+    public bool TryGetDisplayedCoverage(
+        Vector3Int worldCell,
+        out CoverageData coverage,
+        out float amount)
+    {
+        coverage = null;
+        amount = 0f;
+        return TryGetCoverageIndex(worldCell, out ushort index) &&
+               _coverage.TryGetDisplayedCoverage(
+                   index, out coverage, out amount);
+    }
+
     internal bool TryGetNeighborCoverageSeed(
         ushort localIndex,
         CoverageData coverage,
+        float conditionTarget,
         out float amount)
     {
         amount = 0f;
@@ -2191,54 +2219,75 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         int size = ChunkBuildResult.ChunkSize;
         int localX = localIndex % size;
         int localY = localIndex / size;
-        float total = 0f;
-        int count = 0;
+        conditionTarget = Mathf.Clamp01(conditionTarget);
+        float weightedCorrection = 0f;
+        float totalWeight = 0f;
+        bool sampled = false;
+        Vector2 point = new(localX, localY);
 
-        for (int chunkY = -1; chunkY <= 1; chunkY++)
+        foreach (Vector2 anchor in CoverageSeedAnchors)
         {
-            for (int chunkX = -1; chunkX <= 1; chunkX++)
+            int ax = Mathf.RoundToInt(anchor.x);
+            int ay = Mathf.RoundToInt(anchor.y);
+            int stepX = ax == 0 ? -1 : ax == size - 1 ? 1 : 0;
+            int stepY = ay == 0 ? -1 : ay == size - 1 ? 1 : 0;
+            Vector3Int worldCell = new(
+                Position.x * size + ax + stepX,
+                Position.y * size + ay + stepY);
+            float anchorAmount = conditionTarget;
+            if (chunkloader.TryGetLoadedChunk(worldCell, out Chunk neighbor) &&
+                neighbor != this &&
+                neighbor.TryGetCoverage(
+                    worldCell, coverage, out float neighborAmount))
             {
-                if (chunkX == 0 && chunkY == 0)
-                    continue;
-
-                Vector2Int neighborPosition =
-                    Position + new Vector2Int(chunkX, chunkY);
-                int sampleX = chunkX < 0
-                    ? size - 1
-                    : chunkX > 0
-                        ? 0
-                        : localX;
-                int sampleY = chunkY < 0
-                    ? size - 1
-                    : chunkY > 0
-                        ? 0
-                        : localY;
-                Vector3Int worldCell = new(
-                    neighborPosition.x * size + sampleX,
-                    neighborPosition.y * size + sampleY);
-
-                if (!chunkloader.TryGetLoadedChunk(
-                        worldCell,
-                        out Chunk neighbor) ||
-                    neighbor == this ||
-                    !neighbor.TryGetCoverage(
-                        worldCell,
-                        coverage,
-                        out float neighborAmount))
-                {
-                    continue;
-                }
-
-                total += neighborAmount;
-                count++;
+                anchorAmount = neighborAmount;
+                sampled = true;
             }
+
+            float distanceSquared = (point - anchor).sqrMagnitude;
+            float weight = 1f / Mathf.Max(0.01f, distanceSquared);
+            weightedCorrection += (anchorAmount - conditionTarget) * weight;
+            totalWeight += weight;
         }
 
-        if (count == 0)
+        if (!sampled || totalWeight <= 0f)
             return false;
 
-        amount = Mathf.Clamp01(total / count);
+        float edgeDistance = Mathf.Min(
+            Mathf.Min(localX, size - 1 - localX),
+            Mathf.Min(localY, size - 1 - localY));
+        float boundaryInfluence = 1f - Mathf.Clamp01(
+            edgeDistance / Mathf.Max(1f, size * 0.5f));
+        amount = Mathf.Clamp01(conditionTarget +
+            weightedCorrection / totalWeight * boundaryInfluence);
         return true;
+    }
+
+    private void ReconcileLoadedCoverageNeighbors()
+    {
+        if (_coverage == null || !_coverage.IsReady || chunkloader == null)
+            return;
+
+        int size = ChunkBuildResult.ChunkSize;
+        for (int y = -1; y <= 1; y++)
+        {
+            for (int x = -1; x <= 1; x++)
+            {
+                if (x == 0 && y == 0)
+                    continue;
+                Vector3Int worldCell = new(
+                    (Position.x + x) * size,
+                    (Position.y + y) * size);
+                if (chunkloader.TryGetLoadedChunk(
+                        worldCell, out Chunk neighbor) &&
+                    neighbor != this && neighbor._coverage != null &&
+                    neighbor._coverage.IsReady)
+                {
+                    _coverage.ReconcileBoundary(
+                        neighbor._coverage, new Vector2Int(x, y));
+                }
+            }
+        }
     }
 
     public bool TrySetCoverage(
@@ -2282,6 +2331,9 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         CoverageData coverage,
         float amount)
     {
+        _coverage?.RebuildCoverageTexture();
+        return;
+#pragma warning disable CS0162
         EnsureTilemaps();
         Vector3Int localCell = new(
             localIndex % ChunkBuildResult.ChunkSize,
@@ -2318,6 +2370,7 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         // Mining animates the vertex alpha that drives the coverage threshold.
         // Force the tile mesh to consume each intermediate value this frame.
         _coverageTilemap.RefreshTile(localCell);
+#pragma warning restore CS0162
     }
 
     internal void ApplyCoverageVisuals(
@@ -2326,6 +2379,9 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         CoverageData[] coverageByCell,
         byte[] alphaByCell)
     {
+        _coverage?.RebuildCoverageTexture();
+        return;
+#pragma warning disable CS0162
         if (localIndices == null ||
             coverageByCell == null ||
             alphaByCell == null ||
@@ -2400,8 +2456,14 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
             sourceOffset += batchSize;
             remaining -= batchSize;
         }
-
+#pragma warning restore CS0162
     }
+
+    internal void UploadCoverageTexture(
+        Color32[] pixels,
+        CoverageData[] slots,
+        bool transition = false) =>
+        chunkloader?.SubmitCoverage(Position, pixels, slots, transition);
 
     internal bool TryGetCoverageGroundTile(
         ushort localIndex,
@@ -2488,6 +2550,7 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
             _coverageTilemap.ClearAllTiles();
 
         ApplyCoverageMaterial(null, 0f);
+        chunkloader?.ClearCoverage(Position);
     }
 
     private bool TryGetCoverageIndex(
@@ -2737,6 +2800,8 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
         worldTilemapRenderer.ConfigureCoverageTilemap(
             _coverageRenderer =
                 _coverageTilemap.GetComponent<TilemapRenderer>());
+        if (_coverageRenderer != null)
+            _coverageRenderer.enabled = false;
         _tilemapsConfigured = true;
     }
 
@@ -2885,8 +2950,6 @@ public class Chunk : MonoBehaviour, IChunk, IPlantTileContext
                 index,
                 PersistentTileLayer.Wall,
                 biome);
-            if (_coverage != null && _coverage.IsReady)
-                _coverage.RefreshCellColor((ushort)index);
         }
 
         if (_biomeColorRefreshIndex < _biomeColorRefreshCount)

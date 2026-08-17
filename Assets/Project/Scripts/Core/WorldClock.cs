@@ -31,6 +31,8 @@ namespace Project.Scripts.Core
         private bool _loaded;
 
         public long CurrentTick => currentTick;
+        public double CurrentTickTime => currentTick +
+            _accumulator / Math.Max(0.01f, secondsPerTick);
         public float SecondsPerTick => secondsPerTick;
         public string WorldFilePath => GetWorldFilePath();
 

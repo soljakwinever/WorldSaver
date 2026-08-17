@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Project.Scripts.DataTypes;
+using Project.Scripts.DataTypes.SaveData;
+using Project.Scripts.Core;
 using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using Project.Scripts.TimeAndWeather;
@@ -14,10 +16,11 @@ namespace Project.Scripts
     public sealed class TileCoverageComponent :
         MonoBehaviour,
         IPersistentComponent,
+        IOfflineSimulatable,
         ITownTileRepairSource
     {
         public const ushort TypeId = 0x4356; // "CV"
-        private const ushort Version = 1;
+        private const ushort Version = 2;
         private const int MaximumSavedLayers = 1024;
         private const int MaximumSavedCells =
             ChunkBuildResult.ChunkSize * ChunkBuildResult.ChunkSize;
@@ -48,6 +51,7 @@ namespace Project.Scripts
             public CoverageData Data;
             public bool VisibleCoverageDirty = true;
             public bool HasVisibleCoverage;
+            public float RenderMaximumAmount;
             public readonly Dictionary<ushort, CellState> Cells =
                 new(MaximumSavedCells);
             private readonly CellState[] _cellPool =
@@ -78,6 +82,7 @@ namespace Project.Scripts
                 Cells.Clear();
                 VisibleCoverageDirty = true;
                 HasVisibleCoverage = false;
+                RenderMaximumAmount = 0f;
                 Array.Clear(_tileEligibility, 0, _tileEligibility.Length);
             }
 
@@ -122,6 +127,15 @@ namespace Project.Scripts
             new bool[MaximumSavedCells];
         private readonly ushort[] _sampledWeatherCells =
             new ushort[MaximumSavedCells];
+        private readonly CoverageData[] _renderSlots = new CoverageData[4];
+        private readonly CoverageData[] _selectedRenderSlots =
+            new CoverageData[4];
+        private readonly CoverageData[] _previousRenderSlots =
+            new CoverageData[4];
+        private readonly Color32[] _coveragePixels = new Color32[
+            (ChunkBuildResult.ChunkSize + 2) *
+            (ChunkBuildResult.ChunkSize + 2)];
+        private readonly List<LayerState> _renderCandidates = new();
 
         private static readonly ProfilerMarker SimulationMarker =
             new("TileCoverage.SimulateCells");
@@ -138,6 +152,11 @@ namespace Project.Scripts
         private bool _ready;
         private int _generation;
         private CoverageData _displayedMaterialData;
+        private long _lastSimulatedTick;
+        private long _pendingOfflineTicks;
+        private long _pendingOfflineToTick;
+
+        [Zenject.InjectOptional] private IWorldClock _worldClock;
 
         public ushort PersistentTypeId => TypeId;
         public ushort PersistentVersion => Version;
@@ -188,10 +207,14 @@ namespace Project.Scripts
             _chunk = chunk;
             _ready = false;
             _displayedMaterialData = null;
+            _pendingOfflineTicks = 0;
+            _pendingOfflineToTick = 0;
+            _lastSimulatedTick = 0;
             RecycleLayers();
             Array.Clear(_displayedData, 0, _displayedData.Length);
             Array.Clear(_displayedAlpha, 0, _displayedAlpha.Length);
             Array.Clear(_indoorCells, 0, _indoorCells.Length);
+            Array.Clear(_renderSlots, 0, _renderSlots.Length);
 
             for (ushort index = 0; index < MaximumSavedCells; index++)
             {
@@ -273,16 +296,16 @@ namespace Project.Scripts
 
                     if (TemperatureAllowsPersistence(layer.Data, sample))
                     {
+                        float conditionTarget = AllowsWeatherAccumulation(
+                            _indoorCells[cell.LocalIndex],
+                            weatherAllowsAccumulation) ? 1f : 0f;
                         cell.Amount = _chunk.TryGetNeighborCoverageSeed(
                             cell.LocalIndex,
                             layer.Data,
+                            conditionTarget,
                             out float neighborAmount)
                             ? neighborAmount
-                            : AllowsWeatherAccumulation(
-                                _indoorCells[cell.LocalIndex],
-                                weatherAllowsAccumulation)
-                                ? layer.Data.InitialCoverage
-                                : 0f;
+                            : conditionTarget;
                     }
                     else
                     {
@@ -295,6 +318,9 @@ namespace Project.Scripts
             ClearWeatherSampleCache(sampledWeatherCount);
 
             _ready = true;
+            ApplyPendingOfflineSimulation(weather);
+            if (_lastSimulatedTick <= 0)
+                _lastSimulatedTick = _worldClock?.CurrentTick ?? 0;
             RefreshAllVisuals(force: true);
         }
 
@@ -337,18 +363,21 @@ namespace Project.Scripts
                                 {
                                     bool weatherAllowsAccumulation =
                                         WeatherAllowsAccumulation(layer.Data, sample);
+                                    float conditionTarget =
+                                        AllowsWeatherAccumulation(
+                                            _indoorCells[cell.LocalIndex],
+                                            weatherAllowsAccumulation)
+                                            ? 1f
+                                            : 0f;
                                     cell.Amount = TemperatureAllowsPersistence(
                                             layer.Data, sample)
                                         ? _chunk.TryGetNeighborCoverageSeed(
                                             cell.LocalIndex,
                                             layer.Data,
+                                            conditionTarget,
                                             out float neighborAmount)
                                             ? neighborAmount
-                                            : AllowsWeatherAccumulation(
-                                                _indoorCells[cell.LocalIndex],
-                                                weatherAllowsAccumulation)
-                                                ? layer.Data.InitialCoverage
-                                                : 0f
+                                            : conditionTarget
                                         : 0f;
                                     cell.Initialized = true;
                                 }
@@ -373,6 +402,9 @@ namespace Project.Scripts
                 return false;
 
             _ready = true;
+            ApplyPendingOfflineSimulation(weather);
+            if (_lastSimulatedTick <= 0)
+                _lastSimulatedTick = _worldClock?.CurrentTick ?? 0;
             RefreshAllVisuals(force: true);
             return true;
         }
@@ -384,7 +416,11 @@ namespace Project.Scripts
             if (!_ready || elapsedTicks <= 0)
                 return;
 
-            float ticks = Mathf.Min(elapsedTicks, int.MaxValue);
+            _lastSimulatedTick = _lastSimulatedTick >
+                long.MaxValue - elapsedTicks
+                ? long.MaxValue
+                : _lastSimulatedTick + elapsedTicks;
+
             int dirtyCount = 0;
             int sampledWeatherCount = 0;
 
@@ -415,8 +451,8 @@ namespace Project.Scripts
                             if (!TemperatureAllowsPersistence(layer.Data, sample))
                             {
                                 cell.Amount = layer.Data.SlowlyDecayWhenTemperatureFails
-                                    ? Mathf.Clamp01(
-                                        cell.Amount - layer.Data.DecayRate * ticks)
+                                    ? ApplyGradualDecay(
+                                        cell.Amount, layer.Data.DecayRate)
                                     : 0f;
                             }
                             else
@@ -424,7 +460,7 @@ namespace Project.Scripts
                                 cell.Amount = ApplyWeatherAccumulation(
                                     cell.Amount,
                                     layer.Data.AccumulationRate *
-                                    cell.AccumulationMultiplier * ticks,
+                                    cell.AccumulationMultiplier,
                                     _indoorCells[cell.LocalIndex],
                                     accumulationAllowed);
                             }
@@ -444,7 +480,6 @@ namespace Project.Scripts
             }
             ClearWeatherSampleCache(sampledWeatherCount);
 
-            int visualCount = 0;
             bool navigationChanged = false;
             using (VisualMarker.Auto())
             {
@@ -459,27 +494,16 @@ namespace Project.Scripts
                         navigationChanged |=
                             HasPathingHint(previousCoverage) ||
                             HasPathingHint(currentCoverage);
-                        if (_coverageFadeRoutines[index] != null)
-                            continue;
-
-                        _visualChanges[visualCount++] = index;
                     }
                 }
             }
-
-            if (visualCount > 0)
-                _chunk?.ApplyCoverageVisuals(
-                    _visualChanges,
-                    visualCount,
-                    _displayedData,
-                    _displayedAlpha);
 
             if (navigationChanged)
                 _chunk?.NotifyNavigationChanged();
 
             if (dirtyCount > 0)
             {
-                RefreshMaterialProperties();
+                RefreshMaterialProperties(transition: true);
             }
         }
 
@@ -603,8 +627,22 @@ namespace Project.Scripts
         {
             return TryGetDisplayedCoverage(
                 localIndex,
-                out _,
-                out _);
+                out LayerState _,
+                out CellState _);
+        }
+
+        public bool TryGetDisplayedCoverage(
+            ushort localIndex,
+            out CoverageData data,
+            out float amount)
+        {
+            bool found = TryGetDisplayedCoverage(
+                localIndex,
+                out LayerState layer,
+                out CellState cell);
+            data = found ? layer.Data : null;
+            amount = found ? cell.Amount : 0f;
+            return found;
         }
 
         public bool TryGetPathingCoverage(
@@ -684,6 +722,61 @@ namespace Project.Scripts
 
             if (found && _ready)
                 RefreshCell(localIndex);
+        }
+
+        internal void ReconcileBoundary(
+            TileCoverageComponent neighbor,
+            Vector2Int neighborOffset)
+        {
+            if (!_ready || neighbor == null || !neighbor._ready ||
+                neighborOffset == Vector2Int.zero ||
+                Mathf.Abs(neighborOffset.x) > 1 ||
+                Mathf.Abs(neighborOffset.y) > 1)
+            {
+                return;
+            }
+
+            int size = ChunkBuildResult.ChunkSize;
+            foreach (KeyValuePair<string, LayerState> pair in _layers)
+            {
+                if (!neighbor._layers.TryGetValue(
+                        pair.Key, out LayerState otherLayer))
+                    continue;
+                LayerState layer = pair.Value;
+                int samples = neighborOffset.x != 0 &&
+                              neighborOffset.y != 0 ? 1 : size;
+                for (int sample = 0; sample < samples; sample++)
+                {
+                    int x = neighborOffset.x < 0 ? 0 :
+                        neighborOffset.x > 0 ? size - 1 : sample;
+                    int y = neighborOffset.y < 0 ? 0 :
+                        neighborOffset.y > 0 ? size - 1 : sample;
+                    int otherX = neighborOffset.x < 0 ? size - 1 :
+                        neighborOffset.x > 0 ? 0 : sample;
+                    int otherY = neighborOffset.y < 0 ? size - 1 :
+                        neighborOffset.y > 0 ? 0 : sample;
+                    ushort index = (ushort)(x + y * size);
+                    ushort otherIndex = (ushort)(otherX + otherY * size);
+                    if (!layer.Cells.TryGetValue(index, out CellState cell) ||
+                        !otherLayer.Cells.TryGetValue(
+                            otherIndex, out CellState otherCell) ||
+                        !TileAllowsCoverage(layer, index) ||
+                        !neighbor.TileAllowsCoverage(
+                            otherLayer, otherIndex))
+                    {
+                        continue;
+                    }
+
+                    float reconciled = (cell.Amount + otherCell.Amount) * 0.5f;
+                    cell.Amount = reconciled;
+                    otherCell.Amount = reconciled;
+                    layer.VisibleCoverageDirty = true;
+                    otherLayer.VisibleCoverageDirty = true;
+                }
+            }
+
+            RefreshAllVisuals(force: true);
+            neighbor.RefreshAllVisuals(force: true);
         }
 
         /// <summary>
@@ -801,6 +894,12 @@ namespace Project.Scripts
                 currentAmount + Mathf.Max(0f, accumulatedAmount));
         }
 
+        public static float ApplyGradualDecay(
+            float currentAmount,
+            float decayAmount) =>
+            Mathf.Clamp01(
+                Mathf.Clamp01(currentAmount) - Mathf.Max(0f, decayAmount));
+
         public void RefreshCellColor(ushort localIndex) =>
             RefreshVisual(localIndex, force: true);
 
@@ -851,6 +950,7 @@ namespace Project.Scripts
 
         public void WriteState(BinaryWriter writer)
         {
+            writer.Write(_lastSimulatedTick);
             List<string> coverageIds = new(_layers.Keys);
             coverageIds.Sort(StringComparer.Ordinal);
             int savedLayerCount = 0;
@@ -886,12 +986,15 @@ namespace Project.Scripts
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
         {
-            if (savedVersion != Version)
+            if (savedVersion == 0 || savedVersion > Version)
             {
                 throw new InvalidDataException(
                     $"Unsupported tile coverage version {savedVersion}.");
             }
 
+            _lastSimulatedTick = savedVersion >= 2
+                ? reader.ReadInt64()
+                : 0;
             int layerCount = reader.ReadInt32();
             if (layerCount < 0 || layerCount > MaximumSavedLayers)
                 throw new InvalidDataException("Invalid coverage layer count.");
@@ -949,6 +1052,38 @@ namespace Project.Scripts
             }
 
             return true;
+        }
+
+        public void SimulateOffline(
+            long fromTick,
+            long toTick,
+            OfflineSimulationPolicy policy)
+        {
+            if (policy == OfflineSimulationPolicy.None || toTick <= fromTick)
+                return;
+
+            long effectiveFrom = _lastSimulatedTick > 0
+                ? Math.Max(fromTick, _lastSimulatedTick)
+                : fromTick;
+            if (toTick <= effectiveFrom)
+                return;
+
+            _pendingOfflineTicks = toTick - effectiveFrom;
+            _pendingOfflineToTick = toTick;
+        }
+
+        private void ApplyPendingOfflineSimulation(
+            IRegionalWeatherService weather)
+        {
+            if (_pendingOfflineTicks <= 0)
+                return;
+
+            long elapsed = _pendingOfflineTicks;
+            long toTick = _pendingOfflineToTick;
+            _pendingOfflineTicks = 0;
+            _pendingOfflineToTick = 0;
+            Advance(weather, elapsed);
+            _lastSimulatedTick = toTick;
         }
 
         private static int CountSavedCells(LayerState layer)
@@ -1299,7 +1434,9 @@ namespace Project.Scripts
             return winningLayer != null;
         }
 
-        private void RefreshMaterialProperties(bool force = false)
+        private void RefreshMaterialProperties(
+            bool force = false,
+            bool transition = false)
         {
             CoverageData winner = null;
 
@@ -1319,11 +1456,125 @@ namespace Project.Scripts
                 }
             }
 
+            RebuildCoverageTexture(transition);
             if (!force && winner == _displayedMaterialData)
                 return;
 
             _displayedMaterialData = winner;
             _chunk?.ApplyCoverageMaterial(winner, 0f);
+        }
+
+        internal void RebuildCoverageTexture(bool transition = false)
+        {
+            if (!_ready || _chunk == null)
+                return;
+
+            _renderCandidates.Clear();
+            foreach (LayerState layer in _layers.Values)
+            {
+                if (LayerHasVisibleCoverage(layer))
+                {
+                    layer.RenderMaximumAmount = GetMaximumAmount(layer);
+                    _renderCandidates.Add(layer);
+                }
+            }
+            _renderCandidates.Sort(static (left, right) =>
+            {
+                int priority = right.Data.RenderPriority.CompareTo(
+                    left.Data.RenderPriority);
+                if (priority != 0)
+                    return priority;
+                int amount = right.RenderMaximumAmount.CompareTo(
+                    left.RenderMaximumAmount);
+                return amount != 0
+                    ? amount
+                    : string.CompareOrdinal(
+                        left.Data.CoverageId, right.Data.CoverageId);
+            });
+
+            Array.Clear(_selectedRenderSlots, 0, _selectedRenderSlots.Length);
+            int selectedCount = Mathf.Min(4, _renderCandidates.Count);
+            for (int i = 0; i < selectedCount; i++)
+                _selectedRenderSlots[i] = _renderCandidates[i].Data;
+
+            Array.Copy(_renderSlots, _previousRenderSlots,
+                _renderSlots.Length);
+            Array.Clear(_renderSlots, 0, _renderSlots.Length);
+            for (int slot = 0; slot < _previousRenderSlots.Length; slot++)
+            {
+                CoverageData retained = _previousRenderSlots[slot];
+                int selectedIndex = Array.IndexOf(
+                    _selectedRenderSlots, retained);
+                if (retained == null || selectedIndex < 0)
+                    continue;
+                _renderSlots[slot] = retained;
+                _selectedRenderSlots[selectedIndex] = null;
+            }
+            for (int candidate = 0;
+                 candidate < _selectedRenderSlots.Length;
+                 candidate++)
+            {
+                if (_selectedRenderSlots[candidate] == null)
+                    continue;
+                int empty = Array.IndexOf(_renderSlots, null);
+                if (empty >= 0)
+                    _renderSlots[empty] = _selectedRenderSlots[candidate];
+            }
+
+            int size = ChunkBuildResult.ChunkSize;
+            int textureSize = size + 2;
+            Array.Clear(_coveragePixels, 0, _coveragePixels.Length);
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    ushort index = (ushort)(x + y * size);
+                    Color32 value = default;
+                    value.r = GetSlotAmount(0, index);
+                    value.g = GetSlotAmount(1, index);
+                    value.b = GetSlotAmount(2, index);
+                    value.a = GetSlotAmount(3, index);
+                    _coveragePixels[(x + 1) + (y + 1) * textureSize] = value;
+                }
+            }
+
+            for (int x = 1; x <= size; x++)
+            {
+                _coveragePixels[x] = _coveragePixels[x + textureSize];
+                _coveragePixels[x + (textureSize - 1) * textureSize] =
+                    _coveragePixels[x + (textureSize - 2) * textureSize];
+            }
+            for (int y = 0; y < textureSize; y++)
+            {
+                _coveragePixels[y * textureSize] =
+                    _coveragePixels[1 + y * textureSize];
+                _coveragePixels[(textureSize - 1) + y * textureSize] =
+                    _coveragePixels[(textureSize - 2) + y * textureSize];
+            }
+
+            _chunk.UploadCoverageTexture(
+                _coveragePixels, _renderSlots, transition);
+        }
+
+        private byte GetSlotAmount(int slot, ushort localIndex)
+        {
+            CoverageData data = _renderSlots[slot];
+            if (data == null ||
+                !_layers.TryGetValue(data.CoverageId, out LayerState layer) ||
+                !layer.Cells.TryGetValue(localIndex, out CellState cell) ||
+                !TileAllowsCoverage(layer, localIndex))
+            {
+                return 0;
+            }
+            return (byte)Mathf.RoundToInt(Mathf.Clamp01(cell.Amount) * 255f);
+        }
+
+        private static float GetMaximumAmount(LayerState layer)
+        {
+            float maximum = 0f;
+            foreach (CellState cell in layer.Cells.Values)
+                maximum = Mathf.Max(maximum, cell.Amount);
+            return maximum;
         }
 
         private bool LayerHasVisibleCoverage(LayerState layer)
