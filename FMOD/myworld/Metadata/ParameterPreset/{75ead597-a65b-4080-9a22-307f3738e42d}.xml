@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.02.03.00">
+	<object class="ParameterPreset" id="{75ead597-a65b-4080-9a22-307f3738e42d}">
+		<property name="name">
+			<value>Temperature</value>
+		</property>
+		<relationship name="folder">
+			<destination>{08488be6-acbc-4001-ba8b-12b9874f8e3d}</destination>
+		</relationship>
+		<relationship name="parameter">
+			<destination>{e724bd8f-dd74-42a7-9067-3f7c308d9ff8}</destination>
+		</relationship>
+	</object>
+	<object class="GameParameter" id="{e724bd8f-dd74-42a7-9067-3f7c308d9ff8}">
+		<property name="minimum">
+			<value>-1</value>
+		</property>
+		<property name="isGlobal">
+			<value>true</value>
+		</property>
+		<property name="initialValue">
+			<value>0</value>
+		</property>
+		<property name="isExposedRecursively">
+			<value>false</value>
+		</property>
+	</object>
+</objects>
