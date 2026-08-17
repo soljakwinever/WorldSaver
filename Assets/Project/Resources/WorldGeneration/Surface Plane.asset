@@ -16,3 +16,5 @@ MonoBehaviour:
   generationPreset: {fileID: 11400000, guid: cc00000000000000000000000000000c, type: 2}
   participatesInDayNightCycle: 1
   ambientColor: {r: 1, g: 1, b: 1, a: 1}
+  defaultMusic: {fileID: 11400000, guid: 8ddd20fe9a191f74988d8e556a57d832, type: 2}
+  validWeather: []
