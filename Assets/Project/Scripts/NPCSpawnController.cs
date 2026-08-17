@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Project.Scripts.AI;
 using Project.Scripts.Bus;
 using Project.Scripts.Core;
@@ -710,8 +711,12 @@ namespace Project.Scripts
         private IEnumerable<EnemySpawnRule> EnumerateRules()
         {
             HashSet<EnemySpawnRule> visited = new();
+            IReadOnlyCollection<EnemySpawnRule> disabled =
+                _worldGeneration.AllowEventNPCSpawnRules
+                    ? _events?.DisabledEnemySpawnRules
+                    : null;
             foreach (EnemySpawnRule root in _worldGeneration.EnemySpawnRules)
-                foreach (EnemySpawnRule rule in Traverse(root, visited))
+                foreach (EnemySpawnRule rule in Traverse(root, visited, disabled))
                     yield return rule;
             if (!_worldGeneration.AllowEventNPCSpawnRules ||
                 _events?.ActiveEnemySpawnRules == null)
@@ -719,21 +724,25 @@ namespace Project.Scripts
                 yield break;
             }
             foreach (EnemySpawnRule root in _events.ActiveEnemySpawnRules)
-                foreach (EnemySpawnRule rule in Traverse(root, visited))
+                foreach (EnemySpawnRule rule in Traverse(root, visited, disabled))
                     yield return rule;
         }
 
         private static IEnumerable<EnemySpawnRule> Traverse(
             EnemySpawnRule rule,
-            HashSet<EnemySpawnRule> visited)
+            HashSet<EnemySpawnRule> visited,
+            IReadOnlyCollection<EnemySpawnRule> disabled)
         {
-            if (rule == null || !visited.Add(rule))
+            if (rule == null ||
+                disabled?.Contains(rule) == true ||
+                !visited.Add(rule))
                 yield break;
             yield return rule;
             if (rule.rules == null)
                 yield break;
             foreach (EnemySpawnRule child in rule.rules)
-                foreach (EnemySpawnRule descendant in Traverse(child, visited))
+                foreach (EnemySpawnRule descendant in
+                         Traverse(child, visited, disabled))
                     yield return descendant;
         }
 

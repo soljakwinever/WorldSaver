@@ -47,14 +47,18 @@ namespace Project.Scripts
         private readonly Dictionary<EventData, RuntimeState> _states = new();
         private readonly Dictionary<EnemyData, int> _defeats = new();
         private readonly HashSet<EnemySpawnRule> _activeRules = new();
+        private readonly HashSet<EnemySpawnRule> _disabledRules = new();
         private readonly Dictionary<EventData, List<GameObject>> _eventPortals = new();
         private int _allDefeats;
         private float _baseTemperature;
         private bool _saveDirty;
         private float _nextSaveTime;
+        private long _lastHourlyEvaluation = long.MinValue;
 
         public IReadOnlyCollection<EnemySpawnRule> ActiveEnemySpawnRules =>
             _activeRules;
+        public IReadOnlyCollection<EnemySpawnRule> DisabledEnemySpawnRules =>
+            _disabledRules;
 
         public EventService(
             WorldData world,
@@ -144,17 +148,29 @@ namespace Project.Scripts
 
         public void Tick()
         {
+            long hour = GetAbsoluteDay() * 24L +
+                        Mathf.Clamp(_time.Hour, 0, 23);
+            bool evaluateHourlyConditions = hour != _lastHourlyEvaluation;
+            if (evaluateHourlyConditions)
+                _lastHourlyEvaluation = hour;
+
             foreach (KeyValuePair<EventData, RuntimeState> pair in _states)
             {
                 EventData data = pair.Key;
                 RuntimeState state = pair.Value;
                 if (!state.Active && !state.Finished &&
+                    ShouldEvaluate(
+                        data.activationCondition,
+                        evaluateHourlyConditions) &&
                     Evaluate(data.activationCondition, data, state))
                 {
                     Activate(data, state);
                 }
 
                 if (state.Active && data.endCondition != null &&
+                    ShouldEvaluate(
+                        data.endCondition,
+                        evaluateHourlyConditions) &&
                     Evaluate(data.endCondition, data, state))
                 {
                     Finish(data, state);
@@ -284,9 +300,6 @@ namespace Project.Scripts
             state.ItemBaselines.Clear();
             state.DefeatBaseline.Clear();
             Activate(match, state);
-            Debug.Log(
-                $"Force-activated event '{match.name}' " +
-                $"({match.persistentId}).");
         }
 
         private bool TryGetState(string eventId, out RuntimeState state)
@@ -334,10 +347,11 @@ namespace Project.Scripts
                 case NotEventCondition not:
                     return !Evaluate(not.condition, owner, state);
                 case CalendarEventCondition calendar:
-                    long value = GetCalendarValue(calendar.unit);
-                    int every = Mathf.Max(1, calendar.every);
-                    return value >= calendar.offset &&
-                           (value - calendar.offset) % every == 0;
+                    return MatchesCalendar(
+                        calendar,
+                        GetCalendarValue(calendar.unit));
+                case TimeOfDayEventCondition timeOfDay:
+                    return timeOfDay.AllowsHour(_time.Hour);
                 case WeatherEventCondition weather:
                     return weather.weather != null &&
                            _chunkloader.track != null &&
@@ -402,9 +416,51 @@ namespace Project.Scripts
             }
         }
 
+        private static bool ShouldEvaluate(
+            EventCondition condition,
+            bool evaluateHourlyConditions) =>
+            !ContainsTimeOfDayCondition(condition) ||
+            evaluateHourlyConditions;
+
+        private static bool MatchesCalendar(
+            CalendarEventCondition condition,
+            long value)
+        {
+            int every = Mathf.Max(1, condition.every);
+            return value >= condition.offset &&
+                   (value - condition.offset) % every == 0;
+        }
+
+        private static bool ContainsTimeOfDayCondition(
+            EventCondition condition)
+        {
+            switch (condition)
+            {
+                case TimeOfDayEventCondition:
+                    return true;
+                case AllEventCondition all when all.conditions != null:
+                    foreach (EventCondition child in all.conditions)
+                        if (ContainsTimeOfDayCondition(child))
+                            return true;
+                    return false;
+                case AnyEventCondition any when any.conditions != null:
+                    foreach (EventCondition child in any.conditions)
+                        if (ContainsTimeOfDayCondition(child))
+                            return true;
+                    return false;
+                case NotEventCondition not:
+                    return ContainsTimeOfDayCondition(not.condition);
+                default:
+                    return false;
+            }
+        }
+
         private void Activate(EventData data, RuntimeState state)
         {
             state.Active = true;
+            Debug.Log(
+                $"Event '{data.DisplayName}' started " +
+                $"(ID: '{data.persistentId}').");
             state.ActivatedDay = GetAbsoluteDay();
             state.AllDefeatsBaseline = _allDefeats;
             foreach (KeyValuePair<EnemyData, int> pair in _defeats)
@@ -445,6 +501,7 @@ namespace Project.Scripts
         private void RebuildEffects()
         {
             _activeRules.Clear();
+            _disabledRules.Clear();
             float temperature = _baseTemperature;
             foreach (KeyValuePair<EventData, RuntimeState> pair in _states)
             {
@@ -459,7 +516,13 @@ namespace Project.Scripts
                          Array.Empty<EnemySpawnRule>())
                     if (rule != null)
                         _activeRules.Add(rule);
+                foreach (EnemySpawnRule rule in
+                         effects.disabledEnemySpawnRules ??
+                         Array.Empty<EnemySpawnRule>())
+                    if (rule != null)
+                        _disabledRules.Add(rule);
             }
+            _activeRules.ExceptWith(_disabledRules);
             _weather.SetGlobalTemperatureOffset(temperature);
         }
 

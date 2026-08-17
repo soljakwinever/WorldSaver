@@ -22,9 +22,7 @@ MonoBehaviour:
   minimumSpacing: 2
   maxAllowed: 20
   spawnIntervalTicks: 1
-  variations:
-  - enemyData: {fileID: 11400000, guid: f6c2539aa7b9497bb909d175768bfd9c, type: 2}
-    chance: 0.602
+  variations: []
   recycleOffscreenIdle: 1
   minimumLifetimeTicks: 15
   idleTicksBeforeRecycle: 1

@@ -13,7 +13,9 @@ MonoBehaviour:
   m_Name: Desert
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Desert
+  musicOverride: {fileID: 11400000, guid: e61207b7deffbcd479ac3ea500a28ab3, type: 2}
   areaNameParts: {fileID: 11400000, guid: 87259594f492f6604781c864f0caf118, type: 2}
+  biomePlacement: 0
   temperature: 0.88
   temperatureVariance: 0.1
   moisture: 0.1
@@ -33,6 +35,7 @@ MonoBehaviour:
   cliffChance: 0.03
   cliffStrength: 0.02
   cliffScale: 30
+  crevasseStrength: 1
   lakeStrength: 0.25
   SmallPoolsStrength: 1
   volcanoChance: 0

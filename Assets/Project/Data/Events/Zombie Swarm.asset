@@ -12,38 +12,44 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6d14f0c785d4ffca28fe6341643a4c1, type: 3}
   m_Name: Zombie Swarm
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EventData
+  displayName: 
   persistentId: zombie.swarm
+  musicOverride: {fileID: 0}
   blackboard: []
   nodeDestroyedChanges: []
   activationCondition:
     rid: 1367514975385420123
   endCondition:
-    rid: -2
+    rid: 4542295136311443625
   effects:
     globalTemperatureOffset: 0
     weather: {fileID: 0}
-    enabledEnemySpawnRules: []
+    enabledEnemySpawnRules:
+    - {fileID: 11400000, guid: 5f653d6a66a7ca941b30a76b8d400b65, type: 2}
+    disabledEnemySpawnRules: []
     featureBuildings: []
     portals: []
     buildings: []
   references:
     version: 2
     RefIds:
-    - rid: -2
-      type: {class: , ns: , asm: }
     - rid: 1367514975385420123
       type: {class: AllEventCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
       data:
         conditions:
-        - rid: 1367514975385420124
+        - rid: 4542295136311443622
         - rid: 1367514975385420125
-    - rid: 1367514975385420124
-      type: {class: CalendarEventCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
-      data:
-        every: 4
-        offset: 0
-        unit: 0
     - rid: 1367514975385420125
       type: {class: RandomChanceEventCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
       data:
         chance: 0.5
+    - rid: 4542295136311443622
+      type: {class: TimeOfDayEventCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        firstHour: 18
+        lastHour: 18
+    - rid: 4542295136311443625
+      type: {class: TimeOfDayEventCondition, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        firstHour: 6
+        lastHour: 6

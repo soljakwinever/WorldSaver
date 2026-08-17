@@ -11,5 +11,6 @@ namespace Project.Scripts.Interface
         bool TrySetVariable(string eventId, string variable, int value);
         bool TryAddVariable(string eventId, string variable, int amount);
         IReadOnlyCollection<EnemySpawnRule> ActiveEnemySpawnRules { get; }
+        IReadOnlyCollection<EnemySpawnRule> DisabledEnemySpawnRules { get; }
     }
 }

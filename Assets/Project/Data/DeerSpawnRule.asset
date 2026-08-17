@@ -33,5 +33,5 @@ MonoBehaviour:
   restrictedBiomes: []
   requiredEvent: 
   requiredWeather: []
-  minimumTemperature: -1
-  maximumTemperature: 1
+  minimumTemperature: -0.3
+  maximumTemperature: 0.2

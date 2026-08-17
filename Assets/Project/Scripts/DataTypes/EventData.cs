@@ -36,8 +36,15 @@ namespace Project.Scripts.DataTypes
     [CreateAssetMenu(fileName = "Event", menuName = "World/Event")]
     public sealed class EventData : ScriptableObject
     {
+        [Tooltip("Player-facing event name. Falls back to the asset name when blank.")]
+        public string displayName;
+
         [Tooltip("Stable ID used by conditions, saves, and enemy spawn rules.")]
         public string persistentId = "event";
+
+        public string DisplayName => string.IsNullOrWhiteSpace(displayName)
+            ? name
+            : displayName.Trim();
 
         [Header("Audio")]
         [Tooltip("Optional high-priority music while this event is active.")]
@@ -63,6 +70,7 @@ namespace Project.Scripts.DataTypes
 
         private void OnValidate()
         {
+            displayName = displayName?.Trim();
             persistentId = persistentId?.Trim();
         }
     }
@@ -191,6 +199,32 @@ namespace Project.Scripts.DataTypes
     }
 
     [Serializable]
+    public sealed class TimeOfDayEventCondition : EventCondition
+    {
+        [Range(0, 23)]
+        [Tooltip("First eligible hour.")]
+        public int firstHour;
+
+        [Range(0, 24)]
+        [Tooltip("Exclusive final eligible hour. An earlier value creates an overnight window.")]
+        public int lastHour = 24;
+
+        public bool AllowsHour(int hour)
+        {
+            int first = Mathf.Clamp(firstHour, 0, 23);
+            int last = Mathf.Clamp(lastHour, 0, 24);
+            if (first == last)
+                return true;
+            return first < last
+                ? hour >= first && hour < last
+                : hour >= first || hour < last;
+        }
+
+        public override string ToString() =>
+            $"Time of Day: {firstHour:00}:00-{lastHour:00}:00";
+    }
+
+    [Serializable]
     public sealed class WeatherEventCondition : EventCondition
     {
         public WeatherData weather;
@@ -275,6 +309,8 @@ namespace Project.Scripts.DataTypes
         public WeatherData weather;
         [Tooltip("Additional enemy rules enabled only while this event is active.")]
         public EnemySpawnRule[] enabledEnemySpawnRules = Array.Empty<EnemySpawnRule>();
+        [Tooltip("Enemy rules suppressed while this event is active. Disabled rules take precedence over enabled rules.")]
+        public EnemySpawnRule[] disabledEnemySpawnRules = Array.Empty<EnemySpawnRule>();
         [Tooltip("Feature building placement rules for this event.")]
         public EventFeatureBuildingEffect[] featureBuildings =
             Array.Empty<EventFeatureBuildingEffect>();

@@ -13,7 +13,9 @@ MonoBehaviour:
   m_Name: Badlands
   m_EditorClassIdentifier: Assembly-CSharp::Project.Scripts.BiomeData
   biomeName: Badlands
+  musicOverride: {fileID: 11400000, guid: e61207b7deffbcd479ac3ea500a28ab3, type: 2}
   areaNameParts: {fileID: 11400000, guid: a3dca942e5d9518676f5b65298599f99, type: 2}
+  biomePlacement: 0
   temperature: 0.76
   temperatureVariance: 0.14
   moisture: 0.18
@@ -33,7 +35,9 @@ MonoBehaviour:
   cliffChance: 0.36
   cliffStrength: 0.09
   cliffScale: 13
+  crevasseStrength: 1
   lakeStrength: 0.25
+  SmallPoolsStrength: 1
   volcanoChance: 0.02
   craterChance: 0.08
   mesaChance: 0.65
@@ -44,8 +48,14 @@ MonoBehaviour:
   waterColor: {r: 0.1764706, g: 0.47058824, b: 0.7254902, a: 1}
   cliffColor: {r: 0.49019608, g: 0.27450982, b: 0.21568628, a: 1}
   beachColor: {r: 0.8235294, g: 0.5882353, b: 0.33333334, a: 1}
+  springTint: {r: 1, g: 1, b: 1, a: 1}
+  summerTint: {r: 1, g: 1, b: 1, a: 1}
+  fallTint: {r: 1, g: 1, b: 1, a: 1}
+  winterTint: {r: 1, g: 1, b: 1, a: 1}
+  SeasonColorEffectMod: 1
   overrideGroundTile: {fileID: 11400000, guid: 70777777777747778777777777777777, type: 2}
   overridePathTile: {fileID: 0}
   overrideWaterTile: {fileID: 0}
   overrideCliffTile: {fileID: 0}
   overrideBeachTile: {fileID: 0}
+  overrideMinedTileReplacement: {fileID: 0}

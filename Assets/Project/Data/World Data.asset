@@ -42,6 +42,13 @@ MonoBehaviour:
   coverageLayers:
   - {fileID: 11400000, guid: e0d6ae861dc3aa54db97f4422316c1c0, type: 2}
   - {fileID: 11400000, guid: d6e80ccdcc1c2ac44be63094f4fc563d, type: 2}
+  coverageUpdateIntervalTicks: 60
+  coveragePixelsPerUnit: 16
+  coverageNoiseScale: 0.25
+  coverageDetailScale: 1.5
+  coverageDetailStrength: 0.2
+  coverageBlendSoftness: 0.1
+  coverageAlphaClipThreshold: 0.5
   seed: 322657246
   heightMapDebug: 0
   previewNoiseLayer: 1
@@ -654,6 +661,35 @@ MonoBehaviour:
     minMoisture: 0
     maxMoisture: 1
     minTemperature: 0
+    maxTemperature: 1
+    maxSlope: 0
+    density: 0.5
+    cellSize: 4
+    minSpacing: 1
+    noiseScale: 1
+    noiseThreshold: 0.35
+    avoidWater: 0
+    avoidCliffs: 0
+    avoidMountains: 0
+    avoidTowns: 0
+    avoidRivers: 0
+    avoidRoads: 0
+    canSpawnOnPaths: 0
+    avoidTrails: 0
+    avoidBeaches: 0
+    avoidGround: 0
+    minScale: 0.85
+    maxScale: 1
+    randomFlipX: 1
+  - name: Iron Rock
+    nodeData: {fileID: 11400000, guid: 7087ebce94b78a44f8590faf05f19cd6, type: 2}
+    allowedBiomes: []
+    disallowedBiomes: []
+    minHeight: 0.6
+    maxHeight: 1
+    minMoisture: 0
+    maxMoisture: 0.2
+    minTemperature: 0.5
     maxTemperature: 1
     maxSlope: 0
     density: 0.5
