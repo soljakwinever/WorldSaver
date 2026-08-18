@@ -13,7 +13,7 @@ namespace Project.Scripts.Gameplay
         IPersistentComponent
     {
         public const ushort TypeId = 0x5453; // TS
-        private const ushort Version = 1;
+        private const ushort Version = 2;
         [SerializeField, Min(1)] private int size = 32;
         private Inventory _inventory;
         private ItemCatalog _catalog;
@@ -73,13 +73,13 @@ namespace Project.Scripts.Gameplay
                 writer.Write(stack.Item.persistentId);
                 writer.Write((byte)stack.Rarity);
                 writer.Write(stack.Count);
-                writer.Write(stack.Durability);
+                ItemStackDataCodec.Write(writer, stack.Durability, stack.GeneratedData);
             }
         }
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
         {
-            if (savedVersion != Version)
+            if (savedVersion < 1 || savedVersion > Version)
                 throw new InvalidDataException($"Unsupported town stockpile version {savedVersion}.");
             if (_catalog == null)
                 throw new InvalidOperationException("Town stockpile requires an item catalog.");
@@ -92,9 +92,12 @@ namespace Project.Scripts.Gameplay
                 string id = reader.ReadString();
                 ItemData.Rarity rarity = (ItemData.Rarity)reader.ReadByte();
                 int amount = reader.ReadInt32();
-                byte durability = reader.ReadByte();
+                byte durability = byte.MaxValue;
+                GeneratedItemData generated = savedVersion >= 2
+                    ? ItemStackDataCodec.Read(reader, out durability) : null;
+                if (savedVersion < 2) durability = reader.ReadByte();
                 if (!_catalog.TryGet(id, out ItemData item) || amount < 1 ||
-                    !restored.TryAdd(item, amount, out int remainder, rarity, durability) ||
+                    !restored.TryAdd(new ItemStack(item, amount, rarity, durability, generated), out int remainder) ||
                     remainder != 0)
                     throw new InvalidDataException($"Invalid stockpile item '{id}'.");
             }

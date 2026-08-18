@@ -12,7 +12,7 @@ namespace Project.Scripts.Gameplay
         IPersistentComponent, IItemDurabilityProvider
     {
         public const ushort TypeId = 7;
-        private const ushort CurrentVersion = 2;
+        private const ushort CurrentVersion = 3;
 
         [SerializeField, Min(1)] private int size = 16;
 
@@ -214,7 +214,7 @@ namespace Project.Scripts.Gameplay
                 writer.Write(stack.Item.persistentId);
                 writer.Write((byte)stack.Rarity);
                 writer.Write(stack.Count);
-                writer.Write(stack.Durability);
+                ItemStackDataCodec.Write(writer, stack.Durability, stack.GeneratedData);
             }
         }
 
@@ -236,9 +236,15 @@ namespace Project.Scripts.Gameplay
                 string itemId = reader.ReadString();
                 ItemData.Rarity rarity = (ItemData.Rarity)reader.ReadByte();
                 int count = reader.ReadInt32();
-                byte durability = savedVersion >= 2
-                    ? reader.ReadByte()
-                    : byte.MaxValue;
+                byte durability;
+                GeneratedItemData generated;
+                if (savedVersion >= 3)
+                    generated = ItemStackDataCodec.Read(reader, out durability);
+                else
+                {
+                    generated = null;
+                    durability = savedVersion >= 2 ? reader.ReadByte() : byte.MaxValue;
+                }
 
                 if (!TryResolveItem(itemId, out ItemData item))
                     throw new InvalidDataException($"Saved inventory references unknown item '{itemId}'.");
@@ -248,7 +254,7 @@ namespace Project.Scripts.Gameplay
                     throw new InvalidDataException(
                         $"Saved stack count {count} is invalid for item '{itemId}'.");
 
-                ItemStack stack = new(item, count, rarity, durability);
+                ItemStack stack = new(item, count, rarity, durability, generated);
                 if (!restored.TryAdd(stack, out int remainder) || remainder != 0)
                     throw new InvalidDataException("Saved inventory exceeds its configured capacity.");
             }

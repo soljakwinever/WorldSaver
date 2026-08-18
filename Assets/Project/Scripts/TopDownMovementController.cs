@@ -93,9 +93,13 @@ namespace Project.Scripts
                 playerDataController.IsDeathInProgress;
             float skillSpeedMultiplier =
                 GetComponent<SkillRuntime>()?.GetMovementSpeedMultiplier() ?? 1f;
+            float equipmentSpeedPercent =
+                GetComponent<PlayerEquipmentController>()?.GetGeneratedModifier(
+                    ItemModifierType.MovementSpeed) ?? 0f;
+            float equipmentSpeedMultiplier = Mathf.Max(0.1f, 1f + equipmentSpeedPercent / 100f);
             var input = movementLocked || stunned || deathInputLocked
                 ? Vector2.zero
-                : moveInput * (speed * skillSpeedMultiplier * Time.deltaTime);
+                : moveInput * (speed * skillSpeedMultiplier * equipmentSpeedMultiplier * Time.deltaTime);
 
             if (movementLocked && _rigidbody2D != null)
                 _rigidbody2D.linearVelocity = Vector2.zero;

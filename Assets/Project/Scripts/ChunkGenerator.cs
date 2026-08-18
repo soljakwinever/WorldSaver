@@ -205,7 +205,7 @@ namespace Project.Scripts
             }
         }
 
-        private static ChunkBuildResult BuildChunk(Vector2Int position, WorldGeneration worldGeneration, IEnumerable<PropSpawnRule> propSpawnRules, CancellationToken cancellationToken = default)
+        internal static ChunkBuildResult BuildChunk(Vector2Int position, WorldGeneration worldGeneration, IEnumerable<PropSpawnRule> propSpawnRules, CancellationToken cancellationToken = default)
         {
             // Guaranteed features and their spawn-to-village road depend on
             // the canonical spawn anchor. Resolve it before the first terrain

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using IngameDebugConsole;
 using Project.Scripts.Bus;
+using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
 using Project.Scripts.DataTypes.SaveData;
 using Project.Scripts.Gameplay;
@@ -20,7 +21,7 @@ namespace Project.Scripts
         IDisposable
     {
         private const uint SaveMagic = 0x45535757; // WWSE
-        private const ushort SaveVersion = 1;
+        private const ushort SaveVersion = 2;
         private sealed class RuntimeState
         {
             public bool Active;
@@ -34,15 +35,19 @@ namespace Project.Scripts
                 DurationDeadlines = new();
             public readonly Dictionary<string, int> Variables =
                 new(StringComparer.Ordinal);
+            public long NextStalkerActivityTick;
+            public long NextStalkerSignTick;
         }
 
         private readonly WorldData _world;
         private readonly ITimeController _time;
+        private readonly IWorldClock _worldClock;
         private readonly IRegionalWeatherService _weather;
         private readonly FeatureBuildingService _buildings;
         private readonly Chunkloader _chunkloader;
         private readonly PlayerDataController _player;
         private readonly EntityBus _entities;
+        private readonly PlayerBus _playerBus;
         private readonly IAudioService _audio;
         private readonly IDangerService _danger;
         private readonly Dictionary<EventData, RuntimeState> _states = new();
@@ -64,21 +69,25 @@ namespace Project.Scripts
         public EventService(
             WorldData world,
             ITimeController time,
+            IWorldClock worldClock,
             IRegionalWeatherService weather,
             FeatureBuildingService buildings,
             Chunkloader chunkloader,
             PlayerDataController player,
             EntityBus entities,
+            PlayerBus playerBus,
             IAudioService audio,
             IDangerService danger)
         {
             _world = world;
             _time = time;
+            _worldClock = worldClock;
             _weather = weather;
             _buildings = buildings;
             _chunkloader = chunkloader;
             _player = player;
             _entities = entities;
+            _playerBus = playerBus;
             _audio = audio;
             _danger = danger;
         }
@@ -88,6 +97,7 @@ namespace Project.Scripts
             _baseTemperature = _weather.GlobalTemperatureOffset;
             _entities.EnemyDefeated += OnEnemyDefeated;
             _entities.EntityRemoved += OnEntityRemoved;
+            _playerBus.Slept += OnPlayerSlept;
             foreach (EventData data in _world.events ?? Array.Empty<EventData>())
                 if (data != null && !_states.ContainsKey(data))
                 {
@@ -132,16 +142,30 @@ namespace Project.Scripts
                 "Force-activates an event by persistent ID or asset name.",
                 DebugActivateEvent,
                 "eventName");
+            DebugLogConsole.AddCommand<string, int>(
+                "event.stalker.activity",
+                "Sets an active event's stalker activity.",
+                DebugSetStalkerActivity,
+                "eventName",
+                "activity");
+            DebugLogConsole.AddCommand<string>(
+                "event.stalker.sign",
+                "Attempts an awake stalker sign for an active event.",
+                DebugCreateStalkerSign,
+                "eventName");
         }
 
         public void Dispose()
         {
             _entities.EnemyDefeated -= OnEnemyDefeated;
             _entities.EntityRemoved -= OnEntityRemoved;
+            _playerBus.Slept -= OnPlayerSlept;
             SaveState();
             _weather.SetGlobalTemperatureOffset(_baseTemperature);
             DebugLogConsole.RemoveCommand(DebugCurrentEvents);
             DebugLogConsole.RemoveCommand<string>(DebugActivateEvent);
+            DebugLogConsole.RemoveCommand<string, int>(DebugSetStalkerActivity);
+            DebugLogConsole.RemoveCommand<string>(DebugCreateStalkerSign);
             foreach (List<GameObject> portals in _eventPortals.Values)
                 foreach (GameObject portal in portals)
                     if (portal != null)
@@ -153,6 +177,7 @@ namespace Project.Scripts
 
         public void Tick()
         {
+            long currentTick = _worldClock.CurrentTick;
             long hour = GetAbsoluteDay() * 24L +
                         Mathf.Clamp(_time.Hour, 0, 23);
             bool evaluateHourlyConditions = hour != _lastHourlyEvaluation;
@@ -163,6 +188,8 @@ namespace Project.Scripts
             {
                 EventData data = pair.Key;
                 RuntimeState state = pair.Value;
+                if (state.Active)
+                    TickStalker(data, state, currentTick);
                 if (!state.Active && !state.Finished &&
                     ShouldEvaluate(
                         data.activationCondition,
@@ -264,6 +291,52 @@ namespace Project.Scripts
             active.Sort(StringComparer.OrdinalIgnoreCase);
             Debug.Log(
                 $"Active events ({active.Count}): {string.Join(", ", active)}");
+        }
+
+        private void DebugSetStalkerActivity(string eventName, int activity)
+        {
+            if (!TryGetEvent(eventName, out EventData data,
+                    out RuntimeState state) || data.effects?.stalker == null)
+                return;
+            EventStalkerEffect stalker = data.effects.stalker;
+            TrySetVariable(data.persistentId, stalker.activityVariable,
+                Mathf.Clamp(activity, 0, Mathf.Max(1, stalker.maximumActivity)));
+        }
+
+        private void DebugCreateStalkerSign(string eventName)
+        {
+            if (!TryGetEvent(eventName, out EventData data,
+                    out RuntimeState state) || !state.Active ||
+                data.effects?.stalker == null)
+                return;
+            EventStalkerEffect stalker = data.effects.stalker;
+            if (state.Variables.TryGetValue(
+                    stalker.activityVariable?.Trim() ?? string.Empty,
+                    out int activity))
+                TryCreateStalkerSign(stalker, activity, false,
+                    _chunkloader.track != null
+                        ? _chunkloader.track.position
+                        : Vector3.zero);
+        }
+
+        private bool TryGetEvent(
+            string identifier,
+            out EventData data,
+            out RuntimeState state)
+        {
+            foreach (KeyValuePair<EventData, RuntimeState> pair in _states)
+                if (string.Equals(pair.Key.persistentId, identifier,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(pair.Key.name, identifier,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    data = pair.Key;
+                    state = pair.Value;
+                    return true;
+                }
+            data = null;
+            state = null;
+            return false;
         }
 
         private void DebugActivateEvent(string eventName)
@@ -539,6 +612,12 @@ namespace Project.Scripts
                          Array.Empty<EnemySpawnRule>())
                     if (rule != null)
                         _activeRules.Add(rule);
+                EventStalkerEffect stalker = effects.stalker;
+                if (stalker?.spawnRule != null &&
+                    pair.Value.Variables.TryGetValue(
+                        stalker.activityVariable?.Trim() ?? string.Empty,
+                        out int activity) && stalker.IsAtMaximum(activity))
+                    _activeRules.Add(stalker.spawnRule);
                 foreach (EnemySpawnRule rule in
                          effects.disabledEnemySpawnRules ??
                          Array.Empty<EnemySpawnRule>())
@@ -736,6 +815,166 @@ namespace Project.Scripts
             if (enemy != null)
                 _defeats[enemy] = GetDefeats(enemy) + 1;
             MarkSaveDirty();
+        }
+
+        private void TickStalker(
+            EventData data,
+            RuntimeState state,
+            long currentTick)
+        {
+            EventStalkerEffect stalker = data.effects?.stalker;
+            if (stalker == null)
+                return;
+            string variable = stalker.activityVariable?.Trim();
+            if (string.IsNullOrEmpty(variable) ||
+                !state.Variables.TryGetValue(variable, out int activity))
+                return;
+
+            if (state.NextStalkerActivityTick <= 0)
+                state.NextStalkerActivityTick = currentTick +
+                    Mathf.Max(1, stalker.activityIntervalTicks);
+            if (currentTick >= state.NextStalkerActivityTick)
+            {
+                int previous = activity;
+                activity = Mathf.Min(
+                    Mathf.Max(1, stalker.maximumActivity),
+                    SaturatingAdd(activity, Mathf.Max(1, stalker.activityGain)));
+                state.Variables[variable] = activity;
+                state.NextStalkerActivityTick = currentTick +
+                    Mathf.Max(1, stalker.activityIntervalTicks);
+                if (activity != previous)
+                {
+                    RebuildEffects();
+                    MarkSaveDirty();
+                }
+            }
+
+            if (state.NextStalkerSignTick <= 0)
+                state.NextStalkerSignTick = currentTick +
+                    Mathf.Max(1, stalker.signIntervalTicks);
+            if (currentTick >= state.NextStalkerSignTick)
+            {
+                int signCooldown = TryCreateStalkerSign(stalker, activity, false,
+                    _chunkloader.track != null
+                        ? _chunkloader.track.position
+                        : Vector3.zero);
+                state.NextStalkerSignTick = currentTick +
+                    Mathf.Max(Mathf.Max(1, stalker.signIntervalTicks),
+                        signCooldown);
+                MarkSaveDirty();
+            }
+        }
+
+        private void OnPlayerSlept(Vector3 position)
+        {
+            foreach (KeyValuePair<EventData, RuntimeState> pair in _states)
+            {
+                EventStalkerEffect stalker = pair.Key.effects?.stalker;
+                if (!pair.Value.Active || stalker == null ||
+                    _worldClock.CurrentTick < pair.Value.NextStalkerSignTick ||
+                    !pair.Value.Variables.TryGetValue(
+                        stalker.activityVariable?.Trim() ?? string.Empty,
+                        out int activity))
+                    continue;
+                int cooldown = TryCreateStalkerSign(
+                    stalker, activity, true, position);
+                if (cooldown > 0)
+                {
+                    pair.Value.NextStalkerSignTick = _worldClock.CurrentTick +
+                        Mathf.Max(Mathf.Max(1, stalker.signIntervalTicks),
+                            cooldown);
+                    MarkSaveDirty();
+                }
+            }
+        }
+
+        private int TryCreateStalkerSign(
+            EventStalkerEffect stalker,
+            int activity,
+            bool afterSleep,
+            Vector3 origin)
+        {
+            List<EventStalkerSign> eligible = new();
+            int totalWeight = 0;
+            foreach (EventStalkerSign sign in stalker.signs ??
+                     Array.Empty<EventStalkerSign>())
+            {
+                if (sign == null || sign.minimumActivity > activity ||
+                    sign.requiresSleep != afterSleep)
+                    continue;
+                eligible.Add(sign);
+                totalWeight += Mathf.Max(1, sign.weight);
+            }
+            if (totalWeight <= 0)
+                return 0;
+            int roll = UnityEngine.Random.Range(0, totalWeight);
+            EventStalkerSign selected = eligible[0];
+            foreach (EventStalkerSign sign in eligible)
+            {
+                roll -= Mathf.Max(1, sign.weight);
+                if (roll < 0) { selected = sign; break; }
+            }
+            return TryPlaceStalkerSign(selected, origin, afterSleep)
+                ? Mathf.Max(1, selected.cooldownTicks)
+                : 0;
+        }
+
+        private bool TryPlaceStalkerSign(
+            EventStalkerSign sign,
+            Vector3 origin,
+            bool allowVisible)
+        {
+            float minimum = Mathf.Max(0.5f, sign.minimumDistance);
+            float maximum = Mathf.Max(minimum, sign.maximumDistance);
+            for (int attempt = 0; attempt < Mathf.Max(1, sign.placementAttempts); attempt++)
+            {
+                Vector2 offset = UnityEngine.Random.insideUnitCircle.normalized *
+                                 UnityEngine.Random.Range(minimum, maximum);
+                Vector3 position = origin + (Vector3)offset;
+                if (!allowVisible && IsVisibleFromMainCamera(position))
+                    continue;
+                Vector3Int cell = Vector3Int.FloorToInt(position);
+                if (!_chunkloader.TryGetLoadedChunk(cell, out Chunk chunk) ||
+                    !chunk.IsPersistenceRestoreCompleted)
+                    continue;
+                if (sign.kind == EventStalkerSignKind.DestroyWall)
+                {
+                    if (chunk.TryGetTileData(cell, PersistentTileLayer.Wall,
+                            out TileData wall) && wall != null &&
+                        Array.IndexOf(sign.destructibleWalls ??
+                            Array.Empty<TileData>(), wall) >= 0 &&
+                        chunk.TryClearTile(cell, PersistentTileLayer.Wall))
+                        return true;
+                    continue;
+                }
+                if (sign.kind == EventStalkerSignKind.PersistentProp)
+                {
+                    if (sign.persistentProp != null &&
+                        chunk.TrySpawnRuntimeEntity(sign.persistentProp,
+                            (Vector2)position, out _))
+                        return true;
+                    continue;
+                }
+                if (sign.prefab == null)
+                    continue;
+                GameObject instance = UnityEngine.Object.Instantiate(
+                    sign.prefab, position, Quaternion.identity);
+                if (sign.prefabLifetimeSeconds > 0f)
+                    UnityEngine.Object.Destroy(instance,
+                        sign.prefabLifetimeSeconds);
+                return true;
+            }
+            return false;
+        }
+
+        private static bool IsVisibleFromMainCamera(Vector3 position)
+        {
+            Camera camera = Camera.main;
+            if (camera == null)
+                return false;
+            Vector3 viewport = camera.WorldToViewportPoint(position);
+            return viewport.z >= 0f && viewport.x >= 0f && viewport.x <= 1f &&
+                   viewport.y >= 0f && viewport.y <= 1f;
         }
 
         private void OnEntityRemoved(
@@ -1073,6 +1312,8 @@ namespace Project.Scripts
                 writer.Write(path);
                 writer.Write(baseline);
             }
+            writer.Write(state.NextStalkerActivityTick);
+            writer.Write(state.NextStalkerSignTick);
         }
 
         private bool LoadState()
@@ -1089,9 +1330,12 @@ namespace Project.Scripts
                     FileAccess.Read,
                     FileShare.Read);
                 using BinaryReader reader = new(stream);
-                if (reader.ReadUInt32() != SaveMagic ||
-                    reader.ReadUInt16() != SaveVersion)
+                if (reader.ReadUInt32() != SaveMagic)
                     throw new InvalidDataException("Unsupported event save file.");
+                ushort savedVersion = reader.ReadUInt16();
+                if (savedVersion < 1 || savedVersion > SaveVersion)
+                    throw new InvalidDataException(
+                        $"Unsupported event save version {savedVersion}.");
 
                 _allDefeats = ReadNonNegative(reader, "enemy defeat total");
                 Dictionary<string, EnemyData> enemies = BuildEnemyCatalog();
@@ -1111,7 +1355,7 @@ namespace Project.Scripts
                         events[data.persistentId] = data;
                 int eventCount = ReadCount(reader, "event entries");
                 for (int i = 0; i < eventCount; i++)
-                    ReadEventState(reader, events, enemies);
+                    ReadEventState(reader, events, enemies, savedVersion);
                 if (stream.Position != stream.Length)
                     throw new InvalidDataException(
                         "Event save contains trailing data.");
@@ -1127,7 +1371,8 @@ namespace Project.Scripts
         private void ReadEventState(
             BinaryReader reader,
             Dictionary<string, EventData> events,
-            Dictionary<string, EnemyData> enemies)
+            Dictionary<string, EnemyData> enemies,
+            ushort savedVersion)
         {
             string eventId = reader.ReadString();
             bool active = reader.ReadBoolean();
@@ -1187,6 +1432,16 @@ namespace Project.Scripts
                     conditions.TryGetValue(key, out EventCondition condition) &&
                     condition is ItemCollectedEventCondition item)
                     state.ItemBaselines[item] = value;
+            }
+            if (savedVersion >= 2)
+            {
+                long nextActivity = reader.ReadInt64();
+                long nextSign = reader.ReadInt64();
+                if (state != null)
+                {
+                    state.NextStalkerActivityTick = nextActivity;
+                    state.NextStalkerSignTick = nextSign;
+                }
             }
         }
 

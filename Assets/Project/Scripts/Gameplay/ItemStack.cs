@@ -11,14 +11,16 @@ namespace Project.Scripts.Gameplay
         public ItemData Item { get; }
         public ItemData.Rarity Rarity { get; }
         public byte Durability { get; private set; }
+        public GeneratedItemData GeneratedData { get; }
+        public ItemStackFlags Flags => ItemStackDataCodec.GetFlags(Durability, GeneratedData);
         public float Durability01 => Durability / (float)byte.MaxValue;
         public bool IsBroken => Durability == 0;
         public int Count { get; private set; }
         public int Capacity => Item.maxStack;
         public int RemainingCapacity => Capacity - Count;
         public bool IsFull => Count == Capacity;
-        public string DisplayName => Item != null ? Item.name : string.Empty;
-        public string Description => Item?.description ?? string.Empty;
+        public string DisplayName => GeneratedData?.HasUniqueName == true ? GeneratedData.UniqueName : Item != null ? Item.name : string.Empty;
+        public string Description => BuildDescription();
         public Color Color => ItemRarityUtility.GetRarityColor(Rarity);
         public Sprite Sprite => Item != null ? Item.sprite : null;
 
@@ -26,7 +28,8 @@ namespace Project.Scripts.Gameplay
             ItemData item,
             int count,
             ItemData.Rarity rarity = ItemData.Rarity.Common,
-            byte durability = byte.MaxValue)
+            byte durability = byte.MaxValue,
+            GeneratedItemData generatedData = null)
         {
             ValidateItem(item);
 
@@ -40,6 +43,23 @@ namespace Project.Scripts.Gameplay
             Rarity = rarity;
             Durability = durability;
             Count = count;
+            GeneratedData = generatedData;
+        }
+
+        private string BuildDescription()
+        {
+            string result = Item?.description ?? string.Empty;
+            if (GeneratedData == null) return IsBroken ? result + "\nBroken" : result;
+            foreach (ItemModifier modifier in GeneratedData.Modifiers)
+            {
+                string sign = modifier.Amount >= 0 ? "+" : string.Empty;
+                string suffix = modifier.Mode == ModifierValueMode.Percent ? "%" : string.Empty;
+                string label = modifier.Type == ItemModifierType.Stat ? modifier.Stat.ToString() :
+                    modifier.Type == ItemModifierType.ElementalDamage || modifier.Type == ItemModifierType.ElementalResistance
+                        ? $"{modifier.Element} {modifier.Type}" : modifier.Type.ToString();
+                result += $"\n{sign}{modifier.Amount:0.##}{suffix} {label}";
+            }
+            return IsBroken ? result + "\nBroken" : result;
         }
 
         public void SetDurability(byte durability)

@@ -15,7 +15,7 @@ namespace Project.Scripts.Gameplay
         IPersistentComponent
     {
         public const ushort TypeId = 15;
-        private const ushort CurrentVersion = 1;
+        private const ushort CurrentVersion = 2;
 
         private readonly Dictionary<EquipmentSlot, ItemStack> _equipped =
             new();
@@ -76,9 +76,26 @@ namespace Project.Scripts.Gameplay
                 {
                     total = checked(
                         total + equipable.GetStatModifier(stat));
+                    if (stack.GeneratedData != null)
+                        foreach (ItemModifier modifier in stack.GeneratedData.Modifiers)
+                            if (modifier.Type == ItemModifierType.Stat &&
+                                modifier.Mode == ModifierValueMode.Flat && modifier.Stat == stat)
+                                total = checked(total + Mathf.RoundToInt(modifier.Amount));
                 }
             }
 
+            return total;
+        }
+
+        public float GetGeneratedModifier(ItemModifierType type)
+        {
+            float total = 0f;
+            foreach (ItemStack stack in _equipped.Values)
+            {
+                if (stack.IsBroken || stack.GeneratedData == null) continue;
+                foreach (ItemModifier modifier in stack.GeneratedData.Modifiers)
+                    if (modifier.Type == type) total += modifier.Amount;
+            }
             return total;
         }
 
@@ -92,7 +109,8 @@ namespace Project.Scripts.Gameplay
                     sourceStack.Item,
                     1,
                     sourceStack.Rarity,
-                    sourceStack.Durability)))
+                    sourceStack.Durability,
+                    sourceStack.GeneratedData)))
                 return false;
 
             var changes = new List<InventoryChange>
@@ -101,7 +119,8 @@ namespace Project.Scripts.Gameplay
                     sourceStack.Item,
                     -1,
                     sourceStack.Rarity,
-                    sourceStack.Durability)
+                    sourceStack.Durability,
+                    sourceStack.GeneratedData)
             };
 
             if (_equipped.TryGetValue(
@@ -112,7 +131,8 @@ namespace Project.Scripts.Gameplay
                     previous.Item,
                     1,
                     previous.Rarity,
-                    previous.Durability));
+                    previous.Durability,
+                    previous.GeneratedData));
             }
 
             if (!_inventory.TryApplyChanges(changes))
@@ -122,7 +142,8 @@ namespace Project.Scripts.Gameplay
                 sourceStack.Item,
                 1,
                 sourceStack.Rarity,
-                sourceStack.Durability);
+                sourceStack.Durability,
+                sourceStack.GeneratedData);
             RebuildView();
             NotifyChanged();
             return true;
@@ -140,7 +161,8 @@ namespace Project.Scripts.Gameplay
                     stack.Item,
                     1,
                     stack.Rarity,
-                    stack.Durability)
+                    stack.Durability,
+                    stack.GeneratedData)
             };
             if (!_inventory.TryApplyChanges(addition))
                 return false;
@@ -182,7 +204,7 @@ namespace Project.Scripts.Gameplay
                 writer.Write((byte)slot);
                 writer.Write(stack.Item.persistentId);
                 writer.Write((byte)stack.Rarity);
-                writer.Write(stack.Durability);
+                ItemStackDataCodec.Write(writer, stack.Durability, stack.GeneratedData);
             }
         }
 
@@ -192,7 +214,7 @@ namespace Project.Scripts.Gameplay
         {
             if (reader == null)
                 throw new ArgumentNullException(nameof(reader));
-            if (savedVersion != CurrentVersion)
+            if (savedVersion < 1 || savedVersion > CurrentVersion)
                 throw new InvalidDataException(
                     $"Unsupported equipment state version {savedVersion}.");
             _catalog ??= FindFirstObjectByType<ItemCatalog>();
@@ -216,7 +238,11 @@ namespace Project.Scripts.Gameplay
                 string itemId = reader.ReadString();
                 ItemData.Rarity rarity =
                     (ItemData.Rarity)reader.ReadByte();
-                byte durability = reader.ReadByte();
+                byte durability = byte.MaxValue;
+                GeneratedItemData generated = savedVersion >= 2
+                    ? ItemStackDataCodec.Read(reader, out durability)
+                    : null;
+                if (savedVersion < 2) durability = reader.ReadByte();
 
                 if (!Enum.IsDefined(typeof(EquipmentSlot), slot) ||
                     !Enum.IsDefined(typeof(ItemData.Rarity), rarity) ||
@@ -226,7 +252,7 @@ namespace Project.Scripts.Gameplay
                     !restored.TryAdd(
                         slot,
                         new ItemStack(
-                            item, 1, rarity, durability)))
+                            item, 1, rarity, durability, generated)))
                 {
                     throw new InvalidDataException(
                         $"Invalid equipped item '{itemId}'.");

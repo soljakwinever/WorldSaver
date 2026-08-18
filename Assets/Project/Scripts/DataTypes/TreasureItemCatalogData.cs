@@ -9,6 +9,10 @@ namespace Project.Scripts.DataTypes
     {
         public ItemData item;
         [Min(0f)] public float weight = 1f;
+        [Tooltip("Generate persistent rarity-based modifiers when this entry is awarded.")]
+        public bool generateModifiers;
+        [Range(0f, 1f), Tooltip("Chance that modified equipment receives a generated name.")]
+        public float uniqueNameChance = 0.35f;
     }
 
     [CreateAssetMenu(
@@ -43,6 +47,32 @@ namespace Project.Scripts.DataTypes
 
     public static class TreasureLootItemSelector
     {
+        public static TreasureItemCatalogEntry SelectEntry(
+            TreasureItemCatalogData catalog, System.Random random)
+        {
+            if (random == null) throw new ArgumentNullException(nameof(random));
+            return SelectEntry(catalog, random.NextDouble());
+        }
+
+        public static TreasureItemCatalogEntry SelectEntry(
+            TreasureItemCatalogData catalog, double roll)
+        {
+            TreasureItemCatalogEntry[] entries = catalog?.items;
+            if (entries == null || entries.Length == 0) return null;
+            double total = 0; TreasureItemCatalogEntry last = null;
+            foreach (TreasureItemCatalogEntry entry in entries)
+                if (IsEligible(entry)) { total += entry.weight; last = entry; }
+            if (last == null || total <= 0) return null;
+            double target = Math.Max(0d, Math.Min(1d, roll)) * total, cumulative = 0;
+            foreach (TreasureItemCatalogEntry entry in entries)
+            {
+                if (!IsEligible(entry)) continue;
+                cumulative += entry.weight;
+                if (target < cumulative) return entry;
+            }
+            return last;
+        }
+
         public static ItemData Select(
             TreasureItemCatalogData catalog,
             System.Random random)
@@ -50,46 +80,14 @@ namespace Project.Scripts.DataTypes
             if (random == null)
                 throw new ArgumentNullException(nameof(random));
 
-            return Select(catalog, random.NextDouble());
+            return SelectEntry(catalog, random.NextDouble())?.item;
         }
 
         public static ItemData Select(
             TreasureItemCatalogData catalog,
             double roll)
         {
-            TreasureItemCatalogEntry[] entries = catalog?.items;
-            if (entries == null || entries.Length == 0)
-                return null;
-
-            double totalWeight = 0d;
-            TreasureItemCatalogEntry lastEligible = null;
-            for (int i = 0; i < entries.Length; i++)
-            {
-                TreasureItemCatalogEntry entry = entries[i];
-                if (!IsEligible(entry))
-                    continue;
-
-                totalWeight += entry.weight;
-                lastEligible = entry;
-            }
-
-            if (lastEligible == null || totalWeight <= 0d)
-                return null;
-
-            double target = Math.Max(0d, Math.Min(1d, roll)) * totalWeight;
-            double cumulative = 0d;
-            for (int i = 0; i < entries.Length; i++)
-            {
-                TreasureItemCatalogEntry entry = entries[i];
-                if (!IsEligible(entry))
-                    continue;
-
-                cumulative += entry.weight;
-                if (target < cumulative)
-                    return entry.item;
-            }
-
-            return lastEligible.item;
+            return SelectEntry(catalog, roll)?.item;
         }
 
         private static bool IsEligible(TreasureItemCatalogEntry entry) =>

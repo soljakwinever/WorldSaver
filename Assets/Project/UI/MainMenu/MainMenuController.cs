@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Project.Scripts;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Gameplay;
 using UnityEngine;
@@ -59,6 +60,7 @@ namespace Project.UI.MainMenu
             Array.Empty<WorldGenerationPresetData>();
         private int _newWorldPresetIndex;
         private CharacterCreationCatalogData _characterCatalog;
+        [SerializeField] private MainMenuWorldPreviewController worldPreview;
         private IReadOnlyList<CharacterProfile> _characters = Array.Empty<CharacterProfile>();
         private int _selectedCharacterIndex = -1;
         private bool _creatingCharacter;
@@ -119,6 +121,9 @@ namespace Project.UI.MainMenu
             }
             _characterCatalog = CharacterCreationCatalogData.LoadOrFallback();
             RefreshCharacters();
+
+            worldPreview ??= GetComponent<MainMenuWorldPreviewController>();
+            worldPreview?.Initialize(_presetCatalog?.newWorldDefault);
         }
 
         private void OnDestroy()
@@ -140,7 +145,8 @@ namespace Project.UI.MainMenu
                 WindowHeight);
             GUILayout.BeginArea(window, GUI.skin.window);
             GUILayout.Space(18);
-            GUILayout.Label("WORLD SAVER", _titleStyle);
+            GUILayout.Label("MY WORLD", _titleStyle);
+            GUILayout.Label(Application.version, _subtitleStyle);
             GUILayout.Label(PageTitle(), _subtitleStyle);
             GUILayout.Space(20);
 
@@ -730,11 +736,13 @@ namespace Project.UI.MainMenu
             };
         }
 
-        private static void DrawBackdrop()
+        private void DrawBackdrop()
         {
             Color previous = GUI.color;
-            GUI.color = new Color(0.055f, 0.09f, 0.08f, 1f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+            Rect screen = new(0f, 0f, Screen.width, Screen.height);
+            float alpha = worldPreview != null ? worldPreview.BackdropAlpha : 1f;
+            GUI.color = new Color(0.025f, 0.045f, 0.04f, alpha);
+            GUI.DrawTexture(screen, Texture2D.whiteTexture);
             GUI.color = previous;
         }
     }

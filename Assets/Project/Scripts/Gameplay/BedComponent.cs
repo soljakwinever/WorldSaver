@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Project.Scripts.Core;
+using Project.Scripts.Bus;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using UnityEngine;
@@ -27,6 +28,7 @@ namespace Project.Scripts.Gameplay
         private ITimeSkipController _time;
         private IWorldClock _worldClock;
         private PlayerDataController _player;
+        private PlayerBus _playerBus;
 
         public static IReadOnlyCollection<BedComponent> All => Active;
         public IPersistentEntity PersistentEntity { get; set; }
@@ -41,12 +43,14 @@ namespace Project.Scripts.Gameplay
 
         [Inject]
         public void Construct(IIndoorLocationService rooms, ITimeSkipController time,
-            IWorldClock worldClock, PlayerDataController player)
+            IWorldClock worldClock, PlayerDataController player,
+            PlayerBus playerBus)
         {
             _rooms = rooms;
             _time = time;
             _worldClock = worldClock;
             _player = player;
+            _playerBus = playerBus;
         }
 
         public void Initialize(float healthPerSecond, float energyPerSecond,
@@ -156,6 +160,7 @@ namespace Project.Scripts.Gameplay
             foreach (VillagerEntityBridge villager in VillagerEntityBridge.All)
                 villager?.ApplySkippedNightRecovery();
             _time.AdvanceToNextMorning(7);
+            _playerBus?.RaiseSlept(transform.position);
             _worldClock?.Save();
         }
 

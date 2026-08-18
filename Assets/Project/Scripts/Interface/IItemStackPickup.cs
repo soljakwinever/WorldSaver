@@ -9,6 +9,7 @@ namespace Project.Scripts.Interface
             ItemData item,
             int count,
             ItemData.Rarity rarity,
-            byte durability = byte.MaxValue);
+            byte durability = byte.MaxValue,
+            GeneratedItemData generatedData = null);
     }
 }

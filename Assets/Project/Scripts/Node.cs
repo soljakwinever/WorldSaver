@@ -198,7 +198,8 @@ public class Node : MonoBehaviour, INode
             configuration.maximumStacks + 1);
         for (int i = 0; i < stackCount; i++)
         {
-            ItemData item = TreasureLootItemSelector.Select(catalog, random);
+            TreasureItemCatalogEntry entry = TreasureLootItemSelector.SelectEntry(catalog, random);
+            ItemData item = entry?.item;
             if (item == null || item.maxStack < 1)
                 continue;
 
@@ -214,7 +215,11 @@ public class Node : MonoBehaviour, INode
 
             try
             {
-                inventory.TryAdd(item, count, out _, rarity);
+                if (entry.generateModifiers && item is EquipableItemData)
+                    inventory.TryAdd(GeneratedEquipmentFactory.Create(item, rarity, random,
+                        entry.uniqueNameChance), out _);
+                else
+                    inventory.TryAdd(item, count, out _, rarity);
             }
             catch (ArgumentException exception)
             {

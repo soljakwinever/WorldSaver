@@ -25,9 +25,11 @@ MonoBehaviour:
   persistentComponents:
   - rid: 810000000000000201
   - rid: 810000000000000202
-  droppedItem: {fileID: 0}
+  droppedItem: {fileID: 11400000, guid: 4a33ca0781cfadd44a352369900e6d3b, type: 2}
   dropChance: 1
   tags: []
+  valueTags: []
+  damageRules: []
   references:
     version: 2
     RefIds:
@@ -50,3 +52,7 @@ MonoBehaviour:
         - {fileID: 11400000, guid: 7c043ec745ac7ca439fc43bdb62fea87, type: 2}
         - {fileID: 11400000, guid: 39ad7a1097eb2b344943385207113244, type: 2}
         - {fileID: 11400000, guid: 3464b64e733a78e42b653987f7756f1a, type: 2}
+        - {fileID: 11400000, guid: 2174b8fb8077f5747a4e317c2720490c, type: 2}
+        - {fileID: 11400000, guid: 75d742bdbf4789247a6a6c7e97f732ee, type: 2}
+        - {fileID: 11400000, guid: 800a6da1e83a50a43a85c636401a87e3, type: 2}
+        - {fileID: 11400000, guid: bdef7f892a6c6d948954548225268bd4, type: 2}

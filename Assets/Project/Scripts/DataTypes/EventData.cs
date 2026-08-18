@@ -319,8 +319,55 @@ namespace Project.Scripts.DataTypes
         [Tooltip("Blackboard variables mapped into the normalized FMOD Danger parameter while this event is active.")]
         public EventDangerEffect[] danger = Array.Empty<EventDangerEffect>();
 
+        [Tooltip("Optional escalating persistent-enemy encounter owned by this event.")]
+        public EventStalkerEffect stalker;
+
         [HideInInspector, Tooltip("Legacy one-per-event building list.")]
         public FeatureBuildingData[] buildings = Array.Empty<FeatureBuildingData>();
+    }
+
+    public enum EventStalkerSignKind
+    {
+        Prefab,
+        PersistentProp,
+        DestroyWall
+    }
+
+    [Serializable]
+    public sealed class EventStalkerSign
+    {
+        public EventStalkerSignKind kind;
+        [Min(0)] public int minimumActivity;
+        [Min(1)] public int weight = 1;
+        [Tooltip("Only attempt this sign immediately after the player sleeps.")]
+        public bool requiresSleep;
+        public GameObject prefab;
+        public NodeData persistentProp;
+        [Tooltip("Destroy Wall signs only affect these wall tiles. Empty disables destruction.")]
+        public TileData[] destructibleWalls = Array.Empty<TileData>();
+        [Min(0.5f)] public float minimumDistance = 3f;
+        [Min(0.5f)] public float maximumDistance = 8f;
+        [Min(1)] public int placementAttempts = 12;
+        [Min(1)] public int cooldownTicks = 30;
+        [Min(0f), Tooltip("Seconds before a prefab sign disappears. Zero leaves it until unloaded or destroyed.")]
+        public float prefabLifetimeSeconds;
+    }
+
+    [Serializable]
+    public sealed class EventStalkerEffect
+    {
+        [Tooltip("Blackboard variable containing the activity level.")]
+        public string activityVariable = "activity";
+        [Min(1)] public int maximumActivity = 100;
+        [Min(1)] public int activityIntervalTicks = 60;
+        [Min(1)] public int activityGain = 1;
+        [Min(1)] public int signIntervalTicks = 30;
+        [Tooltip("This rule becomes active only once activity reaches its maximum.")]
+        public EnemySpawnRule spawnRule;
+        public EventStalkerSign[] signs = Array.Empty<EventStalkerSign>();
+
+        public bool IsAtMaximum(int activity) =>
+            activity >= Mathf.Max(1, maximumActivity);
     }
 
     [Serializable]

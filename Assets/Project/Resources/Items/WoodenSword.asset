@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5ee74d09bd864c63a241f4ecd301e547, type: 3}
+  m_Script: {fileID: 11500000, guid: ed7b5af77f1d49bfb665b25c986e31eb, type: 3}
   m_Name: WoodenSword
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ItemData
   persistentId: weapons.woodensword
@@ -29,6 +29,8 @@ MonoBehaviour:
   - tag: {fileID: 11400000, guid: b26da7e9b22e43b5aa9894c2cb4c4b01, type: 2}
     intValue: 15
     floatValue: 0
+  equipmentSlot: 0
+  statModifiers: []
   references:
     version: 2
     RefIds:

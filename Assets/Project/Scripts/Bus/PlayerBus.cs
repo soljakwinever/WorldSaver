@@ -1,6 +1,7 @@
 using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
+using UnityEngine;
 
 namespace Project.Scripts.Bus
 {
@@ -22,6 +23,7 @@ namespace Project.Scripts.Bus
         public event LevelUpHandler OnLevelUp;
         public event ExperienceChangedHandler OnExperienceChanged;
         public event System.Action OnStatsChanged;
+        public event System.Action<Vector3> Slept;
 
         public void RaiseInteractableHovered(IInteractable interactable, InteractionContext interactionContext)
         {
@@ -58,5 +60,7 @@ namespace Project.Scripts.Bus
         {
             OnStatsChanged?.Invoke();
         }
+
+        public void RaiseSlept(Vector3 position) => Slept?.Invoke(position);
     }
 }

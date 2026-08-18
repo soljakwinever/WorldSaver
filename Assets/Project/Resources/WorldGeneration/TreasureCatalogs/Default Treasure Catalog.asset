@@ -13,14 +13,24 @@ MonoBehaviour:
   m_Name: Default Treasure Catalog
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.TreasureItemCatalogData
   items:
-  - item: {fileID: 0}
+  - item: {fileID: 11400000, guid: 75d742bdbf4789247a6a6c7e97f732ee, type: 2}
     weight: 1
-  - item: {fileID: 0}
+    generateModifiers: 0
+    uniqueNameChance: 0.35
+  - item: {fileID: 11400000, guid: 2174b8fb8077f5747a4e317c2720490c, type: 2}
     weight: 1
-  - item: {fileID: 0}
+    generateModifiers: 0
+    uniqueNameChance: 0.35
+  - item: {fileID: 11400000, guid: 800a6da1e83a50a43a85c636401a87e3, type: 2}
     weight: 1
-  - item: {fileID: 0}
+    generateModifiers: 0
+    uniqueNameChance: 0.35
+  - item: {fileID: 11400000, guid: bdef7f892a6c6d948954548225268bd4, type: 2}
     weight: 1
-  - item: {fileID: 0}
+    generateModifiers: 0
+    uniqueNameChance: 0.35
+  - item: {fileID: 11400000, guid: b8440387653a3d349b8968cc977ede49, type: 2}
     weight: 1
+    generateModifiers: 0
+    uniqueNameChance: 0.35
   allowedBiomes: []

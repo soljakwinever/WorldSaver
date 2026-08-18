@@ -74,7 +74,8 @@ namespace Project.Scripts.Gameplay
                         stack.Rarity,
                         position,
                         launchImpulse,
-                        stack.Durability);
+                        stack.Durability,
+                        stack.GeneratedData);
                     remaining -= count;
                     spawnedStackCount++;
                 }

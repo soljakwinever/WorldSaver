@@ -990,9 +990,11 @@ namespace Project.Scripts.Gameplay
             _deathHandled = true;
             List<ItemStackExplosionEntry> drops = new();
             foreach (IItemStack stack in Stacks)
-                drops.Add(new ItemStackExplosionEntry(stack.Item, stack.Count, stack.Rarity, stack.Durability));
+                drops.Add(new ItemStackExplosionEntry(stack.Item, stack.Count, stack.Rarity,
+                    stack.Durability, stack.GeneratedData));
             foreach (IItemStack stack in EquippedItems)
-                drops.Add(new ItemStackExplosionEntry(stack.Item, stack.Count, stack.Rarity, stack.Durability));
+                drops.Add(new ItemStackExplosionEntry(stack.Item, stack.Count, stack.Rarity,
+                    stack.Durability, stack.GeneratedData));
             _dropService?.Explode(drops, WorldPosition, 2f, 0.25f);
             string id = PersistentEntity?.Id.ToString();
             if (!string.IsNullOrEmpty(id)) _town?.UnregisterResident(id);

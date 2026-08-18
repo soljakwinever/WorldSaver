@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: -5945993675256963465}
   - component: {fileID: -700570425830797498}
   m_Layer: 0
-  m_Name: npc.visual..Deer
+  m_Name: npc.visual.Deer
   m_TagString: NPC
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

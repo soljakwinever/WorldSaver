@@ -15,6 +15,7 @@ namespace Project.Scripts.Gameplay
         [SerializeField] private bool generateRarity = true;
         [SerializeField] private ItemData.Rarity rarity = ItemData.Rarity.Common;
         [SerializeField] private byte durability = byte.MaxValue;
+        private GeneratedItemData _generatedData;
 
         private IItemStackPickupPool _pool;
         private Rigidbody2D _body;
@@ -28,12 +29,14 @@ namespace Project.Scripts.Gameplay
             ItemData item,
             int count,
             ItemData.Rarity rarity,
-            byte durability = byte.MaxValue)
+            byte durability = byte.MaxValue,
+            GeneratedItemData generatedData = null)
         {
             this.item = item;
             this.count = count;
             this.rarity = rarity;
             this.durability = durability;
+            _generatedData = generatedData;
 
             if (TryGetComponent(out SpriteRenderer renderer))
             {
@@ -97,12 +100,8 @@ namespace Project.Scripts.Gameplay
             if (!CanInteract(context) || !TryGetInventory(context.user, out IInventory inventory))
                 return;
 
-            inventory.TryAdd(
-                item,
-                count,
-                out int remainder,
-                rarity,
-                durability);
+            inventory.TryAdd(new ItemStack(item, count, rarity, durability, _generatedData),
+                out int remainder);
             count = remainder;
 
             if (count <= 0)
@@ -114,7 +113,8 @@ namespace Project.Scripts.Gameplay
             if (item == null)
                 return string.Empty;
 
-            return $"Pick up {count}x {item.name} ({rarity})";
+            string displayName = _generatedData?.HasUniqueName == true ? _generatedData.UniqueName : item.name;
+            return $"Pick up {count}x {displayName} ({rarity})";
         }
 
         private void RemovePickup()

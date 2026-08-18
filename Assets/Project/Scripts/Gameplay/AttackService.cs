@@ -26,7 +26,11 @@ namespace Project.Scripts.Gameplay
                 context.Attacker.GetComponentInParent<PlayerDataController>();
             int statBonus =
                 player?.GetAttackDamageBonus(context.AttackType) ?? 0;
-            int attackDamage = checked(baseDamage + statBonus);
+            PlayerEquipmentController equipment = context.Attacker != null
+                ? context.Attacker.GetComponentInParent<PlayerEquipmentController>() : null;
+            int generatedDamage = equipment != null
+                ? Mathf.RoundToInt(equipment.GetGeneratedModifier(ItemModifierType.Damage)) : 0;
+            int attackDamage = Mathf.Max(0, checked(baseDamage + statBonus + generatedDamage));
             if (context.Skill == null)
                 return attackDamage;
             return context.SkillPowerMode == SkillPowerMode.Multiplier

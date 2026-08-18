@@ -43,6 +43,34 @@ namespace Project.Tests.EditMode
             Assert.That(effect.Evaluate(0), Is.EqualTo(1f));
         }
 
+        [TestCase(0, 100, false)]
+        [TestCase(99, 100, false)]
+        [TestCase(100, 100, true)]
+        [TestCase(150, 100, true)]
+        [TestCase(1, 0, true)]
+        public void StalkerSpawnGateRequiresMaximumActivity(
+            int activity,
+            int maximum,
+            bool expected)
+        {
+            EventStalkerEffect effect = new()
+            {
+                maximumActivity = maximum
+            };
+
+            Assert.That(effect.IsAtMaximum(activity), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void StalkerDefaultsToRareSingleRuleFriendlyCadence()
+        {
+            EventStalkerEffect effect = new();
+
+            Assert.That(effect.maximumActivity, Is.GreaterThan(1));
+            Assert.That(effect.activityIntervalTicks, Is.GreaterThan(1));
+            Assert.That(effect.signIntervalTicks, Is.GreaterThan(1));
+        }
+
         [Test]
         public void DisplayNameUsesAuthoredValue()
         {

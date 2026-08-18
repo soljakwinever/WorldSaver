@@ -10,17 +10,20 @@ namespace Project.Scripts.Interface
         public int Count { get; }
         public ItemData.Rarity Rarity { get; }
         public byte Durability { get; }
+        public GeneratedItemData GeneratedData { get; }
 
         public ItemStackExplosionEntry(
             ItemData item,
             int count,
             ItemData.Rarity rarity,
-            byte durability = byte.MaxValue)
+            byte durability = byte.MaxValue,
+            GeneratedItemData generatedData = null)
         {
             Item = item;
             Count = count;
             Rarity = rarity;
             Durability = durability;
+            GeneratedData = generatedData;
         }
     }
 

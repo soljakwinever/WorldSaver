@@ -20,10 +20,12 @@ namespace Project.Scripts
             ItemData.Rarity rarity,
             UnityEngine.Vector3 position,
             UnityEngine.Vector2 impulse,
-            byte durability)
+            byte durability,
+            GeneratedItemData generatedData)
         {
             ItemStackPickup pickup =
                 Spawn(itemData, count, rarity, durability);
+            pickup.Initialize(itemData, count, rarity, durability, generatedData);
             pickup.transform.position = position;
             pickup.Launch(impulse);
         }

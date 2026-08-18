@@ -15,6 +15,10 @@ namespace Project.UI
         private const string DefaultTargetScene = "SampleScene";
         private const int MinimumLoadedChunks = 6;
         private const float FadeDuration = 0.4f;
+        private const float VisibleProgressStart = 0.9f;
+        private const float LoadingBackdropOpacity = 0.85f;
+
+        [SerializeField] private ParticleSystem loadingParticles;
 
         private static string _targetScene;
 
@@ -36,6 +40,8 @@ namespace Project.UI
 
         private IEnumerator Start()
         {
+            PlayLoadingParticles();
+
             string targetScene = string.IsNullOrEmpty(_targetScene)
                 ? DefaultTargetScene
                 : _targetScene;
@@ -54,11 +60,12 @@ namespace Project.UI
             loadOperation.allowSceneActivation = false;
             while (loadOperation.progress < 0.9f)
             {
-                _progress = Mathf.Clamp01(loadOperation.progress / 0.9f) * 0.85f;
+                _progress = Mathf.Clamp01(loadOperation.progress / 0.9f) *
+                            VisibleProgressStart;
                 yield return null;
             }
 
-            _progress = 0.85f;
+            _progress = VisibleProgressStart;
             loadOperation.allowSceneActivation = true;
             while (!loadOperation.isDone)
                 yield return null;
@@ -77,18 +84,65 @@ namespace Project.UI
             while (chunkLoader.LoadedChunks < MinimumLoadedChunks)
             {
                 _progress = Mathf.Lerp(
-                    0.85f,
+                    VisibleProgressStart,
                     1f,
                     chunkLoader.LoadedChunks / (float)MinimumLoadedChunks);
                 yield return null;
             }
 
             _progress = 1f;
+            yield return StopAndDestroyLoadingParticles();
             yield return FadeIn();
 
             Scene loadingScene = gameObject.scene;
             if (loadingScene.IsValid() && loadingScene.isLoaded)
                 SceneManager.UnloadSceneAsync(loadingScene);
+        }
+
+        private void PlayLoadingParticles()
+        {
+            if (loadingParticles == null)
+            {
+                Debug.LogWarning(
+                    "Loading particle system is not assigned; continuing without it.",
+                    this);
+                return;
+            }
+
+            foreach (ParticleSystem particle in
+                     loadingParticles.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                ParticleSystem.MainModule main = particle.main;
+                main.useUnscaledTime = true;
+                particle.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+            loadingParticles.Play(withChildren: true);
+        }
+
+        private IEnumerator StopAndDestroyLoadingParticles()
+        {
+            if (loadingParticles == null)
+                yield break;
+
+            ParticleSystem[] particles =
+                loadingParticles.GetComponentsInChildren<ParticleSystem>(true);
+            foreach (ParticleSystem particle in particles)
+            {
+                ParticleSystem.MainModule main = particle.main;
+                main.loop = false;
+                main.ringBufferMode = ParticleSystemRingBufferMode.Disabled;
+                particle.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+            }
+
+            while (loadingParticles != null && loadingParticles.IsAlive(true))
+                yield return null;
+
+            if (loadingParticles != null)
+            {
+                GameObject particleRoot = loadingParticles.gameObject;
+                loadingParticles = null;
+                Destroy(particleRoot);
+            }
         }
 
         private IEnumerator FadeOut()
@@ -118,7 +172,9 @@ namespace Project.UI
         private void OnGUI()
         {
             Color previousColor = GUI.color;
-            GUI.color = new Color(0.025f, 0.045f, 0.04f, _fadeAlpha);
+            GUI.color = new Color(
+                0.025f, 0.045f, 0.04f,
+                _fadeAlpha * LoadingBackdropOpacity);
             GUI.DrawTexture(
                 new Rect(0f, 0f, Screen.width, Screen.height),
                 Texture2D.whiteTexture);
@@ -141,8 +197,11 @@ namespace Project.UI
                 GUI.color = new Color(0.12f, 0.18f, 0.16f, _fadeAlpha);
                 GUI.DrawTexture(new Rect(x, y, width, height), Texture2D.whiteTexture);
                 GUI.color = new Color(0.45f, 0.82f, 0.48f, _fadeAlpha);
+                float visibleProgress = Mathf.InverseLerp(
+                    VisibleProgressStart, 1f, _progress);
                 GUI.DrawTexture(
-                    new Rect(x + 2f, y + 2f, (width - 4f) * _progress, height - 4f),
+                    new Rect(x + 2f, y + 2f,
+                        (width - 4f) * visibleProgress, height - 4f),
                     Texture2D.whiteTexture);
             }
 

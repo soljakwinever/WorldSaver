@@ -60,12 +60,12 @@ namespace Project.Scripts.Gameplay
             if (stack == null)
                 throw new ArgumentNullException(nameof(stack));
 
-            return TryAdd(
-                stack.Item,
-                stack.Count,
-                out remainder,
-                stack.Rarity,
-                stack.Durability);
+            if (stack.GeneratedData == null)
+                return TryAdd(stack.Item, stack.Count, out remainder, stack.Rarity, stack.Durability);
+            if (stack.Count != 1 || _stacks.Count >= Size) { remainder = stack.Count; return false; }
+            AddStack(new ItemStack(stack.Item, 1, stack.Rarity, stack.Durability, stack.GeneratedData));
+            remainder = 0;
+            return true;
         }
 
         public bool TryRemove(ItemData item, int count, ItemData.Rarity rarity)
@@ -113,7 +113,8 @@ namespace Project.Scripts.Gameplay
                 ItemStack candidate = _stacks[i];
                 if (candidate.Item != stack.Item ||
                     candidate.Rarity != stack.Rarity ||
-                    candidate.Durability != stack.Durability)
+                    candidate.Durability != stack.Durability ||
+                    !Equals(candidate.GeneratedData, stack.GeneratedData))
                     continue;
 
                 int removed = Math.Min(candidate.Count, remaining);
@@ -254,7 +255,8 @@ namespace Project.Scripts.Gameplay
             return GetCount(
                 stack.Item,
                 stack.Rarity,
-                stack.Durability) >= stack.Count;
+                stack.Durability,
+                stack.GeneratedData) >= stack.Count;
         }
 
         public bool CanApplyChanges(IReadOnlyList<InventoryChange> changes)
@@ -295,7 +297,8 @@ namespace Project.Scripts.Gameplay
                     stack.Item,
                     stack.Count,
                     stack.Rarity,
-                    stack.Durability));
+                    stack.Durability,
+                    stack.GeneratedData));
             }
 
             for (int changeIndex = 0; changeIndex < changes.Count; changeIndex++)
@@ -313,7 +316,9 @@ namespace Project.Scripts.Gameplay
                         if (stack.Item != change.Item ||
                             stack.Rarity != change.Rarity ||
                             (!change.MatchesAnyDurability &&
-                             stack.Durability != change.Durability))
+                             stack.Durability != change.Durability) ||
+                            (change.GeneratedData != null &&
+                             !Equals(stack.GeneratedData, change.GeneratedData)))
                             continue;
 
                         int removed = Math.Min(stack.Count, remaining);
@@ -334,6 +339,7 @@ namespace Project.Scripts.Gameplay
                     if (stack.Item == change.Item &&
                         stack.Rarity == change.Rarity &&
                         stack.Durability == change.Durability &&
+                        Equals(stack.GeneratedData, change.GeneratedData) &&
                         !stack.IsFull)
                     {
                         remaining = stack.Add(remaining);
@@ -348,7 +354,8 @@ namespace Project.Scripts.Gameplay
                             change.Item,
                             stackCount,
                             change.Rarity,
-                            change.Durability));
+                            change.Durability,
+                            change.GeneratedData));
                     remaining -= stackCount;
                 }
 
@@ -375,6 +382,13 @@ namespace Project.Scripts.Gameplay
             ItemData item,
             ItemData.Rarity rarity,
             byte durability)
+            => GetCount(item, rarity, durability, null);
+
+        private int GetCount(
+            ItemData item,
+            ItemData.Rarity rarity,
+            byte durability,
+            GeneratedItemData generatedData)
         {
             int total = 0;
             for (int i = 0; i < _stacks.Count; i++)
@@ -382,7 +396,8 @@ namespace Project.Scripts.Gameplay
                 ItemStack stack = _stacks[i];
                 if (stack.Item == item &&
                     stack.Rarity == rarity &&
-                    stack.Durability == durability)
+                    stack.Durability == durability &&
+                    (generatedData == null || Equals(stack.GeneratedData, generatedData)))
                     total = checked(total + stack.Count);
             }
 

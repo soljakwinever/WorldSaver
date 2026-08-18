@@ -11,7 +11,8 @@ namespace Project.Scripts.Interface
             ItemData.Rarity rarity,
             Vector3 position,
             Vector2 impulse = default,
-            byte durability = byte.MaxValue);
+            byte durability = byte.MaxValue,
+            GeneratedItemData generatedData = null);
 
         void Despawn(IItemStackPickup pickup);
     }
