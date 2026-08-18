@@ -114,6 +114,7 @@ namespace Project.Scripts.AI.Leaves.Actions
                 self.position,
                 waypoint,
                 Mathf.Max(0f, movementSpeed) *
+                AiPathingUtility.GetActorSpeedMultiplier(self.gameObject) *
                 AiPathingUtility.GetSpeedMultiplier(
                     map,
                     path[waypointIndex],

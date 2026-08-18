@@ -78,6 +78,7 @@ namespace Project.Scripts
             {
                 if (candidate != null &&
                     candidate.sprite != null &&
+                    candidate.GetComponent<FalseHeightVisual>() == null &&
                     candidate.GetComponent<WallDamageVisual>() == null)
                 {
                     return candidate;

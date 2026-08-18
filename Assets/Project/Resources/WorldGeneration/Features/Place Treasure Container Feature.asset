@@ -1,0 +1,72 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4004268f0e3fa6d4798da3e68644ccc2, type: 3}
+  m_Name: Place Treasure Container Feature
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.FeatureData
+  persistentId: feature
+  selectionWeight: 1
+  canBeSensed: 1
+  senseIcon: {fileID: 2130304891006299315, guid: ebbe6dee91bcc5e40928918dcebf63f5, type: 3}
+  senseName: ???
+  minimumRadius: 24
+  maximumRadius: 64
+  minimumAspect: 0.65
+  maximumAspect: 1
+  edgeWarp: 0.18
+  requireLand: 1
+  heightRange: {x: 0.2, y: 1}
+  moistureRange: {x: 0, y: 1}
+  temperatureRange: {x: 0, y: 1}
+  allowedBiomes: []
+  connectToRoads: 1
+  roadConnectionOffset: {x: 0, y: 0}
+  maximumRoadConnections: 0
+  allowedRoadConnections: []
+  generators:
+  - enabled: 1
+    strength: 1.1
+    generator:
+      rid: 4542295136311443718
+  - enabled: 1
+    strength: 1.1
+    generator:
+      rid: 4542295136311443720
+  references:
+    version: 2
+    RefIds:
+    - rid: 4542295136311443718
+      type: {class: PlaceTreasureContainerFeatureGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        persistentId: Treasure Container
+        entity: {fileID: 11400000, guid: 5c2b0693b9ac7b24db43ebab4e645550, type: 2}
+        offset: {x: 0, y: 0}
+        scale: 1
+        flipX: 0
+        damageImmune: 0
+        clearReservedAreaCoverage: 0
+        requireWalkableArea: 0
+        walkableAreaSize: {x: 1, y: 1}
+        walkableAreaOffset: {x: 0, y: 0}
+        itemCatalogs:
+        - {fileID: 11400000, guid: aa8fe2025506ccf4bb907eb1e1f8f31b, type: 2}
+        minimumItemStacks: 5
+        maximumItemStacks: 16
+        minimumItemsPerStack: 1
+        maximumItemsPerStack: 7
+        maximumQuality: 2
+    - rid: 4542295136311443720
+      type: {class: RectangleFloorGenerator, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        tile: {fileID: 11400000, guid: 89d77162a6ec568439e30c67bb27c8a0, type: 2}
+        offset: {x: 0, y: 0}
+        width: 9
+        height: 9

@@ -357,6 +357,46 @@ namespace Project.Tests.EditMode
                 Is.EqualTo(0f).Within(0.0001f));
         }
 
+        [Test]
+        public void CommittedEnemyArrowLocksPredictedInterceptionPosition()
+        {
+            GameObject skeleton = CreateGameObject("Skeleton");
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = Vector3.up * 4f;
+            Rigidbody2D body = target.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.linearVelocity = Vector2.right;
+            ProjectileData arrow = CreateScriptableObject<ProjectileData>();
+            arrow.speed = 4f;
+            SkillData shot = CreateScriptableObject<SkillData>();
+            SetField(shot, "actionData", new SkillActionData[]
+            {
+                new ProjectileSkillActionData
+                {
+                    predictTargetMovement = true,
+                    useLockedTargetPosition = true,
+                    maximumPredictionTime = 0.5f
+                }
+            });
+            ConditionalEnemySkill attack = new()
+            {
+                skill = shot,
+                projectile = arrow
+            };
+            EnemyAttackController controller =
+                skeleton.AddComponent<EnemyAttackController>();
+
+            MethodInfo resolve = typeof(EnemyAttackController).GetMethod(
+                "ResolveAimPosition",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(resolve, Is.Not.Null);
+            Vector3 predicted = (Vector3)resolve.Invoke(
+                controller, new object[] { attack, target });
+
+            Assert.That(predicted.x, Is.EqualTo(0.5f).Within(0.001f));
+            Assert.That(predicted.y, Is.EqualTo(4f).Within(0.001f));
+        }
+
         [TestCase(1.3f, 0f)]
         [TestCase(0f, 1.3f)]
         [TestCase(0.9192388f, 0.9192388f)]
@@ -705,6 +745,128 @@ namespace Project.Tests.EditMode
                 attacker.transform,
                 target.transform,
                 1 << 31), Is.True);
+        }
+
+        [Test]
+        public void LethallyDamagedEnemyBecomesUntargetableDuringDeath()
+        {
+            GameObject attacker = CreateGameObject("Attacker");
+            GameObject enemyObject = CreateGameObject("Enemy");
+            Collider2D collider = enemyObject.AddComponent<CircleCollider2D>();
+            EnemyData enemyData = CreateScriptableObject<EnemyData>();
+            enemyData.hp = 1;
+            EnemyRuntime runtime = enemyObject.AddComponent<EnemyRuntime>();
+            runtime.Initialize(enemyData);
+            TransientHealth health =
+                enemyObject.GetComponent<TransientHealth>();
+
+            Assert.That(health.TakeDamage(
+                new AttackContext(attacker, null, 1)), Is.EqualTo(1));
+            Assert.That(health.IsDead, Is.True);
+            Assert.That(enemyObject, Is.Not.Null);
+            Assert.That(collider.enabled, Is.False);
+            Assert.That(enemyObject.GetComponent<EnemyDeathController>().IsPlaying,
+                Is.True);
+            Assert.That(health.TakeDamage(
+                new AttackContext(attacker, null, 1)), Is.Zero);
+        }
+
+        [Test]
+        public void EnemyPoofCanInheritOverrideOrDisableGlobalPrefab()
+        {
+            GameObject global = CreateGameObject("Global Poof");
+            GameObject custom = CreateGameObject("Custom Poof");
+            EnemyDeathSettings settings = new() { defaultPoofPrefab = global };
+            EnemyData enemy = CreateScriptableObject<EnemyData>();
+
+            Assert.That(EnemyDeathController.ResolvePoofPrefab(enemy, settings),
+                Is.SameAs(global));
+            enemy.poofMode = EnemyPoofMode.Override;
+            enemy.deathPoofPrefab = custom;
+            Assert.That(EnemyDeathController.ResolvePoofPrefab(enemy, settings),
+                Is.SameAs(custom));
+            enemy.poofMode = EnemyPoofMode.Disabled;
+            Assert.That(EnemyDeathController.ResolvePoofPrefab(enemy, settings),
+                Is.Null);
+        }
+
+        [Test]
+        public void FixedTimePredictionUsesVelocityAndClampsLeadTime()
+        {
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = Vector3.up * 3f;
+            Rigidbody2D body = target.AddComponent<Rigidbody2D>();
+            body.gravityScale = 0f;
+            body.linearVelocity = Vector2.right * 2f;
+
+            Vector3 predicted = ProjectileAim.PredictPositionAfterTime(
+                target.transform, 1.5f, 0.5f);
+
+            Assert.That(predicted.x, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(predicted.y, Is.EqualTo(3f).Within(0.001f));
+        }
+
+        [Test]
+        public void PhasedJumpStartsAirborneAndCanBeCancelled()
+        {
+            GameObject enemy = CreateGameObject("Jumper");
+            FalseHeightController height =
+                enemy.AddComponent<FalseHeightController>();
+
+            Assert.That(height.BeginPhasedJump(2.5f, 0.45f, 0.25f, 0.35f),
+                Is.True);
+            Assert.That(height.IsAirborne, Is.True);
+            Assert.That(height.IsPhasedJump, Is.True);
+
+            height.CancelHeight();
+            Assert.That(height.IsAirborne, Is.False);
+            Assert.That(height.VisualHeight, Is.Zero);
+        }
+
+        [Test]
+        public void TimedStunLocksMovementImmediately()
+        {
+            GameObject target = CreateGameObject("Stunned Target");
+            TimedStunController stun =
+                target.AddComponent<TimedStunController>();
+
+            stun.Stun(0.8f);
+
+            Assert.That(stun.IsMovementLocked, Is.True);
+        }
+
+        [TestCase(1.9f, AiNode.NodeState.Failure)]
+        [TestCase(2f, AiNode.NodeState.Success)]
+        [TestCase(6f, AiNode.NodeState.Success)]
+        [TestCase(6.1f, AiNode.NodeState.Failure)]
+        public void ConditionalJumpRangeUsesInnerAndOuterRadius(
+            float distance,
+            AiNode.NodeState expected)
+        {
+            GameObject toad = CreateGameObject("Toad");
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = Vector3.right * distance;
+            SkillData jump = CreateScriptableObject<SkillData>();
+            EnemyData enemy = CreateScriptableObject<EnemyData>();
+            enemy.conditionalSkills = new[]
+            {
+                new ConditionalEnemySkill
+                {
+                    skill = jump,
+                    minimumRange = 2f,
+                    maximumRange = 6f,
+                    condition = new EnemySkillCondition
+                    {
+                        type = EnemySkillConditionType.Always
+                    }
+                }
+            };
+            EvaluateConditionalSkills node = new();
+            Blackboard blackboard = CreateBlackboard(toad, target.transform);
+            blackboard.Set(AiKeys.EnemyData, enemy);
+            node.Bind(blackboard);
+
+            Assert.That(node.Evaluate(), Is.EqualTo(expected));
         }
 
         private Blackboard CreateBlackboard(

@@ -10,6 +10,53 @@ namespace Project.Scripts.DataTypes
         TowardCursor
     }
 
+    public enum EruptionOriginMode : byte
+    {
+        Caster,
+        Target,
+        CompletionPosition
+    }
+
+    public enum EruptionVisualStyle : byte
+    {
+        Default,
+        FallingBoulder,
+        Prefab
+    }
+
+    [Serializable]
+    public sealed class EruptionDefinition
+    {
+        [Min(0.05f)] public float radius = 0.7f;
+        [Min(0)] public int damage = 8;
+        public bool includeAttackPotential;
+        public PlayerAttackType attackType = PlayerAttackType.Magic;
+        public LayerMask targetLayers = ~0;
+        public EntityTag element;
+        public EntityTag[] damageTags = Array.Empty<EntityTag>();
+        public GameObject telegraphPrefab;
+        public GameObject eruptionEffectPrefab;
+        [Min(0f)] public float effectLifetime;
+        public Color telegraphColor = new(0.12f, 0.04f, 0.02f, 0.52f);
+        public Color fallbackEffectColor = new(0.3f, 0.2f, 0.12f, 1f);
+        public EruptionVisualStyle visualStyle;
+    }
+
+    [Serializable]
+    public sealed class EruptionPatternData
+    {
+        public EruptionOriginMode origin = EruptionOriginMode.CompletionPosition;
+        public EruptionDefinition eruption = new();
+        [Min(0f)] public float firstRingDistance = 1.75f;
+        [Min(0f)] public float ringSpacing = 1.5f;
+        [Min(1)] public int ringCount = 1;
+        [Min(1)] public int eruptionsPerRing = 6;
+        public float initialRotation;
+        public float rotationOffsetPerRing = 30f;
+        [Min(0f)] public float detonationDelay = 0.6f;
+        [Min(0f)] public float delayPerRing = 0.2f;
+    }
+
     [Serializable]
     public abstract class SkillActionData
     {
@@ -18,12 +65,18 @@ namespace Project.Scripts.DataTypes
         public SkillActionMode mode;
         [Tooltip("Negative uses the SkillData default duration.")]
         public float durationOverride = -1f;
+        [Tooltip("Spawn the configured eruption pattern when this action reaches gameplay completion.")]
+        public bool enableFinishEruptions;
+        [Tooltip("Optional eruption pattern spawned when this action reaches gameplay completion.")]
+        public EruptionPatternData finishEruptions;
     }
 
     [Serializable]
     public sealed class AttackSkillActionData : SkillActionData
     {
         [Min(0)] public int baseDamage;
+        [Min(0f), Tooltip("Launch power per point of damage actually delivered. Zero disables knockback.")]
+        public float knockbackPowerMultiplier;
         public PlayerAttackType attackType = PlayerAttackType.Magic;
         [Tooltip("Optional elemental tag included in damage-source tags.")]
         public EntityTag element;
@@ -37,6 +90,8 @@ namespace Project.Scripts.DataTypes
     public sealed class ForwardBoxAttackSkillActionData : SkillActionData
     {
         [Min(0)] public int baseDamage;
+        [Min(0f), Tooltip("Launch power per point of damage actually delivered. Zero disables knockback.")]
+        public float knockbackPowerMultiplier;
         public PlayerAttackType attackType = PlayerAttackType.Melee;
         [Tooltip("Width and forward depth of the attack box.")]
         public Vector2 boxSize = new(1f, 1f);
@@ -53,6 +108,9 @@ namespace Project.Scripts.DataTypes
     {
         [Min(0)] public int baseDamage;
         [Min(0.1f)] public float radius = 2f;
+        [Min(0f), Tooltip("Launch power per point of damage actually delivered. Zero disables knockback.")]
+        public float knockbackImpulse;
+        [Min(0f)] public float stunDuration;
         public PlayerAttackType attackType = PlayerAttackType.Magic;
         public LayerMask targetLayers = ~0;
         [Tooltip("Also damages wall tiles inside the radius.")]
@@ -63,6 +121,9 @@ namespace Project.Scripts.DataTypes
         public TileData groundTile;
         [Tooltip("Optional world-space visual instantiated at the impact point.")]
         public GameObject decalPrefab;
+        [Tooltip("Optional one-shot particle effect spawned at the impact center.")]
+        public GameObject impactParticlePrefab;
+        [Min(0f)] public float impactParticleLifetime;
         [Min(0f), Tooltip("Real-time lifetime when tick persistence is disabled. Zero leaves the decal until its own effect removes it.")]
         public float decalLifetimeSeconds;
         [Tooltip("Use world ticks instead of seconds for the decal lifetime.")]
@@ -71,6 +132,12 @@ namespace Project.Scripts.DataTypes
         public EntityTag element;
         public EntityTag[] damageTags = Array.Empty<EntityTag>();
         public AnimationClip animationClip;
+    }
+
+    [Serializable]
+    public sealed class EruptionPatternSkillActionData : SkillActionData
+    {
+        public EruptionPatternData pattern = new();
     }
 
     [Serializable]
@@ -162,6 +229,81 @@ namespace Project.Scripts.DataTypes
         public float afterimageFadeDuration = 0.35f;
         [Tooltip("Tint applied to the copied player sprites.")]
         public Color afterimageTint = new(0.45f, 0.85f, 1f, 0.65f);
+    }
+
+    [Serializable]
+    public sealed class HeightSkillActionData : SkillActionData
+    {
+        [Min(0.01f)] public float peakHeight = 1f;
+        [Min(0.01f)] public float travelDuration = 0.5f;
+    }
+
+    [Serializable]
+    public sealed class JumpAttackSkillActionData : SkillActionData
+    {
+        [Min(0.01f)] public float peakHeight = 2.5f;
+        [Min(0.01f)] public float ascentDuration = 0.45f;
+        [Min(0f)] public float hoverDuration = 0.25f;
+        [Min(0.01f)] public float descentDuration = 0.35f;
+        [Min(0f)] public float maximumPredictionTime = 2f;
+        public LayerMask blockingLayers = (1 << 0) | (1 << 6);
+        [Min(0)] public int baseDamage = 10;
+        [Min(0.1f)] public float impactRadius = 2f;
+        [Min(0f)] public float knockbackImpulse = 35f;
+        [Min(0f)] public float stunDuration = 0.8f;
+        [Min(1f), Tooltip("Movement multiplier granted when the slam deals positive damage. One disables it.")]
+        public float successfulHitMovementMultiplier = 1f;
+        [Min(0f)] public float successfulHitMovementDuration;
+        public LayerMask targetLayers = ~0;
+        public PlayerAttackType attackType = PlayerAttackType.Melee;
+        public GameObject impactParticlePrefab;
+        [Min(0f)] public float impactParticleLifetime;
+        [Tooltip("Optional camera shake played when the jump lands. Zero amplitude disables it.")]
+        public ScreenShakeRequest screenShake;
+        public EntityTag element;
+        public EntityTag[] damageTags = Array.Empty<EntityTag>();
+        public AnimationClip animationClip;
+    }
+
+    [Serializable]
+    public sealed class SwallowSkillActionData : SkillActionData
+    {
+        public Vector2 boxSize = new(1.4f, 1f);
+        [Min(0f)] public float forwardOffset = 0.75f;
+        public LayerMask targetLayers = ~0;
+        public bool allowPlayerTargets = true;
+        public bool allowEnemyTargets;
+        [Tooltip("After capturing an NPC, disengage and permanently despawn after leaving the screen.")]
+        public bool retreatOffscreenAfterNpcCapture;
+        public EntityTag[] requiredTargetTags = Array.Empty<EntityTag>();
+        public EntityTag[] excludedTargetTags = Array.Empty<EntityTag>();
+        [Range(0f, 1f)] public float captureChance = 0.1f;
+        [Range(0f, 1f)] public float stunnedCaptureChance = 0.35f;
+        [Range(0f, 1f)] public float enemyCaptureChance = 1f;
+        [Header("Failed Capture")]
+        [Min(0)] public int failedCaptureDamage;
+        [Min(0f)] public float failedCaptureKnockbackImpulse;
+        [Min(0f)] public float failedCaptureStunDuration;
+        public PlayerAttackType failedCaptureAttackType = PlayerAttackType.Melee;
+        public EntityTag[] failedCaptureDamageTags = Array.Empty<EntityTag>();
+        [Min(1)] public int stomachDamage = 2;
+        [Min(1)] public int damageIntervalTicks = 3;
+        [Min(0f)] public float digestionHealingRatio = 1f;
+        [Min(0f)] public float struggleLockDuration = 0.5f;
+        [Min(0f)] public float struggleDecayPerSecond = 0.08f;
+        [Min(0f)] public float fullStruggleGain = 0.2f;
+        [Min(0f)] public float exhaustedStruggleGain = 0.05f;
+        [Min(0f)] public float struggleEnergyCost = 20f;
+        [Min(0f)] public float escapeDistance = 1.25f;
+        [Min(0f)] public float escapeStunDuration = 1.5f;
+        public LayerMask releaseBlockingLayers = (1 << 0) | (1 << 6);
+        [Min(1f)] public float swallowedScaleMultiplier = 2f;
+        [Min(0f)] public float scaleTransitionDuration = 0.2f;
+        [Min(0.1f)] public float struggleBarWidth = 1.4f;
+        [Min(0.02f)] public float struggleBarHeight = 0.14f;
+        public Vector2 struggleBarOffset = new(0f, 1.5f);
+        public Color struggleBarBackground = new(0.05f, 0.05f, 0.05f, 0.85f);
+        public Color struggleBarFill = new(0.2f, 0.9f, 0.25f, 1f);
     }
 
     [Serializable]

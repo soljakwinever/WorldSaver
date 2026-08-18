@@ -4,6 +4,17 @@ using UnityEngine;
 namespace Project.Scripts.DataTypes
 {
     [Serializable]
+    public sealed class EnemyDeathSettings
+    {
+        [Min(0f)] public float flashDuration = 0.35f;
+        [Min(0.01f)] public float flashCadence = 0.08f;
+        [Min(0f)] public float maximumLandingWait = 1f;
+        [Min(0f)] public float fadeToBlackDuration = 0.2f;
+        [Min(0f)] public float fadeOutDuration = 0.3f;
+        public GameObject defaultPoofPrefab;
+    }
+
+    [Serializable]
     public sealed class DropData
     {
         public ItemData item;
@@ -77,6 +88,13 @@ namespace Project.Scripts.DataTypes
         Arrow
     }
 
+    public enum EnemyPoofMode : byte
+    {
+        InheritGlobal,
+        Override,
+        Disabled
+    }
+
     [CreateAssetMenu(
         fileName = "New Enemy Data",
         menuName = "Data/Enemy Data",
@@ -114,10 +132,15 @@ namespace Project.Scripts.DataTypes
             Array.Empty<ConditionalEnemySkill>();
 
         [Header("Damage")]
+        [Tooltip("Tags describing this entity for data-driven AI targeting.")]
+        public EntityTag[] identityTags = Array.Empty<EntityTag>();
         [Tooltip("Tags supplied when this enemy damages an entity.")]
         public EntityTag[] damageTags = Array.Empty<EntityTag>();
 
         [Header("Death Drops")]
+        public EnemyPoofMode poofMode;
+        [Tooltip("Used only when Poof Mode is Override.")]
+        public GameObject deathPoofPrefab;
         public DropData[] drops = Array.Empty<DropData>();
         [Min(0f)] public float dropExplosionImpulse = 2.5f;
         [Range(0f, 1f)] public float dropExplosionVariation = 0.25f;
@@ -137,6 +160,7 @@ namespace Project.Scripts.DataTypes
             dropExplosionImpulse = Mathf.Max(0f, dropExplosionImpulse);
             drops ??= Array.Empty<DropData>();
             damageTags ??= Array.Empty<EntityTag>();
+            identityTags ??= Array.Empty<EntityTag>();
             conditionalSkills ??= Array.Empty<ConditionalEnemySkill>();
 
             foreach (DropData drop in drops)

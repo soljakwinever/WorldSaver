@@ -223,6 +223,7 @@ GameObject:
   - component: {fileID: 5270779672569552003}
   - component: {fileID: 3462617492022370215}
   - component: {fileID: 1754711544689834817}
+  - component: {fileID: 6123456789012345678}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -326,6 +327,7 @@ MonoBehaviour:
   visitedTowns: []
   resolveDeathInstantly: 1
   deathDropLifetimeTicks: 1800
+  respawnHealthPercentage: 0.75
 --- !u!114 &9103112176375882134
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -675,6 +677,30 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.SkillRuntime
   startingPassives: []
+--- !u!114 &6123456789012345678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5983356817421055969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a4d5e6f80914233a4b5c6d7e8f90123, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.PlayerDeathSequenceController
+  flashDuration: 0.55
+  flashCount: 6
+  fadeToBlackDuration: 0.6
+  dissolveDuration: 0.6
+  particleDuration: 0.45
+  vignetteDuration: 0.9
+  blackHoldDuration: 1
+  fadeFromBlackDuration: 0.45
+  flashColor: {r: 1, g: 0, b: 0, a: 1}
+  dissolveEdgeColor: {r: 2, g: 0.15, b: 0.05, a: 1}
+  hdrGlowIntensity: 2
+  respawnPrompt: Press Attack to Respawn
 --- !u!1 &7174080208376920790
 GameObject:
   m_ObjectHideFlags: 0

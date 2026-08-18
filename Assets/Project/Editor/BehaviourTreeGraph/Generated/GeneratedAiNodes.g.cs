@@ -263,6 +263,13 @@ namespace Project.Editor.AI.Generated
     }
 
     [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Has Offscreen Retreat Request")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_HasOffscreenRetreatRequest_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.HasOffscreenRetreatRequest);
+    }
+
+    [Serializable]
     [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Is At Destination")]
     internal sealed class Project_Scripts_AI_Leaves_Sensors_IsAtDestination_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
     {

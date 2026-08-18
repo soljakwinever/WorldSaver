@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
+using Project.Scripts.Gameplay;
 using UnityEngine;
 
 namespace Project.Scripts.Actions
@@ -57,7 +58,7 @@ namespace Project.Scripts.Actions
                 GameObject targetObject = target is Component component
                     ? component.gameObject
                     : hit.gameObject;
-                context.DealDamage(
+                int delivered = context.DealDamage(
                     targetObject,
                     new AttackContext(
                         context.User,
@@ -69,6 +70,11 @@ namespace Project.Scripts.Actions
                         tags,
                         context.Skill,
                         attack.attackType));
+                CombatControlUtility.ApplyKnockback(
+                    targetObject,
+                    context.User.transform.position,
+                    delivered,
+                    attack.knockbackPowerMultiplier);
             }
         }
 

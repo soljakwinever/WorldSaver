@@ -8,6 +8,7 @@ namespace Project.Scripts.Actions
     public sealed class ChargeSkillAction : SkillAction
     {
         public override Type DataType => typeof(ChargeSkillActionData);
+        public override bool CompletesAsynchronously => true;
 
         public override bool CanPerform(SkillActionContext context, SkillActionData data) =>
             data is ChargeSkillActionData charge &&

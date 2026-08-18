@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 1164737973911100600}
   - component: {fileID: -5945993675256963465}
   - component: {fileID: -700570425830797498}
+  - component: {fileID: 4647846206022305869}
   m_Layer: 0
   m_Name: npc.visual.Zombie
   m_TagString: NPC
@@ -203,3 +204,19 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 0.5
+--- !u!114 &4647846206022305869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2119611675089420321}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11cd031417894065b8f91d99e7e455ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.FalseHeightController
+  shadowSize: 0
+  shadowSettings: {fileID: 0}
+  knockbackPeakHeight: 0.65
+  knockbackDuration: 0.35

@@ -1,0 +1,93 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e996484f0cf3ae44b4149f00db3d127, type: 3}
+  m_Name: Toad Jump Slam
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.SkillData
+  persistentId: enemy.toad.jump_slam
+  description: A predictive leap that creates a stunning shockwave on landing.
+  sprite: {fileID: 0}
+  category: 1
+  element: 1
+  targetMode: 1
+  staminaCost: 0
+  manaCost: 0
+  power: 1
+  duration: 0
+  cooldown: 8
+  tags: []
+  actionData:
+  - rid: 920001
+  references:
+    version: 2
+    RefIds:
+    - rid: 920001
+      type: {class: JumpAttackSkillActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        action: {fileID: 11400000, guid: 579eed48a2754e59a703f2f798a4f285, type: 2}
+        mode: 0
+        durationOverride: -1
+        enableFinishEruptions: 1
+        finishEruptions:
+          origin: 2
+          eruption:
+            radius: 0.7
+            damage: 8
+            includeAttackPotential: 0
+            attackType: 1
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 1
+            element: {fileID: 0}
+            damageTags:
+            - {fileID: 11400000, guid: f7ee9777b2a0f26d00c3d587275e19e9, type: 2}
+            telegraphPrefab: {fileID: 0}
+            eruptionEffectPrefab: {fileID: 0}
+            effectLifetime: 0.28
+            telegraphColor: {r: 0.12, g: 0.04, b: 0.02, a: 0.52}
+            fallbackEffectColor: {r: 0.3, g: 0.2, b: 0.12, a: 1}
+            visualStyle: 1
+          firstRingDistance: 1.75
+          ringSpacing: 1.5
+          ringCount: 2
+          eruptionsPerRing: 6
+          initialRotation: 0
+          rotationOffsetPerRing: 30
+          detonationDelay: 0.6
+          delayPerRing: 0.2
+        peakHeight: 2.5
+        ascentDuration: 0.45
+        hoverDuration: 0.25
+        descentDuration: 0.35
+        maximumPredictionTime: 2
+        blockingLayers:
+          serializedVersion: 2
+          m_Bits: 65
+        baseDamage: 10
+        impactRadius: 2.92
+        knockbackImpulse: 305.3
+        stunDuration: 1.88
+        successfulHitMovementMultiplier: 1.5
+        successfulHitMovementDuration: 4
+        targetLayers:
+          serializedVersion: 2
+          m_Bits: 1
+        attackType: 0
+        impactParticlePrefab: {fileID: 8459774365745288294, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+        impactParticleLifetime: 0.2
+        screenShake:
+          amplitude: 0.3
+          duration: 0.3
+          frequency: 30
+          falloff: 1
+        element: {fileID: 0}
+        damageTags: []
+        animationClip: {fileID: 0}

@@ -1,0 +1,103 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e996484f0cf3ae44b4149f00db3d127, type: 3}
+  m_Name: Toad Swallow
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.SkillData
+  persistentId: enemy.toad.swallow
+  description: Attempts to swallow a nearby target whole.
+  sprite: {fileID: 0}
+  category: 1
+  element: 0
+  targetMode: 1
+  staminaCost: 0
+  manaCost: 0
+  power: 0
+  duration: 0
+  cooldown: 1.25
+  tags: []
+  actionData:
+  - rid: 817101
+  references:
+    version: 2
+    RefIds:
+    - rid: 817101
+      type: {class: SwallowSkillActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        action: {fileID: 11400000, guid: d4d4d4d4d4d44d4d8d4d4d4d4d4d4d4d, type: 2}
+        mode: 0
+        durationOverride: -1
+        enableFinishEruptions: 0
+        finishEruptions:
+          origin: 2
+          eruption:
+            radius: 0.7
+            damage: 8
+            includeAttackPotential: 0
+            attackType: 2
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 4294967295
+            element: {fileID: 0}
+            damageTags: []
+            telegraphPrefab: {fileID: 0}
+            eruptionEffectPrefab: {fileID: 0}
+            effectLifetime: 0
+            telegraphColor: {r: 0.12, g: 0.04, b: 0.02, a: 0.52}
+            fallbackEffectColor: {r: 0.3, g: 0.2, b: 0.12, a: 1}
+            visualStyle: 0
+          firstRingDistance: 1.75
+          ringSpacing: 1.5
+          ringCount: 1
+          eruptionsPerRing: 6
+          initialRotation: 0
+          rotationOffsetPerRing: 30
+          detonationDelay: 0.6
+          delayPerRing: 0.2
+        boxSize: {x: 1.4, y: 1}
+        forwardOffset: 0.75
+        targetLayers:
+          serializedVersion: 2
+          m_Bits: 1
+        allowPlayerTargets: 1
+        allowEnemyTargets: 1
+        retreatOffscreenAfterNpcCapture: 1
+        requiredTargetTags: []
+        excludedTargetTags:
+        - {fileID: 11400000, guid: 957b6112ca624c289c9cf0b7691629e1, type: 2}
+        captureChance: 0.1
+        stunnedCaptureChance: 0.65
+        enemyCaptureChance: 1
+        failedCaptureDamage: 5
+        failedCaptureKnockbackImpulse: 8
+        failedCaptureStunDuration: 0.5
+        failedCaptureAttackType: 0
+        failedCaptureDamageTags: []
+        stomachDamage: 9
+        damageIntervalTicks: 3
+        digestionHealingRatio: 1
+        struggleLockDuration: 0.5
+        struggleDecayPerSecond: 0.08
+        fullStruggleGain: 0.2
+        exhaustedStruggleGain: 0.05
+        struggleEnergyCost: 20
+        escapeDistance: 1.25
+        escapeStunDuration: 1.5
+        releaseBlockingLayers:
+          serializedVersion: 2
+          m_Bits: 65
+        swallowedScaleMultiplier: 2
+        scaleTransitionDuration: 0.2
+        struggleBarWidth: 1.4
+        struggleBarHeight: 0.14
+        struggleBarOffset: {x: 0, y: 1.5}
+        struggleBarBackground: {r: 0.05, g: 0.05, b: 0.05, a: 0.85}
+        struggleBarFill: {r: 0.2, g: 0.9, b: 0.25, a: 1}

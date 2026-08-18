@@ -5,7 +5,7 @@ using Zenject;
 
 namespace Project.Scripts
 {
-    public class AiNodeRunner : MonoBehaviour, IStunnable
+    public class AiNodeRunner : MonoBehaviour, IStunnable, IStunState
     {
         private const int MaxPeriodicEvaluationsPerFrame = 4;
 
@@ -28,6 +28,7 @@ namespace Project.Scripts
         private int _evaluationOffset;
         private float _requestedEvaluationTime = float.PositiveInfinity;
         private float _stunnedUntil;
+        public bool IsStunned => Time.time < _stunnedUntil;
 
         [Inject]
         public void Construct(

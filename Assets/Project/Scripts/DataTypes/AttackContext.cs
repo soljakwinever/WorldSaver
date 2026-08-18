@@ -18,6 +18,12 @@ namespace Project.Scripts.DataTypes
         Multiplier
     }
 
+    public enum DamageCause : byte
+    {
+        Direct,
+        Digestion
+    }
+
     [Flags]
     public enum EntityDamageSource
     {
@@ -68,6 +74,7 @@ namespace Project.Scripts.DataTypes
         public IReadOnlyList<EntityTag> SourceTags { get; }
         public PlayerAttackType AttackType { get; }
         public SkillPowerMode SkillPowerMode { get; }
+        public DamageCause Cause { get; }
 
         public AttackContext(GameObject attacker, ToolData weapon, int force)
             : this(
@@ -86,7 +93,8 @@ namespace Project.Scripts.DataTypes
             ToolData weapon,
             int force,
             EntityDamageSource source,
-            IEnumerable<EntityTag> sourceTags = null)
+            IEnumerable<EntityTag> sourceTags = null,
+            DamageCause cause = DamageCause.Direct)
         {
             if (attacker == null)
                 throw new ArgumentNullException(nameof(attacker));
@@ -100,6 +108,7 @@ namespace Project.Scripts.DataTypes
             Skill = null;
             AttackType = weapon != null ? weapon.AttackType : PlayerAttackType.Melee;
             SkillPowerMode = SkillPowerMode.Additive;
+            Cause = cause;
             SourceTags = sourceTags?
                 .Where(tag => tag != null)
                 .Distinct()
@@ -110,7 +119,8 @@ namespace Project.Scripts.DataTypes
             GameObject attacker, ToolData weapon, int force,
             EntityDamageSource source, IEnumerable<EntityTag> sourceTags,
             SkillData skill, PlayerAttackType attackType,
-            SkillPowerMode skillPowerMode = SkillPowerMode.Additive)
+            SkillPowerMode skillPowerMode = SkillPowerMode.Additive,
+            DamageCause cause = DamageCause.Direct)
         {
             if (attacker == null) throw new ArgumentNullException(nameof(attacker));
             if (force < 0) throw new ArgumentOutOfRangeException(nameof(force));
@@ -121,6 +131,7 @@ namespace Project.Scripts.DataTypes
             Skill = skill;
             AttackType = attackType;
             SkillPowerMode = skillPowerMode;
+            Cause = cause;
             SourceTags = sourceTags?.Where(tag => tag != null).Distinct().ToArray()
                          ?? Array.Empty<EntityTag>();
         }

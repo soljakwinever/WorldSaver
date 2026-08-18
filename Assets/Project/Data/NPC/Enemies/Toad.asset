@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b319666b71c34b71aaf4935c3ee02487, type: 3}
+  m_Name: Toad
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
+  hp: 300
+  attack: 20
+  defense: 2
+  experienceValue: 30
+  accuracy: 1
+  dangerLevel: 0.65
+  dangerWeight: 1
+  movementSpeed: 2
+  sprintMultiplier: 1.5
+  visual: {fileID: 2119611675089420321, guid: 88f1e8aca47050446bac4214ca5e0681, type: 3}
+  behaviourTree: {fileID: 11400000, guid: c413513503e3472985315eff60b1412b, type: 2}
+  NormalAttack: {fileID: 11400000, guid: e5e5e5e5e5e54e5e8e5e5e5e5e5e5e5e, type: 2}
+  BasicAttackWeaponSwing: {fileID: 0}
+  conditionalSkills:
+  - skill: {fileID: 11400000, guid: eaa2a166898747b5af637fc3331e99c8, type: 2}
+    projectile: {fileID: 0}
+    weaponSwing: {fileID: 0}
+    minimumRange: 2
+    maximumRange: 6
+    windUpDuration: 0.25
+    aimLockLeadTime: 0
+    lineOfFireBlockingLayers: {serializedVersion: 2, m_Bits: 0}
+    activeDuration: 1.05
+    recoveryDuration: 0.8
+    priority: 2
+    telegraphColor: {r: 0.35, g: 1, b: 0.2, a: 0.75}
+    telegraphWidth: 0.35
+    telegraphShape: 0
+    condition:
+      type: 0
+      distance: 1
+      conditions: []
+  - skill: {fileID: 11400000, guid: e5e5e5e5e5e54e5e8e5e5e5e5e5e5e5e, type: 2}
+    projectile: {fileID: 0}
+    weaponSwing: {fileID: 0}
+    minimumRange: 0
+    maximumRange: 1.4
+    windUpDuration: 0.35
+    aimLockLeadTime: 0
+    lineOfFireBlockingLayers: {serializedVersion: 2, m_Bits: 0}
+    activeDuration: 0.05
+    recoveryDuration: 0.55
+    priority: 1
+    telegraphColor: {r: 1, g: 0.45, b: 0.1, a: 0.65}
+    telegraphWidth: 0.7
+    telegraphShape: 0
+    condition:
+      type: 0
+      distance: 1
+      conditions: []
+  identityTags:
+  - {fileID: 11400000, guid: 957b6112ca624c289c9cf0b7691629e1, type: 2}
+  damageTags:
+  - {fileID: 11400000, guid: b21753a0f8d38832f40c17f0ac19860e, type: 2}
+  poofMode: 0
+  deathPoofPrefab: {fileID: 0}
+  drops: []
+  dropExplosionImpulse: 32
+  dropExplosionVariation: 0.25

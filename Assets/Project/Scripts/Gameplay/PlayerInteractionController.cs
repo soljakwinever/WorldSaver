@@ -289,6 +289,14 @@ namespace Project.Scripts.Gameplay
                 return false;
 
             IHotbarAction action = _toolbarController.SelectedItemAction;
+            SwallowedStateController swallowed =
+                GetComponent<SwallowedStateController>();
+            if (swallowed?.IsSwallowed == true)
+                return swallowed.IsCombatAction(action);
+            KnockedOutStateController knockedOut =
+                GetComponent<KnockedOutStateController>();
+            if (knockedOut?.IsKnockedOut == true)
+                return true;
             if (action == null ||
                 !action.CanPerform(CreateItemActionContext()))
                 return false;
@@ -306,6 +314,15 @@ namespace Project.Scripts.Gameplay
             IHotbarAction action = _toolbarController.SelectedItemAction;
             if (action == null)
                 return false;
+            SwallowedStateController swallowed =
+                GetComponent<SwallowedStateController>();
+            if (swallowed?.IsSwallowed == true)
+                return swallowed.IsCombatAction(action) &&
+                       swallowed.TryStruggle();
+            KnockedOutStateController knockedOut =
+                GetComponent<KnockedOutStateController>();
+            if (knockedOut?.IsKnockedOut == true)
+                return knockedOut.TryStruggle();
 
             IItemStack consumableStack = null;
             // Resolve the exact bound item before performing the action.
@@ -533,12 +550,40 @@ namespace Project.Scripts.Gameplay
         
         private void InputManagerOnInputPerformed(InputContext context)
         {
+            if (GetComponent<PlayerDataController>()?.IsDeathInProgress == true)
+                return;
+
             if (context.InteractionPressed)
             {
                 TryDirectInteract();
             }
 
+            bool swallowedAttack = false;
             if (context.AttackPressed && !IsPointerBlockingWorldAction())
+            {
+                SwallowedStateController swallowed =
+                    GetComponent<SwallowedStateController>();
+                if (swallowed?.IsSwallowed == true)
+                {
+                    // A swallowed primary attack is always a struggle. Handle
+                    // it before weapon swings and direct entity attacks.
+                    swallowed.TryStruggle();
+                    swallowedAttack = true;
+                }
+                else
+                {
+                    KnockedOutStateController knockedOut =
+                        GetComponent<KnockedOutStateController>();
+                    if (knockedOut?.IsKnockedOut == true)
+                    {
+                        knockedOut.TryStruggle();
+                        swallowedAttack = true;
+                    }
+                }
+            }
+
+            if (context.AttackPressed && !swallowedAttack &&
+                !IsPointerBlockingWorldAction())
             {
                 bool skillSelected =
                     _toolbarController.SelectedItemAction is SkillActionBinding ||

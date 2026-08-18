@@ -35,13 +35,40 @@ MonoBehaviour:
         action: {fileID: 11400000, guid: adfd7333d3c14cc3a7ea557582034356, type: 2}
         mode: 0
         durationOverride: -1
+        enableFinishEruptions: 0
+        finishEruptions:
+          origin: 2
+          eruption:
+            radius: 0.7
+            damage: 8
+            includeAttackPotential: 0
+            attackType: 2
+            targetLayers:
+              serializedVersion: 2
+              m_Bits: 4294967295
+            element: {fileID: 0}
+            damageTags: []
+            telegraphPrefab: {fileID: 0}
+            eruptionEffectPrefab: {fileID: 0}
+            effectLifetime: 0
+            telegraphColor: {r: 0.12, g: 0.04, b: 0.02, a: 0.52}
+            fallbackEffectColor: {r: 0.3, g: 0.2, b: 0.12, a: 1}
+            visualStyle: 0
+          firstRingDistance: 1.75
+          ringSpacing: 1.5
+          ringCount: 1
+          eruptionsPerRing: 6
+          initialRotation: 0
+          rotationOffsetPerRing: 30
+          detonationDelay: 0.6
+          delayPerRing: 0.2
         baseDamage: 0
         attackType: 0
         directionMode: 1
         distance: 4.5
         travelDuration: 0.4
         hitRadius: 0.6
-        knockbackImpulse: 12
+        knockbackImpulse: 205.9
         blockingLayers:
           serializedVersion: 2
           m_Bits: 64

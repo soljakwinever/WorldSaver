@@ -16,7 +16,8 @@ namespace Project.Editor
             SerializedProperty child = FirstChild(property);
             while (child != null)
             {
-                height += Spacing + EditorGUI.GetPropertyHeight(child, true);
+                if (ShouldDraw(property, child))
+                    height += Spacing + EditorGUI.GetPropertyHeight(child, true);
                 child = NextSibling(child, property);
             }
             return height;
@@ -36,6 +37,11 @@ namespace Project.Editor
                 SerializedProperty child = FirstChild(property);
                 while (child != null)
                 {
+                    if (!ShouldDraw(property, child))
+                    {
+                        child = NextSibling(child, property);
+                        continue;
+                    }
                     float height = EditorGUI.GetPropertyHeight(child, true);
                     EditorGUI.PropertyField(
                         new Rect(position.x, y, position.width, height), child, true);
@@ -56,6 +62,17 @@ namespace Project.Editor
         private static SerializedProperty NextSibling(
             SerializedProperty current, SerializedProperty parent) =>
             current.NextVisible(false) && current.depth > parent.depth ? current : null;
+
+        private static bool ShouldDraw(
+            SerializedProperty parent,
+            SerializedProperty child)
+        {
+            if (child.name != nameof(SkillActionData.finishEruptions))
+                return true;
+            SerializedProperty enabled = parent.FindPropertyRelative(
+                nameof(SkillActionData.enableFinishEruptions));
+            return enabled?.boolValue == true;
+        }
 
         private static GUIContent Header(SerializedProperty property, GUIContent fallback)
         {

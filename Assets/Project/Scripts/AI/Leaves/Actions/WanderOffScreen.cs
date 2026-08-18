@@ -37,6 +37,12 @@ namespace Project.Scripts.AI.Leaves.Actions
         [SerializeField, Min(1), InputPort("Maximum Visited Tiles")]
         private int maximumVisitedTiles = 4096;
 
+        [SerializeField, Tooltip("Keep retrying path selection instead of allowing lower-priority behavior branches.")]
+        private bool retryUntilOutside;
+
+        [SerializeField, Tooltip("Destroy this NPC after it leaves the viewport instead of leaving it eligible for recycling.")]
+        private bool despawnWhenOutside;
+
         [NonSerialized] private readonly List<Vector2Int> path = new();
         [NonSerialized] private Transform self;
         [NonSerialized] private Camera camera;
@@ -83,12 +89,16 @@ namespace Project.Scripts.AI.Leaves.Actions
         protected override NodeState OnTick()
         {
             if (self == null || map == null || pathFinder == null)
-                return NodeState.Failure;
+                return retryUntilOutside
+                    ? NodeState.Running
+                    : NodeState.Failure;
 
             if (camera == null)
                 camera = Camera.main;
             if (camera == null)
-                return NodeState.Failure;
+                return retryUntilOutside
+                    ? NodeState.Running
+                    : NodeState.Failure;
 
             if (IsOutsideViewport(
                     camera,
@@ -98,6 +108,15 @@ namespace Project.Scripts.AI.Leaves.Actions
                 CancelPendingPath();
                 path.Clear();
                 waypointIndex = 0;
+                if (despawnWhenOutside)
+                {
+                    foreach (MonoBehaviour behaviour in
+                             self.GetComponentsInChildren<MonoBehaviour>(true))
+                        if (behaviour is IOffscreenDespawnHandler handler)
+                            handler.PrepareForOffscreenDespawn();
+                    UnityEngine.Object.Destroy(self.gameObject);
+                    return NodeState.Success;
+                }
                 return NodeState.Running;
             }
 
@@ -106,7 +125,7 @@ namespace Project.Scripts.AI.Leaves.Actions
                 if (!pendingPath.IsCompleted)
                     return NodeState.Running;
                 if (!ConsumePendingPath())
-                    return StartPathRequest()
+                    return StartPathRequest() || retryUntilOutside
                         ? NodeState.Running
                         : NodeState.Failure;
             }
@@ -118,6 +137,7 @@ namespace Project.Scripts.AI.Leaves.Actions
                 path.Clear();
                 waypointIndex = 0;
                 return StartPathRequest()
+                    || retryUntilOutside
                     ? NodeState.Running
                     : NodeState.Failure;
             }
@@ -135,6 +155,7 @@ namespace Project.Scripts.AI.Leaves.Actions
                 self.position,
                 waypoint,
                 Mathf.Max(0f, movementSpeed) *
+                AiPathingUtility.GetActorSpeedMultiplier(self.gameObject) *
                 AiPathingUtility.GetSpeedMultiplier(
                     map,
                     path[waypointIndex],

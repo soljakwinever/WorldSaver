@@ -31,8 +31,18 @@ namespace Project.Scripts.Gameplay
     [RequireComponent(typeof(PlayerEquipmentController))]
     [RequireComponent(typeof(SkillRuntime))]
     public sealed class PlayerDataController : MonoBehaviour, IHasHealth, IHasNeeds, IHasMana, IHasStats,
-        IPersistentComponent, ISkillStamina
+        IPersistentComponent, ISkillStamina, IHasShadow
     {
+        private FalseHeightController _height;
+        public ShadowSize ShadowSize => Height.ShadowSize;
+        public float VisualHeight => Height.VisualHeight;
+        public bool IsAirborne => Height.IsAirborne;
+        private FalseHeightController Height => _height ??=
+            GetComponent<FalseHeightController>() ??
+            gameObject.AddComponent<FalseHeightController>();
+
+        public void Launch(float peakHeight, float duration) =>
+            Height.Launch(peakHeight, duration);
         public const ushort TypeId = 10;
         private const ushort CurrentComponentVersion = 8;
         private const ushort CurrentFileVersion = 1;
@@ -103,6 +113,9 @@ namespace Project.Scripts.Gameplay
         [Header("Death")]
         [SerializeField] private bool resolveDeathInstantly = true;
         [SerializeField, Min(1)] private long deathDropLifetimeTicks = 1800;
+        [SerializeField, Range(0.01f, 1f)]
+        [Tooltip("Percentage of maximum health restored after respawning.")]
+        private float respawnHealthPercentage = 0.75f;
 
         [InjectOptional] private IWorldClock _worldClock;
         [InjectOptional] private IComponentWindowService _windowService;
@@ -247,6 +260,7 @@ namespace Project.Scripts.Gameplay
 
         private void Awake()
         {
+            _ = Height;
             _health = GetComponent<PersistentHealth>();
             if (_health == null)
                 _health = gameObject.AddComponent<PersistentHealth>();
@@ -735,6 +749,9 @@ namespace Project.Scripts.Gameplay
             _deathResolutionInProgress = true;
             try
             {
+                // Never resolve a respawn while the player remains parented
+                // to a swallowing enemy. Release is safe to call repeatedly.
+                GetComponent<SwallowedStateController>()?.Release(false);
                 Vector3 deathPosition = transform.position;
                 DropNonToolbarItems(deathPosition);
                 Vector3 respawnPosition = ResolveRespawnPosition();
@@ -773,7 +790,12 @@ namespace Project.Scripts.Gameplay
 
                 hunger = 0.25f;
                 energy = 1f;
-                _health.SetHealth(Mathf.Min(20, _health.MaxHealth));
+                int respawnHealth = Mathf.Clamp(
+                    Mathf.RoundToInt(
+                        _health.MaxHealth * respawnHealthPercentage),
+                    1,
+                    _health.MaxHealth);
+                _health.SetHealth(respawnHealth);
                 _deathInProgress = false;
                 Respawned?.Invoke(this);
             }
@@ -1352,7 +1374,18 @@ namespace Project.Scripts.Gameplay
                 return;
 
             _deathInProgress = true;
+            SwallowedStateController swallowed =
+                GetComponent<SwallowedStateController>();
+            bool wasSwallowed = swallowed?.IsSwallowed == true;
+            PlayerDeathSequenceController sequence =
+                GetComponent<PlayerDeathSequenceController>();
             DeathStarted?.Invoke(this);
+            bool sequenceStarted =
+                sequence != null && sequence.Begin(wasSwallowed);
+            if (wasSwallowed && !sequenceStarted)
+                swallowed.Release(false);
+            if (sequenceStarted)
+                return;
             if (resolveDeathInstantly)
                 CompleteDeath();
         }

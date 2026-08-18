@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Earthquake
   m_EditorClassIdentifier: 
   weatherId: earthquake
+  watersPlants: 0
   displayName: Earthquake
   selectionWeight: 0.12
   seasons: 255

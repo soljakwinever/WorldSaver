@@ -15,12 +15,14 @@ namespace Project.Scripts.Gameplay
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class EnemyRuntime : MonoBehaviour, IEntityDamageSource,
-        ISkillFacing, IAttackFacing, IProjectileAccuracy
+        ISkillFacing, IAttackFacing, IProjectileAccuracy, IEntityTagProvider,
+        ITargetableState
     {
         private IItemStackExplosionService _itemStackExplosion;
         private EntityBus _entityBus;
         private IAttackService _attackService;
         private IProjectileService _projectileService;
+        private EnemyDeathSettings _deathSettings;
         private TransientHealth _health;
         private Vector2 _lastPosition;
         private Vector2 _facingDirection;
@@ -48,18 +50,23 @@ namespace Project.Scripts.Gameplay
         }
         public System.Collections.Generic.IReadOnlyList<EntityTag> DamageTags =>
             Data?.damageTags ?? Array.Empty<EntityTag>();
+        public System.Collections.Generic.IReadOnlyList<EntityTag> EntityTags =>
+            Data?.identityTags ?? Array.Empty<EntityTag>();
+        public bool CanBeTargeted => _health == null || !_health.IsDead;
 
         [Inject]
         public void Construct(
             IItemStackExplosionService itemStackExplosion,
             EntityBus entityBus,
             IAttackService attackService,
-            IProjectileService projectileService)
+            IProjectileService projectileService,
+            EnemyDeathSettings deathSettings)
         {
             _itemStackExplosion = itemStackExplosion;
             _entityBus = entityBus;
             _attackService = attackService;
             _projectileService = projectileService;
+            _deathSettings = deathSettings;
         }
 
         public void Initialize(EnemyData data)
@@ -74,6 +81,7 @@ namespace Project.Scripts.Gameplay
             _health = GetComponent<TransientHealth>() ??
                 gameObject.AddComponent<TransientHealth>();
             _health.Initialize(data.hp, data.defense);
+            _health.DeferDestructionOnDeath();
             _health.Died += OnDied;
 
             AiNodeRunner runner = GetComponent<AiNodeRunner>() ??
@@ -121,12 +129,55 @@ namespace Project.Scripts.Gameplay
         private void OnDied()
         {
             _health.Died -= OnDied;
-            SpawnDrops();
+            bool digested = _health.LastDamageContext is AttackContext
+            {
+                Cause: DamageCause.Digestion
+            };
+            SwallowedStateController swallowed =
+                GetComponent<SwallowedStateController>();
+            if (digested)
+                swallowed?.ConsumeForDeath();
+            else
+                // Captives must be restored before death presentation and drops.
+                swallowed?.Release(false);
+            // A swallowed player is parented beneath this enemy. Release it
+            // before death presentation disables child colliders/renderers.
+            SwallowedStateController.ReleaseOwnedBy(gameObject);
             _entityBus?.RaiseEnemyDefeated(
                 Data,
                 transform.position,
                 Data.experienceValue,
                 _health.LastDamageContext?.Attacker);
+            if (digested)
+            {
+                DisableForImmediateRemoval();
+                Destroy(gameObject);
+                return;
+            }
+            EnemyDeathController death =
+                GetComponent<EnemyDeathController>() ??
+                gameObject.AddComponent<EnemyDeathController>();
+            death.Begin(Data, _deathSettings, SpawnDrops);
+        }
+
+        private void DisableForImmediateRemoval()
+        {
+            AiNodeRunner runner = GetComponent<AiNodeRunner>();
+            if (runner != null)
+                runner.enabled = false;
+            EnemyAttackController attacks =
+                GetComponent<EnemyAttackController>();
+            if (attacks != null)
+                attacks.enabled = false;
+            Rigidbody2D body = GetComponent<Rigidbody2D>();
+            if (body != null)
+            {
+                body.linearVelocity = Vector2.zero;
+                body.simulated = false;
+            }
+            foreach (Collider2D collider in
+                     GetComponentsInChildren<Collider2D>(true))
+                collider.enabled = false;
         }
 
         private void SpawnDrops()

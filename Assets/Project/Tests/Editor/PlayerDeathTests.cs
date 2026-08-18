@@ -64,7 +64,7 @@ namespace Project.Tests.EditMode
 
                 player.TakeDamage(player.MaxHealth);
 
-                Assert.That(player.Health, Is.EqualTo(20));
+                Assert.That(player.Health, Is.EqualTo(75));
                 Assert.That(player.Hunger, Is.EqualTo(0.25f));
                 Assert.That(player.Energy, Is.EqualTo(1f));
                 Assert.That(playerObject.transform.position, Is.EqualTo(Vector3.zero));
@@ -96,6 +96,30 @@ namespace Project.Tests.EditMode
                 }
                 Object.DestroyImmediate(toolbarItem);
                 Object.DestroyImmediate(carriedItem);
+            }
+        }
+
+        [Test]
+        public void PlayerRespawnRestoresConfiguredPercentageOfMaximumHealth()
+        {
+            GameObject playerObject = new("Player");
+            try
+            {
+                PlayerDataController player =
+                    playerObject.AddComponent<PlayerDataController>();
+                typeof(PlayerDataController)
+                    .GetField(
+                        "respawnHealthPercentage",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(player, 0.5f);
+
+                player.TakeDamage(player.MaxHealth);
+
+                Assert.That(player.Health, Is.EqualTo(50));
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerObject);
             }
         }
 
@@ -160,6 +184,47 @@ namespace Project.Tests.EditMode
             finally
             {
                 Object.DestroyImmediate(playerObject);
+            }
+        }
+
+        [Test]
+        public void DigestionDeathWithoutSequenceReleasesImmediately()
+        {
+            GameObject originalParent = new("Original Parent");
+            GameObject owner = new("Toad");
+            GameObject playerObject = new("Player");
+            try
+            {
+                playerObject.transform.SetParent(originalParent.transform);
+                Rigidbody2D body = playerObject.AddComponent<Rigidbody2D>();
+                PlayerDataController player =
+                    playerObject.AddComponent<PlayerDataController>();
+                SwallowedStateController swallowed =
+                    playerObject.AddComponent<SwallowedStateController>();
+                var settings = new SwallowSkillActionData
+                {
+                    escapeDistance = 0f,
+                    scaleTransitionDuration = 0f
+                };
+
+                Assert.That(swallowed.TrySwallow(owner, settings), Is.True);
+                Assert.That(playerObject.transform.parent,
+                    Is.EqualTo(owner.transform));
+                Assert.That(swallowed.IsMovementLocked, Is.True);
+
+                player.TakeDamage(player.MaxHealth);
+
+                Assert.That(swallowed.IsSwallowed, Is.False);
+                Assert.That(swallowed.IsMovementLocked, Is.False);
+                Assert.That(playerObject.transform.parent,
+                    Is.EqualTo(originalParent.transform));
+                Assert.That(body.simulated, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerObject);
+                Object.DestroyImmediate(owner);
+                Object.DestroyImmediate(originalParent);
             }
         }
 

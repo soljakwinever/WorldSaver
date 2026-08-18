@@ -25,6 +25,7 @@ public class GameDataInstaller : MonoInstaller
     public RectTransform worldUi;
     public PopTextSettings popTextSettings = new();
     public ItemStackExplosionSettings itemStackExplosionSettings = new();
+    public EnemyDeathSettings enemyDeathSettings = new();
     
     public override void InstallBindings()
     {
@@ -80,6 +81,8 @@ public class GameDataInstaller : MonoInstaller
         Container.Bind<IItemStackExplosionService>()
             .To<ItemStackExplosionService>()
             .AsSingle();
+        enemyDeathSettings ??= new EnemyDeathSettings();
+        Container.BindInstance(enemyDeathSettings);
 
         Container.Bind<BiomeData[]>().FromMethod(t => Resources.LoadAll<BiomeData>("Biomes") 
         ).AsSingle();
@@ -160,6 +163,16 @@ public class GameDataInstaller : MonoInstaller
             .FromNewComponentOnNewGameObject()
             .AsSingle()
             .NonLazy();
+        Container.Bind<ScreenShakeSettings>()
+            .FromMethod(_ => LoadScreenShakeSettings())
+            .AsSingle();
+        Container.BindInterfacesAndSelfTo<ScreenShakeService>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
+        Container.BindInterfacesTo<PlayerDamageShakeResponder>()
+            .AsSingle()
+            .NonLazy();
         Container.BindInterfacesAndSelfTo<EventService>()
             .AsSingle()
             .NonLazy();
@@ -213,6 +226,10 @@ public class GameDataInstaller : MonoInstaller
             .FromNewComponentOnNewGameObject()
             .AsSingle()
             .NonLazy();
+        Container.BindInterfacesAndSelfTo<EruptionService>()
+            .FromNewComponentOnNewGameObject()
+            .AsSingle()
+            .NonLazy();
         Container.BindInterfacesAndSelfTo<ProjectileService>()
             .AsSingle();
 
@@ -234,6 +251,15 @@ public class GameDataInstaller : MonoInstaller
             "No Resources/Weather/WeatherSimulationSettings asset was found. " +
             "Regional weather will run with default climate settings and clear weather.");
         return ScriptableObject.CreateInstance<WeatherSimulationSettings>();
+    }
+
+    private static ScreenShakeSettings LoadScreenShakeSettings()
+    {
+        ScreenShakeSettings settings =
+            Resources.Load<ScreenShakeSettings>("ScreenShakeSettings");
+        if (settings != null)
+            return settings;
+        return ScriptableObject.CreateInstance<ScreenShakeSettings>();
     }
 
     private static DangerSettings LoadDangerSettings()

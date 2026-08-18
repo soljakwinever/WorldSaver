@@ -6,24 +6,40 @@ using UnityEngine;
 
 namespace Project.Scripts.Gameplay
 {
-    public sealed class TransientHealth : MonoBehaviour, IHasHealth, IDamageable
+    public sealed class TransientHealth : MonoBehaviour, IHasHealth, IDamageable,
+        IHasShadow
     {
         public event Action Died;
 
         [SerializeField, Min(1)] private int maxHealth = 100;
         [SerializeField] private int health = 100;
         [SerializeField, Min(0)] private int defense;
-        [SerializeField, Min(0f)] private float knockbackImpulse = 5f;
         [SerializeField, Min(0f)] private float hitStunDuration = 0.35f;
 
         public int Health => health;
         public int MaxHealth => maxHealth;
+        public bool IsDead { get; private set; }
+        private bool _deferDestructionOnDeath;
         public AttackContext? LastDamageContext { get; private set; }
+        private FalseHeightController _height;
+        public ShadowSize ShadowSize => Height.ShadowSize;
+        public float VisualHeight => Height.VisualHeight;
+        public bool IsAirborne => Height.IsAirborne;
+        private FalseHeightController Height => _height ??=
+            GetComponent<FalseHeightController>() ??
+            gameObject.AddComponent<FalseHeightController>();
 
         private void Awake()
         {
+            _ = Height;
             health = Mathf.Clamp(health, 0, maxHealth);
         }
+
+        public void Launch(float peakHeight, float duration) =>
+            Height.Launch(peakHeight, duration);
+
+        public void DeferDestructionOnDeath() =>
+            _deferDestructionOnDeath = true;
 
         public void Initialize(int maximumHealth)
         {
@@ -39,6 +55,7 @@ namespace Project.Scripts.Gameplay
 
             maxHealth = health = maximumHealth;
             defense = damageDefense;
+            IsDead = false;
         }
         
         public void TakeDamage(int damage)
@@ -46,11 +63,15 @@ namespace Project.Scripts.Gameplay
             if (damage < 0)
                 throw new ArgumentOutOfRangeException(nameof(damage));
 
-            health = Mathf.Max(0, health - damage);
+            if (!IsDead)
+                health = Mathf.Max(0, health - damage);
         }
 
         public int TakeDamage(AttackContext context)
         {
+            if (IsDead)
+                return 0;
+
             int previousHealth = health;
             TakeDamage(Mathf.Max(0, context.Force - defense));
             int damageDelivered = previousHealth - health;
@@ -58,12 +79,13 @@ namespace Project.Scripts.Gameplay
                 return 0;
 
             LastDamageContext = context;
-            ApplyKnockback(context.Attacker.transform.position);
 
             if (health == 0)
             {
+                IsDead = true;
                 Died?.Invoke();
-                Destroy(gameObject);
+                if (!_deferDestructionOnDeath)
+                    Destroy(gameObject);
             }
             else
                 ApplyHitStun();
@@ -85,20 +107,6 @@ namespace Project.Scripts.Gameplay
             }
         }
 
-        private void ApplyKnockback(Vector3 attackerPosition)
-        {
-            if (knockbackImpulse <= 0f ||
-                !TryGetComponent(out Rigidbody2D body))
-                return;
-
-            Vector2 direction =
-                (transform.position - attackerPosition).normalized;
-            if (direction == Vector2.zero)
-                direction = Vector2.up;
-
-            body.AddForce(direction * knockbackImpulse, ForceMode2D.Impulse);
-        }
-
         public void Heal(int amount)
         {
             if (amount < 0)
@@ -113,7 +121,6 @@ namespace Project.Scripts.Gameplay
             maxHealth = Mathf.Max(1, maxHealth);
             health = Mathf.Clamp(health, 0, maxHealth);
             defense = Mathf.Max(0, defense);
-            knockbackImpulse = Mathf.Max(0f, knockbackImpulse);
             hitStunDuration = Mathf.Max(0f, hitStunDuration);
         }
 #endif

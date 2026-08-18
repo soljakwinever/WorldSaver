@@ -47,14 +47,17 @@ namespace Project.Scripts.Gameplay
             out int sequence)
         {
             sequence = 0;
-            if (attack?.skill == null || target == null || IsAttacking)
+            if (attack?.skill == null || target == null || IsAttacking ||
+                HasExternalMovementLock() ||
+                !CanTarget(target))
                 return false;
 
             ISkillRuntime runtime = GetComponentInParent<ISkillRuntime>();
+            Vector3 targetPosition = ResolveAimPosition(attack, target);
             if (runtime == null || !runtime.CanUse(
                     attack.skill,
                     target,
-                    target.transform.position,
+                    targetPosition,
                     attackPotential,
                     attack.projectile))
                 return false;
@@ -63,6 +66,18 @@ namespace Project.Scripts.Gameplay
             _routine = StartCoroutine(RunAttack(
                 sequence, attack, target, attackPotential, runtime));
             return true;
+        }
+
+        private bool HasExternalMovementLock()
+        {
+            foreach (MonoBehaviour behaviour in
+                     GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour != this &&
+                    behaviour is IMovementLock { IsMovementLocked: true })
+                    return true;
+            }
+            return false;
         }
 
         public bool TryGetResult(int sequence, out bool succeeded)
@@ -84,7 +99,7 @@ namespace Project.Scripts.Gameplay
             int attackPotential,
             ISkillRuntime runtime)
         {
-            Vector3 targetPosition = target.transform.position;
+            Vector3 targetPosition = ResolveAimPosition(attack, target);
             Face(targetPosition);
             Phase = AttackPhase.WindUp;
             ShowTelegraph(attack, targetPosition);
@@ -98,13 +113,13 @@ namespace Project.Scripts.Gameplay
             float trackingEnds = Time.time + trackingDuration;
             while (Time.time < trackingEnds)
             {
-                if (target == null)
+                if (target == null || !CanTarget(target))
                 {
                     Complete(sequence, false);
                     yield break;
                 }
 
-                targetPosition = target.transform.position;
+                targetPosition = ResolveAimPosition(attack, target);
                 if (!HasClearLineOfFire(
                         attack, targetPosition, target.transform))
                 {
@@ -118,7 +133,7 @@ namespace Project.Scripts.Gameplay
 
             if (trackingDuration > 0f && target != null)
             {
-                targetPosition = target.transform.position;
+                targetPosition = ResolveAimPosition(attack, target);
                 Face(targetPosition);
                 UpdateTelegraph(attack, targetPosition);
             }
@@ -126,6 +141,12 @@ namespace Project.Scripts.Gameplay
 
             if (sequence != _sequence)
                 yield break;
+
+            if (target != null && !CanTarget(target))
+            {
+                Complete(sequence, false);
+                yield break;
+            }
 
             if (!HasClearLineOfFire(
                     attack,
@@ -162,11 +183,73 @@ namespace Project.Scripts.Gameplay
             Complete(sequence, used);
         }
 
+        private Vector3 ResolveAimPosition(
+            ConditionalEnemySkill attack,
+            GameObject target)
+        {
+            if (target == null)
+                return transform.position;
+            if (attack?.skill == null)
+                return target.transform.position;
+
+            foreach (SkillActionData action in attack.skill.ActionData)
+            {
+                if (action is ProjectileSkillActionData projectile &&
+                    projectile.predictTargetMovement &&
+                    attack.projectile != null)
+                {
+                    ISkillFacing facing =
+                        GetComponentInParent<ISkillFacing>();
+                    Vector3 origin = facing?.ResolveLaunchOrigin(
+                        projectile.launchOffset) ?? transform.position;
+                    return ProjectileAim.PredictPosition(
+                        origin,
+                        target.transform,
+                        attack.projectile.speed,
+                        projectile.maximumPredictionTime);
+                }
+                if (action is JumpAttackSkillActionData jump)
+                {
+                    float impactTime = jump.ascentDuration +
+                                       jump.hoverDuration +
+                                       jump.descentDuration;
+                    return ProjectileAim.PredictPositionAfterTime(
+                        target.transform,
+                        impactTime,
+                        jump.maximumPredictionTime);
+                }
+            }
+
+            return target.transform.position;
+        }
+
+        private static bool CanTarget(GameObject target)
+        {
+            if (target == null)
+                return false;
+            foreach (MonoBehaviour behaviour in
+                     target.GetComponentsInParent<MonoBehaviour>(true))
+                if (behaviour is ITargetableState targetable &&
+                    !targetable.CanBeTargeted)
+                    return false;
+            return true;
+        }
+
         private bool HasClearLineOfFire(
             ConditionalEnemySkill attack,
             Vector3 targetPosition,
             Transform target)
         {
+            if (attack.skill != null)
+                foreach (SkillActionData action in attack.skill.ActionData)
+                    if (action is JumpAttackSkillActionData jump)
+                        return LineOfFireUtility.HasClearPath(
+                            transform.position,
+                            targetPosition,
+                            transform,
+                            target,
+                            jump.blockingLayers);
+
             if (attack.projectile == null ||
                 attack.lineOfFireBlockingLayers.value == 0)
                 return true;

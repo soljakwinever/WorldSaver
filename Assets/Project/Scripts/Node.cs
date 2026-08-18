@@ -8,6 +8,7 @@ using Project.Scripts.Gameplay;
 using Project.Scripts.Interface;
 using Project.Scripts.Interface.Decorator;
 using Project.Scripts.Persistence;
+using Project.Scripts.Utility;
 using UnityEngine;
 using Zenject;
 
@@ -82,6 +83,11 @@ public class Node : MonoBehaviour, INode
             spawnData.accessIdentity,
             spawnData.usesVillageDoorAccess);
 
+        InitializeTreasure(
+            spawnData.treasureLoot,
+            nodeId,
+            terrainSample.biomeBlend.dominantBiome ?? terrainSample.biome);
+
         PersistentHealth health =
             _persistentComponentHost.GetComponentInChildren<PersistentHealth>(
                 includeInactive: true);
@@ -150,6 +156,72 @@ public class Node : MonoBehaviour, INode
                 spriteRenderer.material = _defaultMaterial;
                 spriteRenderer.color = Color.white;
                 spriteRenderer.SetPropertyBlock(null);
+            }
+        }
+    }
+
+    private void InitializeTreasure(
+        TreasureLootConfiguration configuration,
+        NodeId nodeId,
+        BiomeData biome)
+    {
+        if (!configuration.IsConfigured)
+            return;
+
+        PersistentInventory inventory =
+            _persistentComponentHost.GetComponentInChildren<PersistentInventory>(true);
+        if (inventory == null)
+        {
+            Debug.LogError(
+                $"Treasure entity '{_nodeData.name}' requires a PersistentInventory.",
+                _nodeData);
+            return;
+        }
+
+        System.Random random = new(unchecked(
+            (int)(nodeId.value ^ (nodeId.value >> 32))));
+        TreasureItemCatalogData catalog = TreasureLootCatalogSelector.Select(
+            configuration,
+            biome,
+            random);
+        if (catalog == null)
+        {
+            Debug.LogWarning(
+                $"Treasure entity '{_nodeData.name}' has no catalog for " +
+                $"biome '{(biome != null ? biome.name : "None")}'.",
+                _nodeData);
+            return;
+        }
+
+        int stackCount = random.Next(
+            configuration.minimumStacks,
+            configuration.maximumStacks + 1);
+        for (int i = 0; i < stackCount; i++)
+        {
+            ItemData item = TreasureLootItemSelector.Select(catalog, random);
+            if (item == null || item.maxStack < 1)
+                continue;
+
+            int desiredCount = random.Next(
+                configuration.minimumItemsPerStack,
+                configuration.maximumItemsPerStack + 1);
+            int count = Mathf.Min(desiredCount, item.maxStack);
+            ItemData.Rarity rarity = ItemRarityUtility.Generate(
+                (float)random.NextDouble());
+            rarity = (ItemData.Rarity)Mathf.Min(
+                (int)rarity,
+                (int)configuration.maximumQuality);
+
+            try
+            {
+                inventory.TryAdd(item, count, out _, rarity);
+            }
+            catch (ArgumentException exception)
+            {
+                Debug.LogError(
+                    $"Treasure catalog item '{item.name}' is not valid for " +
+                    $"container '{_nodeData.name}': {exception.Message}",
+                    _nodeData);
             }
         }
     }

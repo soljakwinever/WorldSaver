@@ -15,6 +15,22 @@ namespace Project.Scripts.Interface
             if (target == null)
                 return Vector2.zero;
 
+            return ((Vector2)(PredictPosition(
+                origin,
+                target,
+                projectileSpeed,
+                maximumPredictionTime) - origin)).normalized;
+        }
+
+        public static Vector3 PredictPosition(
+            Vector3 origin,
+            Transform target,
+            float projectileSpeed,
+            float maximumPredictionTime)
+        {
+            if (target == null)
+                return origin;
+
             Vector2 displacement = target.position - origin;
             float speed = Mathf.Max(0f, projectileSpeed);
             Rigidbody2D targetBody = target.GetComponentInParent<Rigidbody2D>();
@@ -24,7 +40,7 @@ namespace Project.Scripts.Interface
             if (speed <= Mathf.Epsilon ||
                 targetVelocity.sqrMagnitude <= Mathf.Epsilon)
             {
-                return displacement.normalized;
+                return target.position;
             }
 
             float a = targetVelocity.sqrMagnitude - speed * speed;
@@ -53,12 +69,14 @@ namespace Project.Scripts.Interface
             }
 
             if (interceptTime <= 0f)
-                return displacement.normalized;
+                return target.position;
 
             interceptTime = Mathf.Min(
                 interceptTime,
                 Mathf.Max(0f, maximumPredictionTime));
-            return (displacement + targetVelocity * interceptTime).normalized;
+            Vector2 predicted = (Vector2)target.position +
+                                targetVelocity * interceptTime;
+            return new Vector3(predicted.x, predicted.y, target.position.z);
         }
 
         public static Vector3 ResolveDirectionalOrigin(
@@ -73,6 +91,24 @@ namespace Project.Scripts.Interface
             Vector2 perpendicular = new(-direction.y, direction.x);
             return position +
                    (Vector3)(direction * offset.x + perpendicular * offset.y);
+        }
+
+        public static Vector3 PredictPositionAfterTime(
+            Transform target,
+            float leadTime,
+            float maximumPredictionTime)
+        {
+            if (target == null)
+                return Vector3.zero;
+            Rigidbody2D body = target.GetComponentInParent<Rigidbody2D>();
+            Vector2 velocity = body != null
+                ? body.linearVelocity
+                : Vector2.zero;
+            float time = Mathf.Min(
+                Mathf.Max(0f, leadTime),
+                Mathf.Max(0f, maximumPredictionTime));
+            Vector2 predicted = (Vector2)target.position + velocity * time;
+            return new Vector3(predicted.x, predicted.y, target.position.z);
         }
 
         public static Vector2 ApplyAccuracy(

@@ -1,0 +1,123 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1bd44f627541f4bb26a31878c026a1, type: 3}
+  m_Name: Toad
+  m_EditorClassIdentifier: Playwinever.AI::Project.Scripts.AI.AiNodeData
+  _root: {rid: 1001}
+  references:
+    version: 2
+    RefIds:
+    - rid: 1001
+      type: {class: RootNode, ns: Project.Scripts.AI, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        firstChild: {rid: 1002}
+    - rid: 1002
+      type: {class: ReactiveSelector, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        children:
+        - {rid: 1012}
+        - {rid: 1003}
+        - {rid: 1010}
+    - rid: 1012
+      type: {class: ReactiveSequence, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        children:
+        - {rid: 1013}
+        - {rid: 1014}
+    - rid: 1013
+      type: {class: HasOffscreenRetreatRequest, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+    - rid: 1014
+      type: {class: WanderOffScreen, ns: Project.Scripts.AI.Leaves.Actions, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        movementSpeed: 2
+        arrivalTolerance: 0.08
+        viewportMargin: 0.1
+        distanceBeyondScreen: 2
+        lateralJitter: 4
+        candidateAttempts: 16
+        maximumVisitedTiles: 4096
+        retryUntilOutside: 1
+        despawnWhenOutside: 1
+    - rid: 1003
+      type: {class: ReactiveSequence, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        children:
+        - {rid: 1004}
+        - {rid: 1005}
+    - rid: 1004
+      type: {class: DetectNearby, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        distance: 5.5
+        layerMask: {serializedVersion: 2, m_Bits: 1}
+        tag: Player
+        includeEnemyEntities: 1
+        requiredEntityTags: []
+        excludedEntityTags:
+        - {fileID: 11400000, guid: 957b6112ca624c289c9cf0b7691629e1, type: 2}
+    - rid: 1005
+      type: {class: ReactiveSelector, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        children:
+        - {rid: 1006}
+        - {rid: 1009}
+    - rid: 1006
+      type: {class: SequenceNode, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        children:
+        - {rid: 1011}
+        - {rid: 1007}
+        - {rid: 1008}
+    - rid: 1011
+      type: {class: HasLineOfSight, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        fromKey: 0
+        toKey: 1
+        blockingLayers: {serializedVersion: 2, m_Bits: 65}
+    - rid: 1007
+      type: {class: EvaluateConditionalSkills, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+    - rid: 1008
+      type: {class: AttackWithConditionalSkill, ns: Project.Scripts.AI.Leaves.Actions, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        targetKey: 1
+        maximumRange: 6
+    - rid: 1009
+      type: {class: MoveToTarget, ns: Project.Scripts.AI.Leaves.Actions, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        targetKey: 1
+        movementSpeed: 2
+        arrivalTolerance: 0.08
+        repathInterval: 0.1
+        maximumVisitedTiles: 4096
+    - rid: 1010
+      type: {class: Wander, ns: Project.Scripts.AI.Leaves.Actions, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        radius: 4
+        movementSpeed: 2
+        arrivalTolerance: 0.08
+        candidateAttempts: 16
+        maximumVisitedTiles: 4096

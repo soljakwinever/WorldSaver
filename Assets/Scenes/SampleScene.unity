@@ -302,6 +302,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.PlaneTransitSpace
   playerEntry: {fileID: 1173903585}
+  arrivalAnchor: {fileID: 0}
+  confinement: {fileID: 0}
   minimumTransitSeconds: 3
   arrivalAnimationSeconds: 1
   transitStarted:
@@ -596,7 +598,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4275277646728090895, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
   m_PrefabInstance: {fileID: 3971600864741615749}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 3971600864741615750}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f56f39e617d8b864aaf78edcb4f72a21, type: 3}
@@ -682,6 +684,7 @@ MonoBehaviour:
   LoadDistance: 4
   chunkInitializationBudgetMilliseconds: 2
   maxChunkLoadNotificationsPerFrame: 1
+  maxPlaneTransitionUnloadsPerFrame: 2
   biomeColorCellsPerChunkStep: 64
   maxBiomeColorCellsPerFrame: 4096
   track: {fileID: 1074488191}
@@ -1319,6 +1322,13 @@ MonoBehaviour:
   itemStackExplosionSettings:
     defaultImpulse: 2.5
     defaultImpulseVariation: 0.25
+  enemyDeathSettings:
+    flashDuration: 0.35
+    flashCadence: 0.08
+    maximumLandingWait: 1
+    fadeToBlackDuration: 0.2
+    fadeOutDuration: 0.3
+    defaultPoofPrefab: {fileID: 0}
 --- !u!114 &1905862928
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1367,6 +1377,63 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &2782593658743170329
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8459774365745288294, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_Name
+      value: Slam
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0.7071068
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: -90
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8534547598920033000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 47cc8c0b530ff734aad06cf44b820b33, type: 3}
 --- !u!1001 &3971600864741615749
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1460,6 +1527,9 @@ PrefabInstance:
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 5983356817421055969, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3971600864741615751}
     - targetCorrespondingSourceObject: {fileID: 684982620336431732, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 519420036}
@@ -1467,6 +1537,27 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 880366238}
   m_SourcePrefab: {fileID: 100100000, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
+--- !u!1 &3971600864741615750 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5983356817421055969, guid: fc0717b0f2659f245b7f679190177c5a, type: 3}
+  m_PrefabInstance: {fileID: 3971600864741615749}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &3971600864741615751
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3971600864741615750}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11cd031417894065b8f91d99e7e455ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.FalseHeightController
+  shadowSize: 0
+  shadowSettings: {fileID: 0}
+  knockbackPeakHeight: 0.65
+  knockbackDuration: 0.35
 --- !u!1001 &8210790978046331035
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1542,3 +1633,4 @@ SceneRoots:
   - {fileID: 1665626550}
   - {fileID: 322791546}
   - {fileID: 8210790978046331035}
+  - {fileID: 2782593658743170329}

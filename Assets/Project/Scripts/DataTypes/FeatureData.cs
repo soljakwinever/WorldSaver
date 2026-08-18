@@ -188,6 +188,53 @@ namespace Project.Scripts.DataTypes
         }
     }
 
+    [Serializable]
+    public sealed class PlaceTreasureContainerFeatureGenerator : FeatureGenerator
+    {
+        [Tooltip("Stable identifier used to create the container's deterministic NodeId.")]
+        public string persistentId = "Treasure Container";
+        [Tooltip("Chest or box NodeData containing a PersistentInventory component.")]
+        public NodeData entity;
+        public Vector2 offset;
+        [Min(0.01f)] public float scale = 1f;
+        public bool flipX;
+        public bool damageImmune;
+        public bool clearReservedAreaCoverage;
+        public bool requireWalkableArea;
+        public Vector2Int walkableAreaSize = Vector2Int.one;
+        public Vector2Int walkableAreaOffset;
+
+        [Header("Treasure")]
+        [Tooltip("One catalog is selected per generated container, then items are rolled from it.")]
+        public TreasureItemCatalogData[] itemCatalogs =
+            Array.Empty<TreasureItemCatalogData>();
+        [Min(0)] public int minimumItemStacks = 1;
+        [Min(0)] public int maximumItemStacks = 3;
+        [Min(1)] public int minimumItemsPerStack = 1;
+        [Min(1)] public int maximumItemsPerStack = 1;
+        [Tooltip("Randomly generated item rarity will never exceed this value.")]
+        public ItemData.Rarity maximumQuality = ItemData.Rarity.Legendary;
+
+        public override float EntityReach => offset.magnitude;
+
+        public override bool TryGetEntityPlacement(
+            out FeatureEntityPlacement placement)
+        {
+            TreasureLootConfiguration loot = new(
+                itemCatalogs,
+                minimumItemStacks,
+                maximumItemStacks,
+                minimumItemsPerStack,
+                maximumItemsPerStack,
+                maximumQuality);
+            placement = new FeatureEntityPlacement(
+                persistentId, entity, offset, Mathf.Max(0.01f, scale), flipX,
+                damageImmune, clearReservedAreaCoverage, requireWalkableArea,
+                walkableAreaSize, walkableAreaOffset, loot);
+            return entity != null;
+        }
+    }
+
     public readonly struct FeatureEntityPlacement
     {
         public readonly string persistentId;
@@ -200,6 +247,7 @@ namespace Project.Scripts.DataTypes
         public readonly bool requireWalkableArea;
         public readonly Vector2Int walkableAreaSize;
         public readonly Vector2Int walkableAreaOffset;
+        public readonly TreasureLootConfiguration treasureLoot;
 
         public FeatureEntityPlacement(
             string persistentId,
@@ -211,7 +259,8 @@ namespace Project.Scripts.DataTypes
             bool clearReservedAreaCoverage,
             bool requireWalkableArea,
             Vector2Int walkableAreaSize,
-            Vector2Int walkableAreaOffset)
+            Vector2Int walkableAreaOffset,
+            TreasureLootConfiguration treasureLoot = default)
         {
             this.persistentId = persistentId;
             this.entity = entity;
@@ -223,6 +272,7 @@ namespace Project.Scripts.DataTypes
             this.requireWalkableArea = requireWalkableArea;
             this.walkableAreaSize = walkableAreaSize;
             this.walkableAreaOffset = walkableAreaOffset;
+            this.treasureLoot = treasureLoot;
         }
     }
 

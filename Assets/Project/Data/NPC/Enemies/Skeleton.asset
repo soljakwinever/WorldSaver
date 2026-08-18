@@ -66,6 +66,8 @@ MonoBehaviour:
       type: 0
       distance: 1
       conditions: []
+  identityTags:
+  - {fileID: 11400000, guid: b21753a0f8d38832f40c17f0ac19860e, type: 2}
   damageTags:
   - {fileID: 11400000, guid: b21753a0f8d38832f40c17f0ac19860e, type: 2}
   drops:

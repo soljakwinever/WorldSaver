@@ -52,7 +52,12 @@ namespace Project.Scripts.Actions
                 skillRuntime?.WeaponSwingOverride ?? attack.weaponSwing;
             if (weaponSwing == null)
             {
-                context.DealDamage(context.Target, attackContext);
+                int delivered = context.DealDamage(context.Target, attackContext);
+                CombatControlUtility.ApplyKnockback(
+                    context.Target,
+                    context.User.transform.position,
+                    delivered,
+                    attack.knockbackPowerMultiplier);
                 return;
             }
 
@@ -72,7 +77,12 @@ namespace Project.Scripts.Actions
                     GameObject targetObject = target is Component component
                         ? component.gameObject
                         : hit.gameObject;
-                    context.DealDamage(targetObject, attackContext);
+                    int delivered = context.DealDamage(targetObject, attackContext);
+                    CombatControlUtility.ApplyKnockback(
+                        targetObject,
+                        context.User.transform.position,
+                        delivered,
+                        attack.knockbackPowerMultiplier);
                 },
                 trackedTarget: context.Target.transform,
                 spriteOverride: skillRuntime?.WeaponSpriteOverride);

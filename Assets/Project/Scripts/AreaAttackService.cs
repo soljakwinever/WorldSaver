@@ -8,6 +8,71 @@ using Zenject;
 
 namespace Project.Scripts.Gameplay
 {
+    public static class CombatControlUtility
+    {
+        public static void ApplyKnockback(
+            GameObject target,
+            Vector2 origin,
+            int deliveredDamage,
+            float powerMultiplier)
+        {
+            if (target == null || deliveredDamage <= 0 || powerMultiplier <= 0f)
+                return;
+            Rigidbody2D body = target.GetComponentInParent<Rigidbody2D>();
+            if (body == null)
+                return;
+            Vector2 direction = (body.position - origin).normalized;
+            if (direction.sqrMagnitude <= Mathf.Epsilon)
+                direction = Vector2.up;
+            KnockbackImpactController controller =
+                body.GetComponent<KnockbackImpactController>() ??
+                body.gameObject.AddComponent<KnockbackImpactController>();
+            controller.Launch(direction, deliveredDamage * powerMultiplier);
+        }
+
+        public static void Apply(
+            GameObject target,
+            Vector2 origin,
+            float knockbackImpulse,
+            float stunDuration)
+        {
+            if (target == null)
+                return;
+            ApplyKnockback(target, origin, 1, knockbackImpulse);
+
+            if (stunDuration <= 0f)
+                return;
+            bool handled = false;
+            foreach (MonoBehaviour behaviour in
+                     target.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour is not IStunnable stunnable)
+                    continue;
+                stunnable.Stun(stunDuration);
+                handled = true;
+            }
+            if (!handled)
+            {
+                TimedStunController stun =
+                    target.GetComponent<TimedStunController>() ??
+                    target.AddComponent<TimedStunController>();
+                stun.Stun(stunDuration);
+            }
+        }
+    }
+
+    public readonly struct AreaAttackResult
+    {
+        public int DamagedTargetCount { get; }
+        public int TotalDamageDelivered { get; }
+
+        public AreaAttackResult(int damagedTargetCount, int totalDamageDelivered)
+        {
+            DamagedTargetCount = damagedTargetCount;
+            TotalDamageDelivered = totalDamageDelivered;
+        }
+    }
+
     /// <summary>Applies a circular skill hit to damageables, walls, and ground.</summary>
     public sealed class AreaAttackService : MonoBehaviour
     {
@@ -28,17 +93,19 @@ namespace Project.Scripts.Gameplay
         [Inject]
         public void Construct(IWorldClock clock) => _clock = clock;
 
-        public void Execute(
+        public AreaAttackResult Execute(
             SkillActionContext context,
             AreaAttackSkillActionData data)
         {
             Vector2 center = context.TargetPosition;
-            DamageObjects(center, context, data);
+            AreaAttackResult result = DamageObjects(center, context, data);
             EditTiles(center, context, data);
             SpawnDecal(center, data);
+            SpawnImpactEffect(center, data);
+            return result;
         }
 
-        private static void DamageObjects(
+        private static AreaAttackResult DamageObjects(
             Vector2 center,
             SkillActionContext context,
             AreaAttackSkillActionData data)
@@ -49,6 +116,8 @@ namespace Project.Scripts.Gameplay
             IEntityDamageSource source =
                 context.User.GetComponentInParent<IEntityDamageSource>();
             List<EntityTag> tags = new();
+            int damagedTargetCount = 0;
+            int totalDamageDelivered = 0;
             if (source?.DamageTags != null) tags.AddRange(source.DamageTags);
             if (context.Skill?.tags != null) tags.AddRange(context.Skill.tags);
             if (data.damageTags != null) tags.AddRange(data.damageTags);
@@ -65,15 +134,53 @@ namespace Project.Scripts.Gameplay
                 GameObject targetObject = target is Component component
                     ? component.gameObject
                     : hit.gameObject;
-                context.DealDamage?.Invoke(
+                int delivered = context.DealDamage?.Invoke(
                     targetObject,
                     new AttackContext(
                         context.User, null,
                         checked(Mathf.Max(0, data.baseDamage) +
                                 context.AttackPotential),
                         source?.DamageSource ?? EntityDamageSource.Skill,
-                        tags, context.Skill, data.attackType));
+                        tags, context.Skill, data.attackType)) ?? 0;
+                if (delivered > 0)
+                {
+                    damagedTargetCount++;
+                    totalDamageDelivered += delivered;
+                }
+                CombatControlUtility.Apply(
+                    targetObject,
+                    center,
+                    delivered > 0
+                        ? data.knockbackImpulse * delivered / 10f
+                        : 0f,
+                    data.stunDuration);
             }
+            return new AreaAttackResult(
+                damagedTargetCount,
+                totalDamageDelivered);
+        }
+
+        private static void SpawnImpactEffect(
+            Vector2 center,
+            AreaAttackSkillActionData data)
+        {
+            if (data.impactParticlePrefab == null)
+                return;
+            GameObject effect = Instantiate(
+                data.impactParticlePrefab, center, Quaternion.identity);
+            float lifetime = Mathf.Max(2f, data.impactParticleLifetime);
+            foreach (ParticleSystem particle in
+                     effect.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                ParticleSystem.MainModule main = particle.main;
+                main.simulationSpace = ParticleSystemSimulationSpace.World;
+                lifetime = Mathf.Max(
+                    lifetime,
+                    main.duration + main.startLifetime.constantMax);
+                particle.Play(true);
+            }
+            if (lifetime > 0f)
+                Destroy(effect, lifetime);
         }
 
         private static void EditTiles(

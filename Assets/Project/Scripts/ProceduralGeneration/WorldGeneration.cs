@@ -2968,7 +2968,8 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
                 persistenceKind = EntityPersistenceKind.Procedural,
                 damageImmune = placement.damageImmune,
                 clearReservedAreaCoverage =
-                    placement.clearReservedAreaCoverage
+                    placement.clearReservedAreaCoverage,
+                treasureLoot = placement.treasureLoot
             });
         }
     }

@@ -98,5 +98,6 @@ namespace Project.Scripts
         public bool damageImmune;
         public bool clearReservedAreaCoverage;
         public string generatedTownName;
+        public TreasureLootConfiguration treasureLoot;
     }
 }

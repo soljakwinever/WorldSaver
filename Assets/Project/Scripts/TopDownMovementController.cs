@@ -7,7 +7,8 @@ using Zenject;
 
 namespace Project.Scripts
 {
-    public class TopDownMovementController : MonoBehaviour, ISkillFacing
+    public class TopDownMovementController : MonoBehaviour,
+        ISkillFacing, IStunnable, IStunState
     {
         public float speed = 10;
     
@@ -26,7 +27,9 @@ namespace Project.Scripts
         private Vector2 _facingDirection = Vector2.down;
         private TileData _activeDamagingTile;
         private float _hazardExposureSeconds;
+        private float _stunnedUntil;
         public Vector2 FacingDirection => _facingDirection;
+        public bool IsStunned => Time.time < _stunnedUntil;
 
         public Vector3 ResolveLaunchOrigin(Vector2 offset)
         {
@@ -74,11 +77,23 @@ namespace Project.Scripts
 
         private void Update()
         {
-            bool movementLocked =
-                GetComponentInChildren<IMovementLock>()?.IsMovementLocked == true;
+            bool movementLocked = false;
+            foreach (MonoBehaviour behaviour in
+                     GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (behaviour is IMovementLock { IsMovementLocked: true })
+                {
+                    movementLocked = true;
+                    break;
+                }
+            }
+            bool stunned = IsStunned;
+            bool deathInputLocked =
+                playerDataController != null &&
+                playerDataController.IsDeathInProgress;
             float skillSpeedMultiplier =
                 GetComponent<SkillRuntime>()?.GetMovementSpeedMultiplier() ?? 1f;
-            var input = movementLocked
+            var input = movementLocked || stunned || deathInputLocked
                 ? Vector2.zero
                 : moveInput * (speed * skillSpeedMultiplier * Time.deltaTime);
 
@@ -89,6 +104,13 @@ namespace Project.Scripts
             
             _rigidbody2D.AddForce(input);
             ApplyTileDamage(Time.deltaTime);
+        }
+
+        public void Stun(float duration)
+        {
+            if (duration > 0f)
+                _stunnedUntil = Mathf.Max(
+                    _stunnedUntil, Time.time + duration);
         }
 
         private void ApplyTileDamage(float deltaTime)

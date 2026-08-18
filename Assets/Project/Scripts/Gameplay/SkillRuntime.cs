@@ -19,6 +19,9 @@ namespace Project.Scripts.Gameplay
         private readonly Dictionary<string, ModifierState> _modifiers = new();
         private readonly Dictionary<string, float> _dashMultipliers = new();
         private readonly Dictionary<string, float> _dashExpires = new();
+        private readonly HashSet<(int execution, int action)> _completedActions =
+            new();
+        private int _executionSequence;
         private IAttackService _attackService;
         private IProjectileService _projectileService;
         private ISenseService _senseService;
@@ -169,7 +172,13 @@ namespace Project.Scripts.Gameplay
 
             _cooldownEnds[skill] = Time.time + skill.cooldown;
             foreach (var entry in actions)
+            {
                 entry.action.Perform(entry.context, entry.data);
+                if (!entry.action.CompletesAsynchronously)
+                    entry.context.Complete(
+                        entry.data,
+                        entry.context.TargetPosition);
+            }
             return true;
         }
 
@@ -276,6 +285,7 @@ namespace Project.Scripts.Gameplay
                 out Func<bool> consumeProjectile);
 
             bool found = false;
+            int executionId = collect ? ++_executionSequence : 0;
             for (int i = 0; i < skill.ActionData.Count; i++)
             {
                 SkillActionData data = skill.ActionData[i];
@@ -284,7 +294,7 @@ namespace Project.Scripts.Gameplay
                 SkillAction action = data.action;
                 SkillActionContext context = CreateContext(
                     skill, target, targetPosition, i, attackPotential,
-                    projectile, consumeProjectile);
+                    projectile, consumeProjectile, executionId);
                 if (action == null || !action.Accepts(data) ||
                     !action.SupportsMode(data.mode) || !action.CanPerform(context, data))
                     return false;
@@ -305,7 +315,7 @@ namespace Project.Scripts.Gameplay
                     continue;
                 SkillActionContext context = CreateContext(
                     skill, gameObject, transform.position, i, 0,
-                    null, null);
+                    null, null, 0);
                 if (grant) action.Grant(context, data);
                 else action.Revoke(context, data);
             }
@@ -314,7 +324,8 @@ namespace Project.Scripts.Gameplay
         private SkillActionContext CreateContext(
             SkillData skill, GameObject target, Vector3 position, int index,
             int attackPotential, ProjectileData projectile,
-            Func<bool> consumeProjectile)
+            Func<bool> consumeProjectile,
+            int executionId)
         {
             ISenseService senseService = ResolveSenseService();
             return new SkillActionContext(
@@ -325,7 +336,39 @@ namespace Project.Scripts.Gameplay
                     ? RevealFeatures
                     : null,
                 projectile,
-                consumeProjectile);
+                consumeProjectile,
+                executionId,
+                CompleteAction);
+        }
+
+        private void CompleteAction(
+            SkillActionData data,
+            SkillActionContext context,
+            Vector3 position)
+        {
+            if (data == null || !data.enableFinishEruptions ||
+                data.finishEruptions == null)
+                return;
+            var key = (context.ExecutionId, context.ActionIndex);
+            if (context.ExecutionId != 0 && !_completedActions.Add(key))
+                return;
+            IEruptionPatternSpawner service = null;
+            foreach (MonoBehaviour behaviour in
+                     FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+                if (behaviour is IEruptionPatternSpawner candidate)
+                {
+                    service = candidate;
+                    break;
+                }
+            if (service == null)
+            {
+                Debug.LogError("EruptionService is not installed.");
+                return;
+            }
+            service.SpawnPattern(
+                context.AtPosition(position),
+                data.finishEruptions,
+                position);
         }
 
         private void ResolveProjectile(
@@ -447,6 +490,9 @@ namespace Project.Scripts.Gameplay
             {
                 if (source == null || !source.enabled || source.sprite == null)
                     continue;
+                if (source.gameObject.name == "Ground Shadow" ||
+                    source.forceRenderingOff)
+                    continue;
                 GameObject ghost = new(source.gameObject.name);
                 ghost.transform.SetParent(root.transform, false);
                 ghost.transform.SetPositionAndRotation(source.transform.position, source.transform.rotation);
@@ -513,6 +559,7 @@ namespace Project.Scripts.Gameplay
             float duration = Mathf.Max(0.02f, data.travelDuration);
             float speed = Mathf.Max(0f, data.distance) / duration;
             float remaining = Mathf.Max(0f, data.distance);
+            Vector2 completionPosition = body.position;
             HashSet<IDamageable> hitTargets = new();
             Transform userTransform = context.User.transform;
             while (remaining > 0f)
@@ -533,6 +580,8 @@ namespace Project.Scripts.Gameplay
                         float allowed = Mathf.Max(0f, obstacle.distance - 0.01f);
                         if (allowed > 0f)
                             body.MovePosition(start + direction * allowed);
+                        completionPosition = start + direction * allowed;
+                        context.Complete(data, completionPosition);
                         yield break;
                     }
                 }
@@ -562,8 +611,10 @@ namespace Project.Scripts.Gameplay
                         targetObject, direction, data, context);
                 }
                 body.MovePosition(start + direction * step);
+                completionPosition = start + direction * step;
                 remaining -= step;
             }
+            context.Complete(data, completionPosition);
         }
 
         public static Vector2 ResolveChargeDirection(
@@ -596,17 +647,22 @@ namespace Project.Scripts.Gameplay
             if (context.Skill?.tags != null) tags.AddRange(context.Skill.tags);
             if (data.damageTags != null) tags.AddRange(data.damageTags);
             if (data.element != null) tags.Add(data.element);
-            DealDamage(target, new AttackContext(
+            int delivered = DealDamage(target, new AttackContext(
                 gameObject, null,
                 checked(data.baseDamage + context.AttackPotential),
                 damageSource?.DamageSource ?? EntityDamageSource.Skill, tags,
                 context.Skill, data.attackType, SkillPowerMode.Multiplier));
 
             Rigidbody2D targetBody = target.GetComponentInParent<Rigidbody2D>();
-            if (targetBody != null && data.knockbackImpulse > 0f)
-                targetBody.AddForce(
-                    direction * data.knockbackImpulse,
-                    ForceMode2D.Impulse);
+            if (targetBody != null && delivered > 0 && data.knockbackImpulse > 0f)
+            {
+                KnockbackImpactController controller =
+                    targetBody.GetComponent<KnockbackImpactController>() ??
+                    targetBody.gameObject.AddComponent<KnockbackImpactController>();
+                controller.Launch(
+                    direction,
+                    data.knockbackImpulse * delivered / 10f);
+            }
         }
     }
 }

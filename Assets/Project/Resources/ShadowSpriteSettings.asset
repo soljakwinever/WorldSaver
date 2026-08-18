@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dfa8704de99a457490fa51422bdd2fe4, type: 3}
+  m_Name: ShadowSpriteSettings
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.ShadowSpriteSettings
+  shadows:
+  - {fileID: 2097675746, guid: 4a6f3512ebf14baca8057d36b579d180, type: 3}
+  - {fileID: -1877997027, guid: 4a6f3512ebf14baca8057d36b579d180, type: 3}
+  - {fileID: -1520717578, guid: 4a6f3512ebf14baca8057d36b579d180, type: 3}

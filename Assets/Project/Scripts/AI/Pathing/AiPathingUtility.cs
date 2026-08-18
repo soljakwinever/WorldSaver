@@ -43,6 +43,19 @@ namespace Project.Scripts.AI
                 : 1f / Mathf.Max(1f, cost);
         }
 
+        public static float GetActorSpeedMultiplier(GameObject owner)
+        {
+            if (owner == null)
+                return 1f;
+            float multiplier = 1f;
+            foreach (MonoBehaviour behaviour in
+                     owner.GetComponentsInChildren<MonoBehaviour>(true))
+                if (behaviour is IMovementSpeedMultiplier provider)
+                    multiplier *= Mathf.Max(0f,
+                        provider.MovementSpeedMultiplier);
+            return multiplier;
+        }
+
         public static Task<List<Vector2Int>> FindPathAsync(
             IPathFindingService service,
             Vector2Int start,

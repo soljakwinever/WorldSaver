@@ -39,7 +39,7 @@ MonoBehaviour:
         attackType: 1
         launchOffset: {x: 0, y: 0}
         useFacingDirection: 0
-        predictTargetMovement: 0
+        predictTargetMovement: 1
         useLockedTargetPosition: 1
         maximumPredictionTime: 2
         consumeProjectile: 0

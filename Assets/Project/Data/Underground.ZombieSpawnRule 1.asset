@@ -18,7 +18,7 @@ MonoBehaviour:
   persistence: 0
   minimumPerChunk: 1
   maximumPerChunk: 3
-  spawnChance: 1
+  spawnChance: 0.215
   minimumSpacing: 2
   maxAllowed: 20
   spawnIntervalTicks: 1

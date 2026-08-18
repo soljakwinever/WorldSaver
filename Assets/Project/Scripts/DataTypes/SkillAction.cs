@@ -20,6 +20,9 @@ namespace Project.Scripts.DataTypes
         public Action<float, float> RevealFeatures { get; }
         public ProjectileData Projectile { get; }
         public Func<bool> ConsumeProjectile { get; }
+        public int ExecutionId { get; }
+        public Action<SkillActionData, SkillActionContext, Vector3>
+            CompleteAction { get; }
 
         public string EffectKey => $"{Skill?.persistentId}:{ActionIndex}";
 
@@ -27,7 +30,10 @@ namespace Project.Scripts.DataTypes
             User, Target, position, Skill, ActionIndex, AttackPotential,
             DealDamage, PlayAnimation, ApplyModifier, RemoveModifier,
             StartCharge, StartDash, RevealFeatures, Projectile,
-            ConsumeProjectile);
+            ConsumeProjectile, ExecutionId, CompleteAction);
+
+        public void Complete(SkillActionData data, Vector3 position) =>
+            CompleteAction?.Invoke(data, this, position);
 
         public SkillActionContext(
             GameObject user, GameObject target, Vector3 targetPosition,
@@ -41,7 +47,10 @@ namespace Project.Scripts.DataTypes
             Action<DashSkillActionData, SkillActionContext> startDash,
             Action<float, float> revealFeatures,
             ProjectileData projectile = null,
-            Func<bool> consumeProjectile = null)
+            Func<bool> consumeProjectile = null,
+            int executionId = 0,
+            Action<SkillActionData, SkillActionContext, Vector3>
+                completeAction = null)
         {
             User = user;
             Target = target;
@@ -58,6 +67,8 @@ namespace Project.Scripts.DataTypes
             RevealFeatures = revealFeatures;
             Projectile = projectile;
             ConsumeProjectile = consumeProjectile;
+            ExecutionId = executionId;
+            CompleteAction = completeAction;
         }
     }
 
@@ -66,6 +77,7 @@ namespace Project.Scripts.DataTypes
         public abstract Type DataType { get; }
         public virtual bool SupportsMode(SkillActionMode mode) =>
             mode == SkillActionMode.Active;
+        public virtual bool CompletesAsynchronously => false;
         public abstract bool CanPerform(SkillActionContext context, SkillActionData data);
         public abstract void Perform(SkillActionContext context, SkillActionData data);
         public virtual void Grant(SkillActionContext context, SkillActionData data) { }

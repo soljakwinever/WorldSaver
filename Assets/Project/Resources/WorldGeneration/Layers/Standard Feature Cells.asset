@@ -15,10 +15,7 @@ MonoBehaviour:
   cellSize: 128
   chancePerCell: 0.25
   features:
-  - {fileID: 11400000, guid: c9000000000000000000000000000009, type: 2}
-  - {fileID: 11400000, guid: a5000000000000000000000000000005, type: 2}
-  - {fileID: 11400000, guid: a1700000000000000000000000000007, type: 2}
-  - {fileID: 11400000, guid: 3692680514cab484da577c8d67f33826, type: 2}
+  - {fileID: 11400000, guid: bed9420e97dc71c41bfa5c216ab3c45e, type: 2}
   generateRoads: 1
   maximumRoadDistance: 4096
   roadPathStep: 4

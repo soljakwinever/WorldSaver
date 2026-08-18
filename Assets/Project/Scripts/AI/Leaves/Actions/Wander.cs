@@ -123,6 +123,7 @@ namespace Project.Scripts.AI.Leaves.Actions
             if (self.GetComponentInChildren<IMovementLock>()?.IsMovementLocked == true)
                 return NodeState.Running;
             float movement = Mathf.Max(0f, movementSpeed) *
+                             AiPathingUtility.GetActorSpeedMultiplier(self.gameObject) *
                              AiPathingUtility.GetSpeedMultiplier(
                                  map,
                                  path[waypointIndex],

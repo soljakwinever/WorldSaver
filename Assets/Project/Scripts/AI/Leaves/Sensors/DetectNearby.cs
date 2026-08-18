@@ -1,10 +1,28 @@
 using System;
 using Project.Scripts.AI.GraphEditor;
+using Project.Scripts.DataTypes;
 using Project.Scripts.Interface;
 using UnityEngine;
 
 namespace Project.Scripts.AI.Leaves.Sensors
 {
+    [AiNode("Has Offscreen Retreat Request", "Sensors"), Serializable]
+    public sealed class HasOffscreenRetreatRequest : AiNode
+    {
+        protected override NodeState OnTick()
+        {
+            if (!Blackboard.TryGet(AiKeys.Self, out GameObject self) ||
+                self == null)
+                return state = NodeState.Failure;
+            IOffscreenRetreatState retreat =
+                self.GetComponent<IOffscreenRetreatState>();
+            if (retreat?.ShouldRetreatOffscreen != true)
+                return state = NodeState.Failure;
+            Blackboard.Set<Transform>(AiKeys.Target, null);
+            return state = NodeState.Success;
+        }
+    }
+
     [AiNode("Is Object Nearby", "Sensors"), Serializable]
     public class DetectNearby : AiNode
     {
@@ -15,6 +33,13 @@ namespace Project.Scripts.AI.Leaves.Sensors
         private LayerMask layerMask;
 
         [InputPort("Tag"), SerializeField] private string tag;
+
+        [SerializeField, Tooltip("Also detect EnemyRuntime entities using the entity-tag filters below.")]
+        private bool includeEnemyEntities;
+        [SerializeField] private EntityTag[] requiredEntityTags =
+            Array.Empty<EntityTag>();
+        [SerializeField] private EntityTag[] excludedEntityTags =
+            Array.Empty<EntityTag>();
         
         [NonSerialized]
         private readonly Collider2D[] _results = new Collider2D[16];
@@ -24,6 +49,13 @@ namespace Project.Scripts.AI.Leaves.Sensors
             if (!Blackboard.TryGet(AiKeys.Self, out GameObject self) ||
                 self == null)
                 throw new InvalidOperationException();
+            ISwallowOccupancyState occupancy =
+                self.GetComponent<ISwallowOccupancyState>();
+            if (occupancy != null && occupancy.IsFull)
+            {
+                Blackboard.Set<Transform>(AiKeys.Target, null);
+                return state = NodeState.Failure;
+            }
 
             float retentionDistance = Mathf.Max(
                 Mathf.Max(0f, distance),
@@ -59,6 +91,9 @@ namespace Project.Scripts.AI.Leaves.Sensors
                     candidate.attachedRigidbody != null
                         ? candidate.attachedRigidbody.gameObject
                         : candidate.gameObject;
+                IEntityTagProvider entity = FindEntityProvider(candidateObject);
+                if (entity is MonoBehaviour entityBehaviour)
+                    candidateObject = entityBehaviour.gameObject;
 
                 if (!IsMatchingTarget(candidateObject))
                     continue;
@@ -78,7 +113,9 @@ namespace Project.Scripts.AI.Leaves.Sensors
                 foreach (IEnemyTarget registered in EnemyTargetRegistry.All)
                 {
                     GameObject candidateObject = registered?.TargetObject;
-                    if (candidateObject == null || !candidateObject.activeInHierarchy)
+                    if (candidateObject == null ||
+                        !candidateObject.activeInHierarchy ||
+                        !IsMatchingTarget(candidateObject))
                         continue;
                     float candidateDistanceSquared =
                         (candidateObject.transform.position - self.transform.position).sqrMagnitude;
@@ -107,8 +144,18 @@ namespace Project.Scripts.AI.Leaves.Sensors
         {
             if (candidate == null)
                 return false;
+            MonoBehaviour[] targetBehaviours =
+                candidate.GetComponentsInParent<MonoBehaviour>(true);
+            foreach (MonoBehaviour behaviour in targetBehaviours)
+                if (behaviour is ITargetableState targetable &&
+                    !targetable.CanBeTargeted)
+                    return false;
             if (string.IsNullOrWhiteSpace(tag) || candidate.CompareTag(tag))
                 return true;
+
+            IEntityTagProvider entity = FindEntityProvider(candidate);
+            if (includeEnemyEntities && entity != null)
+                return MatchesEntityTags(entity);
 
             // Existing hostile trees search for the Player tag. Villager ECS
             // bridges deliberately retain the NPC tag but opt into the same
@@ -116,12 +163,46 @@ namespace Project.Scripts.AI.Leaves.Sensors
             if (!string.Equals(tag, "Player", StringComparison.Ordinal))
                 return false;
 
-            MonoBehaviour[] behaviours =
-                candidate.GetComponentsInParent<MonoBehaviour>(true);
-            foreach (MonoBehaviour behaviour in behaviours)
+            foreach (MonoBehaviour behaviour in targetBehaviours)
                 if (behaviour is Project.Scripts.Interface.IEnemyTarget)
                     return true;
             return false;
+        }
+
+        private bool MatchesEntityTags(IEntityTagProvider provider)
+        {
+            System.Collections.Generic.IReadOnlyList<EntityTag> tags =
+                provider?.EntityTags ?? Array.Empty<EntityTag>();
+            foreach (EntityTag excluded in excludedEntityTags ??
+                         Array.Empty<EntityTag>())
+                if (excluded != null && Contains(tags, excluded))
+                    return false;
+            foreach (EntityTag required in requiredEntityTags ??
+                         Array.Empty<EntityTag>())
+                if (required != null && !Contains(tags, required))
+                    return false;
+            return true;
+        }
+
+        private static bool Contains(
+            System.Collections.Generic.IReadOnlyList<EntityTag> tags,
+            EntityTag expected)
+        {
+            for (int i = 0; i < tags.Count; i++)
+                if (tags[i] == expected)
+                    return true;
+            return false;
+        }
+
+        private static IEntityTagProvider FindEntityProvider(GameObject target)
+        {
+            if (target == null)
+                return null;
+            foreach (MonoBehaviour behaviour in
+                     target.GetComponentsInParent<MonoBehaviour>(true))
+                if (behaviour is IEntityTagProvider provider)
+                    return provider;
+            return null;
         }
     }
 }
