@@ -1,0 +1,102 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a2fd533411d49ae8344afbd0cba8953, type: 3}
+  m_Name: Catalog
+  m_EditorClassIdentifier: Playwinever.Gameplay::Project.Scripts.Gameplay.CharacterCreationCatalogData
+  defaultSpeciesId: human
+  defaultClassId: warrior
+  defaultGender: 2
+  editorDefaultCharacterName: Default Character
+  species:
+  - id: human
+    displayName: Human
+    startingStats: {strength: 0, constitution: 0, dexterity: 0, wisdom: 0, intelligence: 0, luck: 0}
+    supportsSecondarySkinColor: 0
+    supportsHorns: 0
+    supportsWings: 0
+  - id: dragon
+    displayName: Dragon
+    startingStats: {strength: 2, constitution: 1, dexterity: -1, wisdom: 0, intelligence: 0, luck: 0}
+    supportsSecondarySkinColor: 1
+    supportsHorns: 1
+    supportsWings: 1
+  - id: faerie
+    displayName: Faerie
+    startingStats: {strength: -1, constitution: 0, dexterity: 0, wisdom: 2, intelligence: 1, luck: 0}
+    supportsSecondarySkinColor: 0
+    supportsHorns: 0
+    supportsWings: 1
+  classes:
+  - id: warrior
+    displayName: Warrior
+    available: 1
+    startingStats: {strength: 3, constitution: 2, dexterity: 0, wisdom: 0, intelligence: 0, luck: 0}
+    growthRanks: {strength: 5, constitution: 3, dexterity: 3, wisdom: 1, intelligence: 0, luck: 2}
+    starterSkills:
+    - {fileID: 11400000, guid: f231cb37451245cf963a2d0816316b69, type: 2}
+    starterItems:
+    - item: {fileID: 11400000, guid: b8440387653a3d349b8968cc977ede49, type: 2}
+      count: 1
+      equip: 0
+  - id: mage
+    displayName: Mage
+    available: 1
+    startingStats: {strength: 0, constitution: 0, dexterity: 0, wisdom: 2, intelligence: 3, luck: 0}
+    growthRanks: {strength: 0, constitution: 1, dexterity: 2, wisdom: 5, intelligence: 5, luck: 2}
+    starterSkills:
+    - {fileID: 11400000, guid: 132a9e4453f24c7e9bc53a7279d0fa5e, type: 2}
+    starterItems:
+    - item: {fileID: 11400000, guid: 0b909730823da9e4aaa6e1814e949787, type: 2}
+      count: 1
+      equip: 0
+  - id: ranger
+    displayName: Ranger
+    available: 0
+    startingStats: {strength: 0, constitution: 0, dexterity: 0, wisdom: 0, intelligence: 0, luck: 0}
+    growthRanks: {strength: 0, constitution: 0, dexterity: 0, wisdom: 0, intelligence: 0, luck: 0}
+    starterSkills: []
+    starterItems: []
+  - id: tank
+    displayName: Tank
+    available: 0
+    startingStats: {strength: 0, constitution: 0, dexterity: 0, wisdom: 0, intelligence: 0, luck: 0}
+    growthRanks: {strength: 0, constitution: 0, dexterity: 0, wisdom: 0, intelligence: 0, luck: 0}
+    starterSkills: []
+    starterItems: []
+  - id: custom
+    displayName: Custom
+    available: 0
+    startingStats: {strength: 0, constitution: 0, dexterity: 0, wisdom: 0, intelligence: 0, luck: 0}
+    growthRanks: {strength: 0, constitution: 0, dexterity: 0, wisdom: 0, intelligence: 0, luck: 0}
+    starterSkills: []
+    starterItems: []
+  bodyTypes:
+  - id: default
+    displayName: Default
+    sprite: {fileID: 0}
+  hair:
+  - id: default
+    displayName: Default
+    sprite: {fileID: 0}
+  horns:
+  - id: none
+    displayName: None
+    sprite: {fileID: 0}
+  clothes:
+  - id: basic
+    displayName: Basic
+    sprite: {fileID: 0}
+  wings:
+  - id: none
+    displayName: None
+    sprite: {fileID: 0}
+  growthPerLevel: [0.1, 0.2, 0.35, 0.5, 0.75, 1]

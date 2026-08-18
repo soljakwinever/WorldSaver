@@ -20,4 +20,10 @@ namespace Project.Scripts.Interface
         void PlayOneShot(SongData sound, Vector3 worldPosition);
         void SetEventParameter(string name, float value);
     }
+
+    public interface IDangerService
+    {
+        void SetEventContribution(string ownerKey, float value);
+        void ClearEventContribution(string ownerKey);
+    }
 }

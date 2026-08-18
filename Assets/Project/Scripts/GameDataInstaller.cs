@@ -169,6 +169,12 @@ public class GameDataInstaller : MonoInstaller
         Container.BindInterfacesAndSelfTo<AudioService>()
             .AsSingle()
             .NonLazy();
+        Container.Bind<DangerSettings>()
+            .FromMethod(_ => LoadDangerSettings())
+            .AsSingle();
+        Container.BindInterfacesAndSelfTo<DangerService>()
+            .AsSingle()
+            .NonLazy();
         Container.Bind<WeatherSimulationSettings>()
             .FromMethod(_ => LoadWeatherSettings())
             .AsSingle();
@@ -228,6 +234,19 @@ public class GameDataInstaller : MonoInstaller
             "No Resources/Weather/WeatherSimulationSettings asset was found. " +
             "Regional weather will run with default climate settings and clear weather.");
         return ScriptableObject.CreateInstance<WeatherSimulationSettings>();
+    }
+
+    private static DangerSettings LoadDangerSettings()
+    {
+        DangerSettings settings =
+            Resources.Load<DangerSettings>("Audio/DangerSettings");
+        if (settings != null)
+            return settings;
+
+        Debug.LogWarning(
+            "No Resources/Audio/DangerSettings asset was found. " +
+            "Using default danger settings.");
+        return ScriptableObject.CreateInstance<DangerSettings>();
     }
 
     private sealed class WeatherWorldClockAdapter : IWeatherWorldClock

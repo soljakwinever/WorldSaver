@@ -68,6 +68,10 @@ namespace Project.Scripts.DataTypes
         [Min(0)] public int experienceValue;
         [Range(0f, 1f), Tooltip("Projectile accuracy. One is perfect aim; lower values add angular spread.")]
         public float accuracy = 1f;
+        [Range(0f, 1f), Tooltip("How dangerous this enemy is for adaptive audio.")]
+        public float dangerLevel;
+        [Range(0f, 1f), Tooltip("How strongly this enemy's danger contributes to adaptive audio.")]
+        public float dangerWeight = 1f;
 
         [Header("Movement")]
         [Min(0f)] public float movementSpeed = 2f;
@@ -104,6 +108,8 @@ namespace Project.Scripts.DataTypes
             defense = Mathf.Max(0, defense);
             experienceValue = Mathf.Max(0, experienceValue);
             accuracy = Mathf.Clamp01(accuracy);
+            dangerLevel = Mathf.Clamp01(dangerLevel);
+            dangerWeight = Mathf.Clamp01(dangerWeight);
             movementSpeed = Mathf.Max(0f, movementSpeed);
             sprintMultiplier = Mathf.Max(1f, sprintMultiplier);
             dropExplosionImpulse = Mathf.Max(0f, dropExplosionImpulse);

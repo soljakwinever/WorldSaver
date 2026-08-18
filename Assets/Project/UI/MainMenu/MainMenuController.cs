@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Project.Scripts.DataTypes;
+using Project.Scripts.Gameplay;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -35,6 +36,7 @@ namespace Project.UI.MainMenu
             public string createdUtc;
             public string presetId;
             public int presetVersion = 1;
+            public string characterId;
         }
 
         private Page _page;
@@ -56,6 +58,24 @@ namespace Project.UI.MainMenu
         private WorldGenerationPresetData[] _newWorldPresets =
             Array.Empty<WorldGenerationPresetData>();
         private int _newWorldPresetIndex;
+        private CharacterCreationCatalogData _characterCatalog;
+        private IReadOnlyList<CharacterProfile> _characters = Array.Empty<CharacterProfile>();
+        private int _selectedCharacterIndex = -1;
+        private bool _creatingCharacter;
+        private string _characterName = string.Empty;
+        private CharacterGender _characterGender = CharacterGender.Other;
+        private int _speciesIndex;
+        private int _classIndex;
+        private int _bodyIndex;
+        private int _hairIndex;
+        private int _hornsIndex;
+        private int _clothesIndex;
+        private int _wingsIndex;
+        private string _skinColorA = "#D1A680";
+        private string _skinColorB = "#9E6B4D";
+        private string _eyeColor = "#3388FF";
+        private string _clothingColorA = "#808080";
+        private string _clothingColorB = "#202020";
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void RestoreDisplaySettings()
@@ -97,6 +117,8 @@ namespace Project.UI.MainMenu
             {
                 _newWorldPresets = new[] { _presetCatalog.newWorldDefault };
             }
+            _characterCatalog = CharacterCreationCatalogData.LoadOrFallback();
+            RefreshCharacters();
         }
 
         private void OnDestroy()
@@ -148,6 +170,7 @@ namespace Project.UI.MainMenu
 
         private void DrawNewWorld()
         {
+            _scroll = GUILayout.BeginScrollView(_scroll, GUILayout.Height(500));
             GUILayout.Label("WORLD NAME");
             GUI.SetNextControlName("WorldName");
             _newWorldName = GUILayout.TextField(_newWorldName, 48, GUILayout.Height(38));
@@ -165,14 +188,154 @@ namespace Project.UI.MainMenu
                     names,
                     1);
             }
-            GUILayout.Space(22);
+            GUILayout.Space(14);
+            DrawCharacterSelection();
+            GUILayout.Space(14);
 
-            GUI.enabled = !string.IsNullOrWhiteSpace(_newWorldName);
+            GUI.enabled = !string.IsNullOrWhiteSpace(_newWorldName) &&
+                          (_selectedCharacterIndex >= 0 ||
+                           (_creatingCharacter && CanCreateCharacter()));
             if (MenuButton("CREATE WORLD"))
                 CreateWorld(_newWorldName);
             GUI.enabled = true;
             BackButton();
+            GUILayout.EndScrollView();
         }
+
+        private void DrawCharacterSelection()
+        {
+            GUILayout.Label("CHARACTER");
+            if (!_creatingCharacter)
+            {
+                if (_characters.Count > 0)
+                {
+                    string[] names = _characters.Select(x => $"{x.name}  ({DisplaySpecies(x.speciesId)} {DisplayClass(x.classId)})").ToArray();
+                    _selectedCharacterIndex = GUILayout.SelectionGrid(
+                        Mathf.Clamp(_selectedCharacterIndex, 0, names.Length - 1), names, 1);
+                }
+                else GUILayout.Label("No characters created yet.");
+                if (GUILayout.Button("CREATE NEW CHARACTER", GUILayout.Height(34)))
+                {
+                    _creatingCharacter = true;
+                    _selectedCharacterIndex = -1;
+                }
+                return;
+            }
+
+            GUILayout.BeginVertical(GUI.skin.box);
+            GUILayout.Label("NAME");
+            _characterName = GUILayout.TextField(_characterName, 48, GUILayout.Height(30));
+            GUILayout.Label("GENDER");
+            _characterGender = (CharacterGender)GUILayout.SelectionGrid((int)_characterGender, Enum.GetNames(typeof(CharacterGender)), 3);
+            DrawDefinitionGrid("SPECIES", _characterCatalog.species?.Select(x => x.displayName).ToArray(), ref _speciesIndex);
+
+            string[] classNames = (_characterCatalog.classes ?? Array.Empty<CharacterClassDefinition>())
+                .Select(x => x.available ? x.displayName : $"{x.displayName} (Coming Soon)").ToArray();
+            DrawDefinitionGrid("CLASS", classNames, ref _classIndex);
+
+            CharacterSpeciesDefinition species = SelectedSpecies();
+            GUILayout.Label("APPEARANCE (SPRITES COMING SOON)");
+            DrawAppearanceGrid("Body", _characterCatalog.bodyTypes, ref _bodyIndex);
+            DrawAppearanceGrid("Hair", _characterCatalog.hair, ref _hairIndex);
+            DrawAppearanceGrid("Clothes", _characterCatalog.clothes, ref _clothesIndex);
+            if (species?.supportsHorns == true) DrawAppearanceGrid("Horns", _characterCatalog.horns, ref _hornsIndex);
+            if (species?.supportsWings == true) DrawAppearanceGrid("Wings", _characterCatalog.wings, ref _wingsIndex);
+            _skinColorA = DrawColorField("Skin A", _skinColorA);
+            if (species?.supportsSecondarySkinColor == true)
+                _skinColorB = DrawColorField("Skin B", _skinColorB);
+            _eyeColor = DrawColorField("Eyes", _eyeColor);
+            _clothingColorA = DrawColorField("Clothing A", _clothingColorA);
+            _clothingColorB = DrawColorField("Clothing B", _clothingColorB);
+            if (GUILayout.Button("CANCEL NEW CHARACTER")) _creatingCharacter = false;
+            GUILayout.EndVertical();
+        }
+
+        private static void DrawDefinitionGrid(string label, string[] names, ref int index)
+        {
+            if (names == null || names.Length == 0) return;
+            GUILayout.Label(label);
+            index = GUILayout.SelectionGrid(Mathf.Clamp(index, 0, names.Length - 1), names, Mathf.Min(3, names.Length));
+        }
+
+        private static void DrawAppearanceGrid(string label, CharacterAppearanceOption[] options, ref int index)
+        {
+            if (options == null || options.Length == 0) { GUILayout.Label($"{label}: Default"); return; }
+            string[] names = options.Select(x => string.IsNullOrWhiteSpace(x.displayName) ? x.id : x.displayName).ToArray();
+            DrawDefinitionGrid(label, names, ref index);
+        }
+
+        private static string DrawColorField(string label, string value)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(label, GUILayout.Width(100));
+            value = GUILayout.TextField(value ?? string.Empty, 9);
+            GUILayout.EndHorizontal();
+            return value;
+        }
+
+        private bool CanCreateCharacter()
+        {
+            CharacterClassDefinition selectedClass = SelectedClass();
+            return !string.IsNullOrWhiteSpace(_characterName) && SelectedSpecies() != null &&
+                   selectedClass?.available == true &&
+                   TryParseColor(_skinColorA, out _) && TryParseColor(_skinColorB, out _) &&
+                   TryParseColor(_eyeColor, out _) && TryParseColor(_clothingColorA, out _) &&
+                   TryParseColor(_clothingColorB, out _);
+        }
+
+        private CharacterSpeciesDefinition SelectedSpecies() =>
+            _characterCatalog.species != null && _characterCatalog.species.Length > 0
+                ? _characterCatalog.species[Mathf.Clamp(_speciesIndex, 0, _characterCatalog.species.Length - 1)] : null;
+
+        private CharacterClassDefinition SelectedClass() =>
+            _characterCatalog.classes != null && _characterCatalog.classes.Length > 0
+                ? _characterCatalog.classes[Mathf.Clamp(_classIndex, 0, _characterCatalog.classes.Length - 1)] : null;
+
+        private string DisplaySpecies(string id) => _characterCatalog.TryGetSpecies(id, out CharacterSpeciesDefinition value) ? value.displayName : id;
+        private string DisplayClass(string id) => _characterCatalog.TryGetClass(id, out CharacterClassDefinition value) ? value.displayName : id;
+
+        private void RefreshCharacters()
+        {
+            _characters = CharacterProfileStore.ReadAll();
+            _selectedCharacterIndex = _characters.Count > 0 ? 0 : -1;
+        }
+
+        private CharacterProfile CreatePendingCharacter()
+        {
+            CharacterSpeciesDefinition species = SelectedSpecies();
+            CharacterClassDefinition selectedClass = SelectedClass();
+            CharacterProfile profile = new()
+            {
+                name = _characterName,
+                gender = _characterGender,
+                speciesId = species.id,
+                classId = selectedClass.id,
+                growthRanks = selectedClass.growthRanks,
+                appearance = new CharacterAppearance
+                {
+                    body = OptionId(_characterCatalog.bodyTypes, _bodyIndex),
+                    hair = OptionId(_characterCatalog.hair, _hairIndex),
+                    horns = species.supportsHorns ? OptionId(_characterCatalog.horns, _hornsIndex) : string.Empty,
+                    clothes = OptionId(_characterCatalog.clothes, _clothesIndex),
+                    wings = species.supportsWings ? OptionId(_characterCatalog.wings, _wingsIndex) : string.Empty,
+                    skinColorA = ParseColor(_skinColorA),
+                    skinColorB = ParseColor(_skinColorB),
+                    eyeColor = ParseColor(_eyeColor),
+                    clothingColorA = ParseColor(_clothingColorA),
+                    clothingColorB = ParseColor(_clothingColorB)
+                }
+            };
+            return CharacterProfileStore.Create(profile);
+        }
+
+        private static string OptionId(CharacterAppearanceOption[] options, int index) =>
+            options != null && options.Length > 0 ? options[Mathf.Clamp(index, 0, options.Length - 1)]?.id ?? string.Empty : string.Empty;
+
+        private static bool TryParseColor(string value, out Color color) =>
+            ColorUtility.TryParseHtmlString(value?.Trim(), out color);
+
+        private static Color ParseColor(string value) =>
+            TryParseColor(value, out Color color) ? color : Color.white;
 
         private void DrawLoadWorld()
         {
@@ -202,7 +365,10 @@ namespace Project.UI.MainMenu
                             world.name,
                             world.seed,
                             preset.PersistentId,
-                            preset.Version);
+                            preset.Version,
+                            string.IsNullOrWhiteSpace(world.characterId)
+                                ? "player"
+                                : world.characterId);
                     GUI.enabled = true;
                     GUILayout.EndVertical();
                     GUILayout.Space(8);
@@ -350,6 +516,18 @@ namespace Project.UI.MainMenu
                         0,
                         _newWorldPresets.Length - 1)]
                     : _presetCatalog?.newWorldDefault;
+            CharacterProfile character;
+            try
+            {
+                character = _creatingCharacter
+                    ? CreatePendingCharacter()
+                    : _characters[Mathf.Clamp(_selectedCharacterIndex, 0, _characters.Count - 1)];
+            }
+            catch (Exception exception)
+            {
+                _message = exception.Message;
+                return;
+            }
             Directory.CreateDirectory(directory);
             WorldManifest manifest = new()
             {
@@ -357,7 +535,8 @@ namespace Project.UI.MainMenu
                 seed = seed,
                 createdUtc = DateTime.UtcNow.ToString("O"),
                 presetId = preset?.PersistentId ?? string.Empty,
-                presetVersion = preset?.Version ?? 1
+                presetVersion = preset?.Version ?? 1,
+                characterId = character.id
             };
             File.WriteAllText(
                 Path.Combine(directory, "world.json"),
@@ -366,14 +545,16 @@ namespace Project.UI.MainMenu
                 name,
                 seed,
                 manifest.presetId,
-                manifest.presetVersion);
+                manifest.presetVersion,
+                manifest.characterId);
         }
 
         private static void LaunchWorld(
             string name,
             int seed,
             string presetId,
-            int presetVersion)
+            int presetVersion,
+            string characterId = "player")
         {
             PlayerPrefs.SetString(ActiveWorldKey, name);
             PlayerPrefs.SetInt(ActiveSeedKey, seed);
@@ -381,6 +562,9 @@ namespace Project.UI.MainMenu
             PlayerPrefs.SetInt(
                 ActivePresetVersionKey,
                 Mathf.Max(1, presetVersion));
+            PlayerPrefs.SetString(
+                CharacterProfileStore.ActiveCharacterKey,
+                string.IsNullOrWhiteSpace(characterId) ? "player" : characterId);
             PlayerPrefs.Save();
             BackfillManifestPreset(name, presetId, presetVersion);
             ScreenFadeController.LoadScene(GameScene);

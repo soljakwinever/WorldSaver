@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.02.03.00">
+	<object class="AudioFile" id="{de7a6ddd-5a38-440b-a2af-a1d49ed5fe0c}">
+		<property name="assetPath">
+			<value>Music/Underground/CrystalCave/8 bit blip Complex.wav</value>
+		</property>
+		<property name="isStreaming">
+			<value>true</value>
+		</property>
+		<property name="frequencyInKHz">
+			<value>44.0999985</value>
+		</property>
+		<property name="channelCount">
+			<value>2</value>
+		</property>
+		<property name="length">
+			<value>7.3846258503401359</value>
+		</property>
+		<relationship name="masterAssetFolder">
+			<destination>{46032c16-a875-42cd-a8a8-ed23f2633f12}</destination>
+		</relationship>
+	</object>
+</objects>

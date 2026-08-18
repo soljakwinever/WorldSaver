@@ -11,6 +11,38 @@ namespace Project.Tests.EditMode
 {
     public sealed class EventDataTests
     {
+        [TestCase(0, 0f)]
+        [TestCase(5, 0.5f)]
+        [TestCase(10, 1f)]
+        [TestCase(20, 1f)]
+        public void DangerEffectMapsAndClampsVariable(int value, float expected)
+        {
+            EventDangerEffect effect = new()
+            {
+                inputMinimum = 0,
+                inputMaximum = 10,
+                outputMinimum = 0f,
+                outputMaximum = 1f
+            };
+
+            Assert.That(effect.Evaluate(value), Is.EqualTo(expected).Within(0.001f));
+        }
+
+        [Test]
+        public void DangerEffectSupportsDescendingInputRanges()
+        {
+            EventDangerEffect effect = new()
+            {
+                inputMinimum = 10,
+                inputMaximum = 0,
+                outputMinimum = 0f,
+                outputMaximum = 1f
+            };
+
+            Assert.That(effect.Evaluate(10), Is.EqualTo(0f));
+            Assert.That(effect.Evaluate(0), Is.EqualTo(1f));
+        }
+
         [Test]
         public void DisplayNameUsesAuthoredValue()
         {

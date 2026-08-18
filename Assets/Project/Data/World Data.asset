@@ -692,13 +692,13 @@ MonoBehaviour:
     minTemperature: 0.5
     maxTemperature: 1
     maxSlope: 0
-    density: 0.5
+    density: 0.1
     cellSize: 4
     minSpacing: 1
-    noiseScale: 1
+    noiseScale: 3
     noiseThreshold: 0.35
     avoidWater: 0
-    avoidCliffs: 0
+    avoidCliffs: 1
     avoidMountains: 0
     avoidTowns: 0
     avoidRivers: 0

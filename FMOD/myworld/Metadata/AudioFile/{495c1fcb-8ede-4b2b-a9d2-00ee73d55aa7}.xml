@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<objects serializationModel="Studio.02.03.00">
+	<object class="AudioFile" id="{495c1fcb-8ede-4b2b-a9d2-00ee73d55aa7}">
+		<property name="assetPath">
+			<value>Music/Underground/CrystalCave/Piano Low.wav</value>
+		</property>
+		<property name="isStreaming">
+			<value>true</value>
+		</property>
+		<property name="frequencyInKHz">
+			<value>44.0999985</value>
+		</property>
+		<property name="channelCount">
+			<value>2</value>
+		</property>
+		<property name="length">
+			<value>14.769229024943311</value>
+		</property>
+		<relationship name="masterAssetFolder">
+			<destination>{46032c16-a875-42cd-a8a8-ed23f2633f12}</destination>
+		</relationship>
+	</object>
+</objects>

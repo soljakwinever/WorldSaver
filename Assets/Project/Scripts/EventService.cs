@@ -44,6 +44,7 @@ namespace Project.Scripts
         private readonly PlayerDataController _player;
         private readonly EntityBus _entities;
         private readonly IAudioService _audio;
+        private readonly IDangerService _danger;
         private readonly Dictionary<EventData, RuntimeState> _states = new();
         private readonly Dictionary<EnemyData, int> _defeats = new();
         private readonly HashSet<EnemySpawnRule> _activeRules = new();
@@ -68,7 +69,8 @@ namespace Project.Scripts
             Chunkloader chunkloader,
             PlayerDataController player,
             EntityBus entities,
-            IAudioService audio)
+            IAudioService audio,
+            IDangerService danger)
         {
             _world = world;
             _time = time;
@@ -78,6 +80,7 @@ namespace Project.Scripts
             _player = player;
             _entities = entities;
             _audio = audio;
+            _danger = danger;
         }
 
         public void Initialize()
@@ -144,6 +147,8 @@ namespace Project.Scripts
                     if (portal != null)
                         UnityEngine.Object.Destroy(portal);
             _eventPortals.Clear();
+            foreach (EventData data in _states.Keys)
+                _danger.ClearEventContribution(GetDangerOwner(data));
         }
 
         public void Tick()
@@ -211,6 +216,8 @@ namespace Project.Scripts
                 !state.Variables.ContainsKey(name))
                 return false;
             state.Variables[name] = value;
+            if (state.Active)
+                RebuildEffects();
             MarkSaveDirty();
             return true;
         }
@@ -498,6 +505,9 @@ namespace Project.Scripts
                 : id);
         }
 
+        private static string GetDangerOwner(EventData data) =>
+            GetMusicOwner(data) + ":danger";
+
         private void RebuildEffects()
         {
             _activeRules.Clear();
@@ -505,12 +515,25 @@ namespace Project.Scripts
             float temperature = _baseTemperature;
             foreach (KeyValuePair<EventData, RuntimeState> pair in _states)
             {
+                _danger.ClearEventContribution(GetDangerOwner(pair.Key));
                 if (!pair.Value.Active)
                     continue;
                 EventEffects effects = pair.Key.effects;
                 if (effects == null)
                     continue;
                 temperature += effects.globalTemperatureOffset;
+                float eventDanger = 0f;
+                foreach (EventDangerEffect danger in
+                         effects.danger ?? Array.Empty<EventDangerEffect>())
+                {
+                    string variable = danger?.variable?.Trim();
+                    if (!string.IsNullOrEmpty(variable) &&
+                        pair.Value.Variables.TryGetValue(variable, out int value))
+                        eventDanger += danger.Evaluate(value);
+                }
+                _danger.SetEventContribution(
+                    GetDangerOwner(pair.Key),
+                    Mathf.Clamp01(eventDanger));
                 foreach (EnemySpawnRule rule in
                          effects.enabledEnemySpawnRules ??
                          Array.Empty<EnemySpawnRule>())

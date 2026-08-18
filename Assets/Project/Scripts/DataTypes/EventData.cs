@@ -316,9 +316,32 @@ namespace Project.Scripts.DataTypes
             Array.Empty<EventFeatureBuildingEffect>();
         [Tooltip("One-shot fast-travel portals created when the event activates.")]
         public EventPortalEffect[] portals = Array.Empty<EventPortalEffect>();
+        [Tooltip("Blackboard variables mapped into the normalized FMOD Danger parameter while this event is active.")]
+        public EventDangerEffect[] danger = Array.Empty<EventDangerEffect>();
 
         [HideInInspector, Tooltip("Legacy one-per-event building list.")]
         public FeatureBuildingData[] buildings = Array.Empty<FeatureBuildingData>();
+    }
+
+    [Serializable]
+    public sealed class EventDangerEffect
+    {
+        [Tooltip("Name of a blackboard variable owned by this event.")]
+        public string variable = "wave";
+        public int inputMinimum;
+        public int inputMaximum = 1;
+        [Range(0f, 1f)] public float outputMinimum;
+        [Range(0f, 1f)] public float outputMaximum = 1f;
+
+        public float Evaluate(int value)
+        {
+            if (inputMinimum == inputMaximum)
+                return value < inputMinimum
+                    ? Mathf.Clamp01(outputMinimum)
+                    : Mathf.Clamp01(outputMaximum);
+            float amount = Mathf.InverseLerp(inputMinimum, inputMaximum, value);
+            return Mathf.Clamp01(Mathf.Lerp(outputMinimum, outputMaximum, amount));
+        }
     }
 
     [Serializable]

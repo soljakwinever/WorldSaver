@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Project.Scripts.Bus;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
@@ -33,7 +34,7 @@ namespace Project.Scripts.Gameplay
         IPersistentComponent, ISkillStamina
     {
         public const ushort TypeId = 10;
-        private const ushort CurrentComponentVersion = 7;
+        private const ushort CurrentComponentVersion = 8;
         private const ushort CurrentFileVersion = 1;
         private const uint FileMagic = 0x43535750; // PWSC
         private const int BaseStat = 5;
@@ -71,6 +72,16 @@ namespace Project.Scripts.Gameplay
         [SerializeField, Min(1)] private int intelligence = BaseStat;
         [SerializeField, Min(1)] private int luck = BaseStat;
         [SerializeField, Range(0f, 1f)] private float mana = 1f;
+
+        [Header("Character Identity")]
+        [SerializeField] private string characterName = string.Empty;
+        [SerializeField] private CharacterGender gender = CharacterGender.Other;
+        [SerializeField] private string speciesId = string.Empty;
+        [SerializeField] private string classId = string.Empty;
+        [SerializeField] private CharacterAppearance appearance = new();
+        [SerializeField] private bool growthEnabled;
+        [SerializeField] private CharacterGrowthRanks growthRanks;
+        [SerializeField] private CharacterStatValues growthProgress;
 
         [Header("Respawn")]
         [SerializeField] private bool hasSpawnPoint;
@@ -170,6 +181,12 @@ namespace Project.Scripts.Gameplay
         public string CharacterFilePath => GetCharacterFilePath();
         public string PlayerId =>
             SanitizePathSegment(characterId, "player");
+        public string CharacterName => characterName;
+        public CharacterGender Gender => gender;
+        public string SpeciesId => speciesId;
+        public string ClassId => classId;
+        public CharacterAppearance Appearance => appearance;
+        public CharacterGrowthRanks GrowthRanks => growthRanks;
         public bool HasSpawnPoint => hasSpawnPoint;
         public Vector3 SpawnPoint => spawnPoint;
         public string SpawnPlaneId => spawnPlaneId;
@@ -255,7 +272,10 @@ namespace Project.Scripts.Gameplay
             worldId = PlayerPrefs.GetString(
                 "WorldSaver.ActiveWorld",
                 worldId);
+            ResolveCharacterSelection();
             bool restored = TryLoad();
+            if (!restored && CharacterProfileStore.TryRead(characterId, out CharacterProfile profile))
+                InitializeFromProfile(profile, CharacterCreationCatalogData.LoadOrFallback());
             string activePlaneId = _planeSelection?.PlaneId ?? string.Empty;
             if (string.IsNullOrWhiteSpace(currentPlaneId))
                 currentPlaneId = activePlaneId;
@@ -336,6 +356,7 @@ namespace Project.Scripts.Gameplay
                 unspentStatPoints =
                     checked(unspentStatPoints + StatPointsPerLevel);
                 unspentSkillPoints = checked(unspentSkillPoints + 1);
+                ApplyGrowthForLevel();
                 _playerBus?.RaiseLevelUp(level, StatPointsPerLevel);
             }
 
@@ -715,6 +736,53 @@ namespace Project.Scripts.Gameplay
             characterId = SanitizePathSegment(newCharacterId, "player");
         }
 
+        public void InitializeFromProfile(
+            CharacterProfile profile,
+            CharacterCreationCatalogData catalog)
+        {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+            if (catalog == null) throw new ArgumentNullException(nameof(catalog));
+            if (!IsAtBaseline())
+                throw new InvalidOperationException("Only a fresh character can be initialized from a profile.");
+
+            characterId = SanitizePathSegment(profile.id, "player");
+            characterName = profile.name ?? string.Empty;
+            gender = profile.gender;
+            speciesId = profile.speciesId ?? string.Empty;
+            classId = profile.classId ?? string.Empty;
+            appearance = profile.appearance ?? new CharacterAppearance();
+            growthRanks = profile.growthRanks;
+            growthEnabled = true;
+
+            catalog.TryGetSpecies(speciesId, out CharacterSpeciesDefinition species);
+            catalog.TryGetClass(classId, out CharacterClassDefinition characterClass);
+            ApplyStartingStats(species?.startingStats ?? default);
+            ApplyStartingStats(characterClass?.startingStats ?? default);
+
+            if (characterClass != null)
+            {
+                foreach (SkillData skill in characterClass.starterSkills ?? Array.Empty<SkillData>())
+                    if (skill != null) GrantSkill(skill);
+
+                PersistentInventory inventory = GetComponent<PersistentInventory>();
+                foreach (CharacterStarterItem starter in characterClass.starterItems ?? Array.Empty<CharacterStarterItem>())
+                {
+                    if (starter?.item == null) continue;
+                    int count = Mathf.Max(1, starter.count);
+                    if (!inventory.TryAdd(starter.item, count, out int remainder) || remainder != 0)
+                        Debug.LogWarning($"Could not grant all of starter item '{starter.item.name}'.", this);
+                    if (starter.equip && starter.item is EquipableItemData)
+                    {
+                        IItemStack stack = inventory.Stacks.FirstOrDefault(x => x.Item == starter.item);
+                        if (stack != null) _equipment.TryEquip(stack);
+                    }
+                }
+            }
+
+            ApplyConstitutionToHealth(healIncrease: true);
+            RaiseProgressionChanged();
+        }
+
         public void Save()
         {
             string path = GetCharacterFilePath();
@@ -851,6 +919,14 @@ namespace Project.Scripts.Gameplay
             WriteIds(writer, unlockedSkills);
             writer.Write(spawnPlaneId ?? string.Empty);
             writer.Write(currentPlaneId ?? string.Empty);
+            writer.Write(characterName ?? string.Empty);
+            writer.Write((byte)gender);
+            writer.Write(speciesId ?? string.Empty);
+            writer.Write(classId ?? string.Empty);
+            writer.Write(growthEnabled);
+            WriteGrowthRanks(writer, growthRanks);
+            WriteStatValues(writer, growthProgress);
+            writer.Write(JsonUtility.ToJson(appearance ?? new CharacterAppearance()));
         }
 
         public void ReadState(BinaryReader reader, ushort savedVersion)
@@ -993,6 +1069,20 @@ namespace Project.Scripts.Gameplay
                     currentPlaneId = activePlaneId;
             }
 
+            if (savedVersion >= 8)
+            {
+                characterName = reader.ReadString();
+                gender = (CharacterGender)reader.ReadByte();
+                if (!Enum.IsDefined(typeof(CharacterGender), gender))
+                    throw new InvalidDataException("Saved character gender is invalid.");
+                speciesId = reader.ReadString();
+                classId = reader.ReadString();
+                growthEnabled = reader.ReadBoolean();
+                growthRanks = ReadGrowthRanks(reader);
+                growthProgress = ReadStatValues(reader);
+                appearance = JsonUtility.FromJson<CharacterAppearance>(reader.ReadString()) ?? new CharacterAppearance();
+            }
+
             RestoreUnlockedPassives();
 
             ApplyConstitutionToHealth(healIncrease: false);
@@ -1038,6 +1128,136 @@ namespace Project.Scripts.Gameplay
                 destination.Add(id);
             }
         }
+
+        private void ResolveCharacterSelection()
+        {
+            if (PlayerPrefs.HasKey(CharacterProfileStore.ActiveCharacterKey))
+            {
+                characterId = SanitizePathSegment(
+                    PlayerPrefs.GetString(CharacterProfileStore.ActiveCharacterKey, characterId), "player");
+                return;
+            }
+#if UNITY_EDITOR
+            if (string.Equals(worldId, "default", StringComparison.OrdinalIgnoreCase))
+            {
+                const string defaultId = "default-character";
+                if (!CharacterProfileStore.TryRead(defaultId, out CharacterProfile profile))
+                {
+                    CharacterCreationCatalogData catalog = CharacterCreationCatalogData.LoadOrFallback();
+                    profile = new CharacterProfile
+                    {
+                        id = defaultId,
+                        name = string.IsNullOrWhiteSpace(catalog.editorDefaultCharacterName)
+                            ? "Default Character" : catalog.editorDefaultCharacterName,
+                        gender = catalog.defaultGender,
+                        speciesId = catalog.defaultSpeciesId,
+                        classId = catalog.defaultClassId,
+                        growthRanks = CharacterGrowthRanks.All(StatGrowthRank.S),
+                        appearance = new CharacterAppearance()
+                    };
+                    try { CharacterProfileStore.Create(profile); }
+                    catch (InvalidOperationException) { CharacterProfileStore.Save(profile); }
+                }
+                characterId = defaultId;
+                PlayerPrefs.SetString(CharacterProfileStore.ActiveCharacterKey, defaultId);
+                PlayerPrefs.Save();
+            }
+#endif
+        }
+
+        private void ApplyStartingStats(CharacterStatValues values)
+        {
+            strength = Mathf.Max(1, checked(strength + values.strength));
+            constitution = Mathf.Max(1, checked(constitution + values.constitution));
+            dexterity = Mathf.Max(1, checked(dexterity + values.dexterity));
+            wisdom = Mathf.Max(1, checked(wisdom + values.wisdom));
+            intelligence = Mathf.Max(1, checked(intelligence + values.intelligence));
+            luck = Mathf.Max(1, checked(luck + values.luck));
+        }
+
+        private void ApplyGrowthForLevel()
+        {
+            if (!growthEnabled) return;
+            CharacterCreationCatalogData catalog = CharacterCreationCatalogData.LoadOrFallback();
+            foreach (PlayerStat stat in Enum.GetValues(typeof(PlayerStat)))
+            {
+                float accumulated = GetGrowthProgress(stat) + catalog.GetGrowth(growthRanks.Get(stat));
+                int gained = Mathf.FloorToInt(accumulated);
+                SetGrowthProgress(stat, accumulated - gained);
+                for (int i = 0; i < gained; i++) IncreaseStat(stat);
+            }
+        }
+
+        private void IncreaseStat(PlayerStat stat)
+        {
+            switch (stat)
+            {
+                case PlayerStat.Strength: strength++; break;
+                case PlayerStat.Constitution: constitution++; ApplyConstitutionToHealth(true); break;
+                case PlayerStat.Dexterity: dexterity++; break;
+                case PlayerStat.Wisdom: wisdom++; break;
+                case PlayerStat.Intelligence: intelligence++; break;
+                case PlayerStat.Luck: luck++; break;
+            }
+        }
+
+        private float GetGrowthProgress(PlayerStat stat) => stat switch
+        {
+            PlayerStat.Strength => growthProgress.strength / 1000000f,
+            PlayerStat.Constitution => growthProgress.constitution / 1000000f,
+            PlayerStat.Dexterity => growthProgress.dexterity / 1000000f,
+            PlayerStat.Wisdom => growthProgress.wisdom / 1000000f,
+            PlayerStat.Intelligence => growthProgress.intelligence / 1000000f,
+            PlayerStat.Luck => growthProgress.luck / 1000000f,
+            _ => 0f
+        };
+
+        private void SetGrowthProgress(PlayerStat stat, float value)
+        {
+            int fixedValue = Mathf.Clamp(Mathf.RoundToInt(value * 1000000f), 0, 999999);
+            switch (stat)
+            {
+                case PlayerStat.Strength: growthProgress.strength = fixedValue; break;
+                case PlayerStat.Constitution: growthProgress.constitution = fixedValue; break;
+                case PlayerStat.Dexterity: growthProgress.dexterity = fixedValue; break;
+                case PlayerStat.Wisdom: growthProgress.wisdom = fixedValue; break;
+                case PlayerStat.Intelligence: growthProgress.intelligence = fixedValue; break;
+                case PlayerStat.Luck: growthProgress.luck = fixedValue; break;
+            }
+        }
+
+        private static void WriteGrowthRanks(BinaryWriter writer, CharacterGrowthRanks ranks)
+        {
+            foreach (PlayerStat stat in Enum.GetValues(typeof(PlayerStat))) writer.Write((byte)ranks.Get(stat));
+        }
+
+        private static CharacterGrowthRanks ReadGrowthRanks(BinaryReader reader)
+        {
+            CharacterGrowthRanks ranks = default;
+            ranks.strength = ReadRank(reader); ranks.constitution = ReadRank(reader);
+            ranks.dexterity = ReadRank(reader); ranks.wisdom = ReadRank(reader);
+            ranks.intelligence = ReadRank(reader); ranks.luck = ReadRank(reader);
+            return ranks;
+        }
+
+        private static StatGrowthRank ReadRank(BinaryReader reader)
+        {
+            StatGrowthRank rank = (StatGrowthRank)reader.ReadByte();
+            if (!Enum.IsDefined(typeof(StatGrowthRank), rank)) throw new InvalidDataException("Saved growth rank is invalid.");
+            return rank;
+        }
+
+        private static void WriteStatValues(BinaryWriter writer, CharacterStatValues values)
+        {
+            writer.Write(values.strength); writer.Write(values.constitution); writer.Write(values.dexterity);
+            writer.Write(values.wisdom); writer.Write(values.intelligence); writer.Write(values.luck);
+        }
+
+        private static CharacterStatValues ReadStatValues(BinaryReader reader) => new()
+        {
+            strength = reader.ReadInt32(), constitution = reader.ReadInt32(), dexterity = reader.ReadInt32(),
+            wisdom = reader.ReadInt32(), intelligence = reader.ReadInt32(), luck = reader.ReadInt32()
+        };
 
         private void RestoreUnlockedPassives()
         {

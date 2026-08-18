@@ -33,10 +33,13 @@ namespace Project.Scripts.TimeAndWeather
 
         [Header("Environmental influence")]
         [SerializeField, Range(-2f, 2f)] private float temperatureOffset;
+        [SerializeField, Range(0f, 1f)] private float dangerContribution;
         [SerializeField, Min(0f)] private float puddleAccumulationPerTick;
         [SerializeField, Min(0f)] private float snowAccumulationPerTick;
 
         public override float TemperatureOffset => temperatureOffset;
+        public override float DangerContribution =>
+            Mathf.Clamp01(dangerContribution);
         public override float PuddleAccumulationPerTick =>
             puddleAccumulationPerTick;
         public override float SnowAccumulationPerTick =>

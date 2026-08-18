@@ -17,6 +17,7 @@ namespace Project.Scripts.TimeAndWeather
         public int PulseIntervalTicks => Mathf.Max(1, pulseIntervalTicks);
 
         public virtual float TemperatureOffset => 0f;
+        public virtual float DangerContribution => 0f;
         public virtual float PuddleAccumulationPerTick => 0f;
         public virtual float SnowAccumulationPerTick => 0f;
         public virtual GameObject EffectPrefab => null;
