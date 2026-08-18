@@ -55,6 +55,11 @@ namespace Project.Scripts.Gameplay
             _body.simulated = true;
             _body.bodyType = RigidbodyType2D.Kinematic;
             _body.gravityScale = 0f;
+            // Kinematic bodies do not normally report contacts with static or
+            // other kinematic bodies. World walls are static tilemap bodies,
+            // so projectiles need full kinematic contacts to receive impacts.
+            _body.useFullKinematicContacts = true;
+            _body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
             _body.WakeUp();
             _body.linearVelocity =
                 context.Direction * Mathf.Max(0f, context.Projectile.speed);

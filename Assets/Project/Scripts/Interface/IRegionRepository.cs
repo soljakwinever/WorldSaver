@@ -11,5 +11,6 @@ namespace Project.Scripts.Interface
 
         void MarkDirty(RuntimeRegion region);
         Awaitable FlushDirtyAsync();
+        Awaitable ClearLoadedRegionsAsync();
     }
 }

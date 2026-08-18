@@ -30,6 +30,7 @@ MonoBehaviour:
   useLegacyWorldNPCSpawnRules: 0
   enemySpawnRules:
   - {fileID: 11400000, guid: 5f653d6a66a7ca941b30a76b8d400b65, type: 2}
+  - {fileID: 11400000, guid: 864d3ad01c93bd547949203a6f5d211f, type: 2}
   allowEventNPCSpawnRules: 1
   caveLayout: {fileID: 11400000, guid: d4000000000000000000000000000004, type: 2}
   caveBiomeMap: {fileID: 11400000, guid: d7000000000000000000000000000007, type: 2}

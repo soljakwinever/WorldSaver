@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Threading;
+using Project.Scripts.DataTypes;
 
 namespace Project.Scripts.Interface
 {
@@ -11,6 +13,11 @@ namespace Project.Scripts.Interface
         void ReportSpawn(IChunk chunk);
         void SetPortalPreview(Vector2 worldPosition, bool enabled);
         void SetTransitSpacePinned(Vector2 worldPosition, bool enabled);
+        Awaitable<bool> PreparePlaneTransitionAsync(
+            PlaneData destination,
+            Vector3 landingPosition,
+            CancellationToken cancellationToken);
+        void CompletePlaneTransition();
     }
 
     public interface IWaterTileQuery

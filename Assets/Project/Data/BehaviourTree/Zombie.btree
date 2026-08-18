@@ -683,7 +683,7 @@ MonoBehaviour:
     - rid: 1367514954854563967
       type: {class: 'Constant`1[[System.Single, mscorlib]]', ns: Unity.GraphToolkit.Editor, asm: UnityEditor.GraphToolkitModule}
       data:
-        m_Value: 1.1
+        m_Value: 0
     - rid: 1367514954854563968
       type: {class: Project_Scripts_AI_Leaves_Sensors_IsWithinDistance_GeneratedGraphNode, ns: Project.Editor.AI.Generated, asm: Playwinever.AI.Graph.Editor}
       data: 

@@ -318,4 +318,18 @@ namespace Project.Editor.AI.Generated
         internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.IsWithinDistance);
     }
 
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Record Visible Target Path")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_RecordVisibleTargetPath_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.RecordVisibleTargetPath);
+    }
+
+    [Serializable]
+    [global::Unity.GraphToolkit.Editor.Node("Sensors", null, "Select Remembered Target Position")]
+    internal sealed class Project_Scripts_AI_Leaves_Sensors_SelectRememberedTargetPosition_GeneratedGraphNode : global::Project.Editor.AI.AttributedAiNodeGraphNode
+    {
+        internal override Type RuntimeNodeType => typeof(global::Project.Scripts.AI.Leaves.Sensors.SelectRememberedTargetPosition);
+    }
+
 }

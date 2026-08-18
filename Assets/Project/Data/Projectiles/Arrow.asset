@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Arrow
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.ProjectileData
   prefab: {fileID: 7559353429851247362, guid: 7579363d1c498a14b846f6fd49183d8c, type: 3}
-  speed: 8
+  speed: 32
   lifetime: 5
   collisionMask:
     serializedVersion: 2

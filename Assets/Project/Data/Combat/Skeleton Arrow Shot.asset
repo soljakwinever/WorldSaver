@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e996484f0cf3ae44b4149f00db3d127, type: 3}
+  m_Name: Skeleton Arrow Shot
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.SkillData
+  persistentId: enemy.skeleton.arrow_shot
+  description: A telegraphed arrow fired along a committed aim line.
+  sprite: {fileID: 0}
+  category: 1
+  element: 1
+  targetMode: 1
+  staminaCost: 0
+  manaCost: 0
+  power: 1
+  duration: 0
+  cooldown: 1
+  tags: []
+  actionData:
+  - rid: 818001
+  references:
+    version: 2
+    RefIds:
+    - rid: 818001
+      type: {class: ProjectileSkillActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        action: {fileID: 11400000, guid: 4950257c01330e5489fed6a87e77f192, type: 2}
+        mode: 0
+        durationOverride: -1
+        baseDamage: 0
+        attackType: 1
+        launchOffset: {x: 0, y: 0}
+        useFacingDirection: 0
+        predictTargetMovement: 0
+        useLockedTargetPosition: 1
+        maximumPredictionTime: 2
+        consumeProjectile: 0
+        element: {fileID: 0}
+        damageTags: []
+        animationClip: {fileID: 0}
+        weaponSwing: {fileID: 0}

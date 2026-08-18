@@ -77,6 +77,8 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
     private int _nextBakeVersion;
     private Coroutine _biomeSearch;
 
+    internal int RegisteredChunkCount => _chunks.Count;
+
     public readonly struct CellData
     {
         public readonly Vector3Int Position;
@@ -470,6 +472,35 @@ public sealed class WorldTilemapRenderer : MonoBehaviour, IInitializable
         // that could have changed touches one of the removed chunk's borders.
         ResolveLiquidPoolsTouchingChunk(chunkPosition, includeChunkCells: false);
         MarkLoadedNeighborsDirty(chunkPosition);
+    }
+
+    /// <summary>
+    /// Authoritatively clears live render state before the generation preset
+    /// changes. Already-running worker results retain their bake versions and
+    /// will be rejected if they complete after destination chunks are added.
+    /// </summary>
+    public void ClearForPlaneTransition()
+    {
+        if (_chunks.Count > 0)
+        {
+            Vector2Int[] positions = new Vector2Int[_chunks.Count];
+            _chunks.Keys.CopyTo(positions, 0);
+            foreach (Vector2Int position in positions)
+                RemoveChunk(position);
+        }
+
+        _dirtyBakeChunks.Clear();
+        while (_completedBakes.TryDequeue(out ChunkBakeOutput output))
+        {
+            _runningBakeChunks.Remove(output.ChunkPosition);
+            ReturnBakeOutput(output);
+        }
+
+        _liquidVisited.Clear();
+        _liquidFrontier.Clear();
+        _liquidPool.Clear();
+        _liquidCounts.Clear();
+        NextBakeVersion();
     }
 
     /// <summary>

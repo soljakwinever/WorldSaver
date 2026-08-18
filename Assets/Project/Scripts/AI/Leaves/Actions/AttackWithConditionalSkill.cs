@@ -18,9 +18,26 @@ namespace Project.Scripts.AI.Leaves.Actions
         [SerializeField, Min(0f), InputPort("Maximum Range")]
         private float maximumRange = 2f;
 
+        [NonSerialized] private int attackSequence;
+
+        protected override void OnEnter() => attackSequence = 0;
+
         protected override NodeState OnTick()
         {
             GameObject attacker = Blackboard.GetOrDefault(AiKeys.Self);
+            EnemyAttackController controller = attacker != null
+                ? attacker.GetComponentInParent<EnemyAttackController>()
+                : null;
+            if (attackSequence > 0 && controller != null)
+            {
+                if (controller.TryGetResult(attackSequence, out bool succeeded))
+                    return succeeded ? NodeState.Success : NodeState.Failure;
+                return controller.CurrentSequence == attackSequence &&
+                       controller.IsAttacking
+                    ? NodeState.Running
+                    : NodeState.Failure;
+            }
+
             if (attacker == null ||
                 !Blackboard.TryGet(AiKeys.ConditionalSkill, out SkillData skill) ||
                 skill == null ||
@@ -44,28 +61,20 @@ namespace Project.Scripts.AI.Leaves.Actions
             else if (damageable == null)
                 return NodeState.Failure;
 
-            ISkillRuntime runtime =
-                attacker.GetComponentInParent<ISkillRuntime>();
-            if (runtime == null)
+            if (!Blackboard.TryGet(
+                    AiKeys.ConditionalAttack,
+                    out ConditionalEnemySkill selected) || selected == null)
                 return NodeState.Failure;
 
             int attackPotential = Mathf.Max(
                 0, Blackboard.GetOrDefault(AiKeys.Attack));
-            Blackboard.TryGet(
-                AiKeys.ConditionalProjectile,
-                out ProjectileData projectile);
-            Blackboard.TryGet(
-                AiKeys.ConditionalWeaponSwing,
-                out WeaponSwingAnimation weaponSwing);
-            return runtime.TryUseWithWeaponPresentation(
-                skill,
+            controller ??= attacker.AddComponent<EnemyAttackController>();
+            return controller.TryBegin(
+                selected,
                 targetObject,
-                target.position,
-                weaponSwing,
-                null,
                 attackPotential,
-                projectile)
-                ? NodeState.Success
+                out attackSequence)
+                ? NodeState.Running
                 : NodeState.Failure;
         }
     }

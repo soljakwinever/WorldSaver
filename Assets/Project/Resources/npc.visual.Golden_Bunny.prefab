@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: -5945993675256963465}
   - component: {fileID: -700570425830797498}
   m_Layer: 0
-  m_Name: Lion
+  m_Name: npc.visual.Golden_Bunny
   m_TagString: NPC
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -112,8 +112,8 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 1
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 690548773, guid: dfdbae5a159c858499f48974bf7ac38e, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Sprite: {fileID: -801389091, guid: dfdbae5a159c858499f48974bf7ac38e, type: 3}
+  m_Color: {r: 0.43460673, g: 0.26912278, b: 0.78, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0

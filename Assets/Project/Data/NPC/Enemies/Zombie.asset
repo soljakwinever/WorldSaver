@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b319666b71c34b71aaf4935c3ee02487, type: 3}
   m_Name: Zombie
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
-  hp: 20
+  hp: 200
   attack: 30
   defense: 0
   experienceValue: 15
@@ -23,9 +23,41 @@ MonoBehaviour:
   sprintMultiplier: 1.5
   visual: {fileID: 2119611675089420321, guid: dd90672a05bae2d4980af5765d4dd76d, type: 3}
   behaviourTree: {fileID: -7413323278554932356, guid: b5d79ad69b2acc94ebebf986cf706f28, type: 3}
-  NormalAttack: {fileID: 11400000, guid: 8447a4314ce74b75b1d3400779bf5232, type: 2}
+  NormalAttack: {fileID: 11400000, guid: 3377b506ce60443e852dcf17e264308d, type: 2}
   BasicAttackWeaponSwing: {fileID: 0}
-  conditionalSkills: []
+  conditionalSkills:
+  - skill: {fileID: 11400000, guid: cb4c39088f764728ad1d67fb5002d1fd, type: 2}
+    projectile: {fileID: 0}
+    weaponSwing: {fileID: 0}
+    minimumRange: 2.5
+    maximumRange: 6
+    windUpDuration: 0.7
+    activeDuration: 0.4
+    recoveryDuration: 0.75
+    priority: 2
+    telegraphColor: {r: 1, g: 0.15, b: 0.05, a: 0.75}
+    telegraphWidth: 0.24
+    telegraphShape: 0
+    condition:
+      type: 0
+      distance: 1
+      conditions: []
+  - skill: {fileID: 11400000, guid: 3377b506ce60443e852dcf17e264308d, type: 2}
+    projectile: {fileID: 0}
+    weaponSwing: {fileID: 0}
+    minimumRange: 0
+    maximumRange: 1.4
+    windUpDuration: 0.35
+    activeDuration: 0.05
+    recoveryDuration: 0.55
+    priority: 1
+    telegraphColor: {r: 1, g: 0.45, b: 0.1, a: 0.65}
+    telegraphWidth: 0.7
+    telegraphShape: 0
+    condition:
+      type: 0
+      distance: 1
+      conditions: []
   damageTags:
   - {fileID: 11400000, guid: b21753a0f8d38832f40c17f0ac19860e, type: 2}
   drops:

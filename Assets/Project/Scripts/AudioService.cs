@@ -76,6 +76,7 @@ namespace Project.Scripts
         public void Initialize()
         {
             _timeBus.HourChanged += OnHourChanged;
+            _plane.Changed += OnPlaneChanged;
             SetTimeParameters(_time.Hour, _time.Season);
             RefreshTemperature();
             SetCurrentBgm(
@@ -95,6 +96,7 @@ namespace Project.Scripts
         public void Dispose()
         {
             _timeBus.HourChanged -= OnHourChanged;
+            _plane.Changed -= OnPlaneChanged;
             HashSet<MusicEntry> released = new();
             foreach (MusicEntry entry in _entries.Values)
                 Release(entry, released);
@@ -102,6 +104,17 @@ namespace Project.Scripts
             _entries.Clear();
             _current = null;
             _outgoing = null;
+        }
+
+        private void OnPlaneChanged(PlaneData _, PlaneData current)
+        {
+            SetCurrentBgm(
+                PlaneOwner,
+                current != null ? current.DefaultMusic : null,
+                MusicPriority.Plane);
+            _hasPlayerCell = false;
+            RefreshTemperature();
+            RefreshBiomeMusic(force: true);
         }
 
         public void SetCurrentBgm(

@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e996484f0cf3ae44b4149f00db3d127, type: 3}
+  m_Name: Zombie Swipe
+  m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.SkillData
+  persistentId: enemy.zombie.swipe
+  description: A committed close-range claw swipe.
+  sprite: {fileID: 0}
+  category: 1
+  element: 1
+  targetMode: 1
+  staminaCost: 0
+  manaCost: 0
+  power: 1
+  duration: 0
+  cooldown: 1.25
+  tags: []
+  actionData:
+  - rid: 817001
+  references:
+    version: 2
+    RefIds:
+    - rid: 817001
+      type: {class: ForwardBoxAttackSkillActionData, ns: Project.Scripts.DataTypes, asm: Playwinever.Datatypes.Enums}
+      data:
+        action: {fileID: 11400000, guid: 7ab6332af3214917a774bdedab5c45e4, type: 2}
+        mode: 0
+        durationOverride: -1
+        baseDamage: 0
+        attackType: 0
+        boxSize: {x: 1.4, y: 1}
+        forwardOffset: 0.75
+        targetLayers:
+          serializedVersion: 2
+          m_Bits: 4294967295
+        element: {fileID: 0}
+        damageTags: []
+        animationClip: {fileID: 0}

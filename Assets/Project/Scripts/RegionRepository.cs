@@ -78,6 +78,19 @@ namespace Project.Scripts
             }
         }
 
+        public async Awaitable ClearLoadedRegionsAsync()
+        {
+            while (_loadingRegions.Count != 0)
+                await Awaitable.NextFrameAsync();
+            if (_dirtyRegions.Count != 0)
+            {
+                throw new System.InvalidOperationException(
+                    "Cannot change planes before dirty regions are flushed.");
+            }
+
+            _loadedRegions.Clear();
+        }
+
         private async Task<RuntimeRegion> LoadRegionAsync(
             Vector2Int position,
             long currentTick)

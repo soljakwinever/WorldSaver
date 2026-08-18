@@ -41,23 +41,23 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
     FastNoiseLite volcanoRidgeNoise;
     
     private readonly WorldData worldData;
-    private readonly WorldGenerationSelection selection;
-    private readonly WorldGenerationPresetData preset;
-    private readonly ClimateLayerData climateLayer;
-    private readonly ElevationLayerData elevationLayer;
-    private readonly LakeLayerData lakeLayer;
-    private readonly SmallPoolLayerData smallPoolLayer;
-    private readonly ValleyLayerData valleyLayer;
-    private readonly BiomeMicroTerrainLayerData microTerrainLayer;
-    private readonly OutcropLayerData outcropLayer;
-    private readonly FeatureCellLayerData featureLayer;
-    private readonly SurfaceDetailLayerData surfaceLayer;
-    private readonly CaveLayoutLayerData caveLayer;
-    private readonly CaveBiomeMapLayerData caveBiomeMapLayer;
+    private WorldGenerationSelection selection;
+    private WorldGenerationPresetData preset;
+    private ClimateLayerData climateLayer;
+    private ElevationLayerData elevationLayer;
+    private LakeLayerData lakeLayer;
+    private SmallPoolLayerData smallPoolLayer;
+    private ValleyLayerData valleyLayer;
+    private BiomeMicroTerrainLayerData microTerrainLayer;
+    private OutcropLayerData outcropLayer;
+    private FeatureCellLayerData featureLayer;
+    private SurfaceDetailLayerData surfaceLayer;
+    private CaveLayoutLayerData caveLayer;
+    private CaveBiomeMapLayerData caveBiomeMapLayer;
     private readonly ITimeController timeController;
-    private readonly BiomeData[] biomeLibrary;
-    private readonly BiomeData[] terrainBiomeLibrary;
-    private readonly BiomeData[] waterBiomeLibrary;
+    private BiomeData[] biomeLibrary;
+    private BiomeData[] terrainBiomeLibrary;
+    private BiomeData[] waterBiomeLibrary;
     private readonly Dictionary<long, FeatureInstance> featureInstances = new();
     private readonly object featureInstanceLock = new();
     private readonly Dictionary<Vector2Int, Lazy<Dictionary<string, FeatureInstance>>>
@@ -82,7 +82,7 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
     private readonly Queue<long> caveBiomeSiteOrder = new();
     private readonly object caveBiomeSiteLock = new();
     private readonly object spawnPositionLock = new();
-    private readonly int featureNeighborRange;
+    private int featureNeighborRange;
     private volatile bool hasWorldSpawnPosition;
     private Vector2Int worldSpawnPosition;
 
@@ -338,6 +338,75 @@ public class WorldGeneration : IWorldGenerator, IFeatureSenseSource
         caveWarpNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
         caveCrevasseMaskNoise = new FastNoiseLite(741109 + selection.Seed);
         caveCrevasseMaskNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+    }
+
+    /// <summary>
+    /// Replaces the active generation preset after outstanding chunk workers
+    /// have been stopped. The WorldGeneration instance is retained so existing
+    /// scene services do not hold a stale generator reference.
+    /// </summary>
+    public void Reconfigure(WorldGenerationSelection newSelection)
+    {
+        WorldGeneration replacement = new(
+            worldData,
+            newSelection ?? throw new ArgumentNullException(nameof(newSelection)),
+            timeController);
+
+        selection = replacement.selection;
+        preset = replacement.preset;
+        climateLayer = replacement.climateLayer;
+        elevationLayer = replacement.elevationLayer;
+        lakeLayer = replacement.lakeLayer;
+        smallPoolLayer = replacement.smallPoolLayer;
+        valleyLayer = replacement.valleyLayer;
+        microTerrainLayer = replacement.microTerrainLayer;
+        outcropLayer = replacement.outcropLayer;
+        featureLayer = replacement.featureLayer;
+        surfaceLayer = replacement.surfaceLayer;
+        caveLayer = replacement.caveLayer;
+        caveBiomeMapLayer = replacement.caveBiomeMapLayer;
+        biomeLibrary = replacement.biomeLibrary;
+        terrainBiomeLibrary = replacement.terrainBiomeLibrary;
+        waterBiomeLibrary = replacement.waterBiomeLibrary;
+        featureNeighborRange = replacement.featureNeighborRange;
+        seed = replacement.seed;
+
+        continentalNoise = replacement.continentalNoise;
+        moistureNoise = replacement.moistureNoise;
+        temperatureNoise = replacement.temperatureNoise;
+        erosionNoise = replacement.erosionNoise;
+        peakValleyNoise = replacement.peakValleyNoise;
+        valleyNoise = replacement.valleyNoise;
+        roughnessNoise = replacement.roughnessNoise;
+        grassHeightNoise = replacement.grassHeightNoise;
+        smallPoolsNoise = replacement.smallPoolsNoise;
+        hillNoise = replacement.hillNoise;
+        bumpNoise = replacement.bumpNoise;
+        cliffNoise = replacement.cliffNoise;
+        cliffMaskNoise = replacement.cliffMaskNoise;
+        volcanoNoise = replacement.volcanoNoise;
+        volcanoRidgeNoise = replacement.volcanoRidgeNoise;
+        outcropNoise = replacement.outcropNoise;
+        outcropEdgeNoise = replacement.outcropEdgeNoise;
+        propNoise = replacement.propNoise;
+        caveChamberNoise = replacement.caveChamberNoise;
+        caveWarpNoise = replacement.caveWarpNoise;
+        caveCrevasseMaskNoise = replacement.caveCrevasseMaskNoise;
+
+        featureInstances.Clear();
+        featureBuildingWinners.Clear();
+        roadPaths.Clear();
+        roadBranchPaths.Clear();
+        townLayouts.Clear();
+        caveCellBlocks.Clear();
+        caveCellBlockOrder.Clear();
+        caveBiomeSites.Clear();
+        caveBiomeSiteOrder.Clear();
+        guaranteedTownRoad = null;
+        guaranteedTownResolved = false;
+        guaranteedTown = default;
+        hasWorldSpawnPosition = false;
+        worldSpawnPosition = default;
     }
 
     private float ContinentalNoise(float x, float y) => Mathf.InverseLerp(-0.5f, 0.5f,continentalNoise.GetNoise(x / climateLayer.continentalNoiseScale, y / climateLayer.continentalNoiseScale));

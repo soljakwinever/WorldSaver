@@ -30,7 +30,7 @@ namespace Project.Scripts.TimeAndWeather
         private readonly MapSignalBus _mapSignals;
         private readonly WeatherBus _weatherBus;
         private readonly IClimateCoreWeatherSource _climateCores;
-        private readonly PlaneData _plane;
+        private readonly PlaneSelection _planeSelection;
         private float _globalTemperatureOffset;
         private readonly Dictionary<Vector2Int, ActiveRegion> _active = new();
         private readonly Dictionary<string, WeatherData> _weatherById =
@@ -417,7 +417,7 @@ namespace Project.Scripts.TimeAndWeather
             _mapSignals = mapSignals;
             _weatherBus = weatherBus;
             _climateCores = climateCores;
-            _plane = planeSelection.Plane;
+            _planeSelection = planeSelection;
             _globalTemperatureOffset =
                 Mathf.Clamp(worldData.globalTemperatureOffset, -2f, 2f);
 
@@ -438,6 +438,7 @@ namespace Project.Scripts.TimeAndWeather
         {
             _mapSignals.ChunkLoaded += OnChunkLoaded;
             _mapSignals.ChunkUnloaded += OnChunkUnloaded;
+            _planeSelection.Changed += OnPlaneChanged;
             DebugLogConsole.AddCommand<float>(
                 "weather.temperature_offset",
                 "Sets the normalized global temperature offset.",
@@ -456,8 +457,16 @@ namespace Project.Scripts.TimeAndWeather
         {
             _mapSignals.ChunkLoaded -= OnChunkLoaded;
             _mapSignals.ChunkUnloaded -= OnChunkUnloaded;
+            _planeSelection.Changed -= OnPlaneChanged;
             DebugLogConsole.RemoveCommand<float>(DebugSetGlobalTemperatureOffset);
             DebugLogConsole.RemoveCommand<string, int, int>(DebugStartWeather);
+        }
+
+        private void OnPlaneChanged(PlaneData _, PlaneData __)
+        {
+            _active.Clear();
+            _sampleCache.Clear();
+            _lastLiveTick = -1;
         }
 
         public float GlobalTemperatureOffset => _globalTemperatureOffset;
@@ -1700,7 +1709,8 @@ namespace Project.Scripts.TimeAndWeather
 
         private bool IsWeatherAllowed(string weatherId)
         {
-            return _plane == null || _plane.AllowsWeather(weatherId);
+            PlaneData plane = _planeSelection?.Plane;
+            return plane == null || plane.AllowsWeather(weatherId);
         }
 
         private static WeatherPhaseData GetPhase(

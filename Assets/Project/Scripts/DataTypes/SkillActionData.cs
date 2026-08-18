@@ -84,6 +84,8 @@ namespace Project.Scripts.DataTypes
         public bool useFacingDirection;
         [Tooltip("Lead a moving target based on its Rigidbody2D velocity and the projectile speed.")]
         public bool predictTargetMovement;
+        [Tooltip("Use the target position captured when the skill was committed instead of tracking the target at release.")]
+        public bool useLockedTargetPosition;
         [Min(0f), Tooltip("Maximum number of seconds to lead the target.")]
         public float maximumPredictionTime = 2f;
         [Tooltip("Consume one inventory projectile when the caster supplied one from inventory.")]
@@ -142,6 +144,8 @@ namespace Project.Scripts.DataTypes
         [Min(0.02f)] public float travelDuration = 0.25f;
         [Min(0.05f)] public float hitRadius = 0.6f;
         [Min(0f)] public float knockbackImpulse = 30f;
+        [Tooltip("Layers that stop the charge. Zero preserves legacy unobstructed charges.")]
+        public LayerMask blockingLayers;
         public EntityTag element;
         public EntityTag[] damageTags = Array.Empty<EntityTag>();
         public AnimationClip animationClip;

@@ -14,18 +14,19 @@ namespace Project.Scripts.Persistence
         private static readonly ConcurrentDictionary<string, SemaphoreSlim>
             SaveLocks = new(StringComparer.OrdinalIgnoreCase);
 
-        private readonly string _regionDirectory;
-        public string RegionDirectory => _regionDirectory;
+        private readonly PlaneSelection _planeSelection;
+        public string RegionDirectory => Path.Combine(
+            Application.persistentDataPath,
+            "Worlds",
+            PlayerPrefs.GetString("WorldSaver.ActiveWorld", "default"),
+            "planes",
+            SanitizePathSegment(_planeSelection.PlaneId),
+            "regions");
 
         public FileRegionDiskStore(PlaneSelection planeSelection)
         {
-            _regionDirectory = Path.Combine(
-                Application.persistentDataPath,
-                "Worlds",
-                PlayerPrefs.GetString("WorldSaver.ActiveWorld", "default"),
-                "planes",
-                SanitizePathSegment(planeSelection.PlaneId),
-                "regions");
+            _planeSelection = planeSelection ??
+                throw new ArgumentNullException(nameof(planeSelection));
         }
 
         private static string SanitizePathSegment(string value)
@@ -90,7 +91,8 @@ namespace Project.Scripts.Persistence
 
                 try
                 {
-                    Directory.CreateDirectory(_regionDirectory);
+                    Directory.CreateDirectory(
+                        Path.GetDirectoryName(path) ?? RegionDirectory);
 
                     using (FileStream stream = new(
                                tempPath,
@@ -142,7 +144,7 @@ namespace Project.Scripts.Persistence
         private string GetPath(Vector2Int position)
         {
             return Path.Combine(
-                _regionDirectory,
+                RegionDirectory,
                 $"r_{position.x}_{position.y}.wsr");
         }
     }

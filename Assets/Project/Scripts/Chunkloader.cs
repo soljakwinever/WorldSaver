@@ -24,8 +24,11 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     {
         get
         {
-            int chunkX = Mathf.FloorToInt(track.position.x / ChunkBuildResult.ChunkSize);
-            int chunkY = Mathf.FloorToInt(track.position.y / ChunkBuildResult.ChunkSize);
+            Vector2 focus = _hasStreamingFocus
+                ? _streamingFocus
+                : (Vector2)track.position;
+            int chunkX = Mathf.FloorToInt(focus.x / ChunkBuildResult.ChunkSize);
+            int chunkY = Mathf.FloorToInt(focus.y / ChunkBuildResult.ChunkSize);
             return new Vector2Int(chunkX, chunkY);
         }
     }
@@ -65,6 +68,7 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     [Inject] private IRegionalWeatherService weatherService;
     [Inject] private WorldTilemapRenderer worldTilemapRenderer;
     [Inject] private RoomDetectionSystem roomDetectionSystem;
+    [Inject] private IRegionRepository regionRepository;
     
     private Vector2Int _lastPosition;
     private bool _hasTouchedPosition;
@@ -83,6 +87,9 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
 
     [SerializeField, Min(1)]
     private int maxChunkLoadNotificationsPerFrame = 1;
+
+    [SerializeField, Min(1)]
+    private int maxPlaneTransitionUnloadsPerFrame = 2;
 
     [Header("Seasonal Color Refresh")]
     [SerializeField, Min(1)]
@@ -106,6 +113,10 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     private readonly List<Vector2Int> _chunksToRemove = new();
     private readonly Queue<PendingChunkInitialization> _completedInitializations = new();
     private bool _pendingOrderDirty;
+    private bool _hasStreamingFocus;
+    private Vector2 _streamingFocus;
+    private bool _planeTransitionInProgress;
+    private bool _planeTransitionDraining;
 
     private static readonly ProfilerMarker InitializationMarker =
         new("Chunkloader.Initialization");
@@ -402,7 +413,9 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
             InitializationMarker.Auto();
         if (_pendingOrderDirty)
         {
-            Vector2 trackedPosition = track != null ? track.position : Vector2.zero;
+            Vector2 trackedPosition = _hasStreamingFocus
+                ? _streamingFocus
+                : track != null ? track.position : Vector2.zero;
             float size = ChunkBuildResult.ChunkSize;
             float halfSize = size * 0.5f;
             _pendingInitializations.Sort((left, right) =>
@@ -533,7 +546,9 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
                 _requestedChunks.Add(pinned);
         }
         
-        Vector2 trackedPosition = track.position;
+        Vector2 trackedPosition = _hasStreamingFocus
+            ? _streamingFocus
+            : (Vector2)track.position;
         float chunkHalfSize = ChunkBuildResult.ChunkSize * 0.5f;
 
         _requestedChunks.Sort((left, right) =>
@@ -681,6 +696,13 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
     void Update()
     {
         _coverageRenderer?.SetFootprint(Position, LoadDistance);
+        if (_planeTransitionDraining)
+        {
+            _coverageRenderer?.Tick();
+            _coverageParticlePresenter?.Tick();
+            return;
+        }
+
         ProcessChunkLoadNotifications();
         ProcessChunkInitializations();
         ProcessBiomeColorRefresh();
@@ -770,6 +792,130 @@ public class Chunkloader : MonoBehaviour, IChunkLoader, IWaterTileQuery
 
         TouchChunks();
     }
+
+    public async Awaitable<bool> PreparePlaneTransitionAsync(
+        PlaneData destination,
+        Vector3 landingPosition,
+        System.Threading.CancellationToken cancellationToken)
+    {
+        if (_planeTransitionInProgress || destination == null ||
+            destination.generationPreset == null)
+        {
+            return false;
+        }
+
+        _planeTransitionInProgress = true;
+        _planeTransitionDraining = true;
+        try
+        {
+            await chunkGenerator.SuspendAndClearAsync(cancellationToken);
+
+            while (_pendingInitializations.Count > 0)
+                CancelPendingInitialization(_pendingInitializations.Count - 1);
+            _completedInitializations.Clear();
+            _biomeColorRefreshQueue.Clear();
+            _portalPinnedChunks.Clear();
+            _transitPinnedChunks.Clear();
+            _requestedChunks.Clear();
+            _requestedChunkSet.Clear();
+
+            int unloadBudget = Mathf.Max(
+                1,
+                maxPlaneTransitionUnloadsPerFrame);
+            while (_loadedChunks.Count > 0)
+            {
+                // This snapshot must remain local. Update and reload paths use
+                // _chunksToRemove as scratch storage and can run after yields.
+                List<Vector2Int> batch = new(unloadBudget);
+                foreach (Vector2Int position in _loadedChunks.Keys)
+                {
+                    batch.Add(position);
+                    if (batch.Count >= unloadBudget)
+                        break;
+                }
+
+                UnloadChunks(batch);
+                if (_loadedChunks.Count > 0)
+                    await Awaitable.NextFrameAsync(cancellationToken);
+            }
+
+            worldTilemapRenderer.ClearForPlaneTransition();
+
+            if (!IsPlaneDrainComplete())
+            {
+                string message =
+                    "Plane transition attempted to switch generation before " +
+                    "all source chunk state was drained. " +
+                    $"Loaded={_loadedChunks.Count}, " +
+                    $"PendingInit={_pendingInitializations.Count}, " +
+                    $"CompletedInit={_completedInitializations.Count}, " +
+                    $"GeneratorWork={chunkGenerator.PendingWorkCount}, " +
+                    $"Rendered={worldTilemapRenderer.RegisteredChunkCount}.";
+                Debug.LogError(message, this);
+                throw new InvalidOperationException(message);
+            }
+
+            await regionRepository.FlushDirtyAsync();
+            await regionRepository.ClearLoadedRegionsAsync();
+
+            worldGeneration.Reconfigure(new WorldGenerationSelection(
+                unchecked((int)worldGeneration.Seed),
+                destination.generationPreset));
+            planeSelection.SetPlane(destination);
+
+            _streamingFocus = landingPosition;
+            _hasStreamingFocus = true;
+            _hasTouchedPosition = false;
+            _pendingOrderDirty = true;
+            _planeTransitionDraining = false;
+            chunkGenerator.Resume();
+            TouchChunks();
+
+            while (!IsDestinationFootprintReady())
+                await Awaitable.NextFrameAsync(cancellationToken);
+
+            return true;
+        }
+        catch
+        {
+            chunkGenerator.Resume();
+            _planeTransitionDraining = false;
+            _hasStreamingFocus = false;
+            _planeTransitionInProgress = false;
+            throw;
+        }
+    }
+
+    public void CompletePlaneTransition()
+    {
+        _hasStreamingFocus = false;
+        _hasTouchedPosition = false;
+        _pendingOrderDirty = true;
+        _planeTransitionInProgress = false;
+        TouchChunks();
+    }
+
+    private bool IsDestinationFootprintReady()
+    {
+        Vector2Int center = Position;
+        for (int y = center.y - LoadDistance; y < center.y + LoadDistance; y++)
+        {
+            for (int x = center.x - LoadDistance; x < center.x + LoadDistance; x++)
+            {
+                if (!_loadedChunks.ContainsKey(new Vector2Int(x, y)))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    internal bool IsPlaneDrainComplete() =>
+        _loadedChunks.Count == 0 &&
+        _pendingInitializations.Count == 0 &&
+        _pendingInitializationPositions.Count == 0 &&
+        _completedInitializations.Count == 0 &&
+        chunkGenerator.PendingWorkCount == 0 &&
+        worldTilemapRenderer.RegisteredChunkCount == 0;
 
     private void UnloadChunks(IEnumerable<Vector2Int> toRemove)
     {

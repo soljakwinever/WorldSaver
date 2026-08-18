@@ -121,7 +121,8 @@ namespace Project.Scripts.Actions
             ProjectileSkillActionData data,
             Vector3 origin)
         {
-            if (data.predictTargetMovement && context.Target != null)
+            if (!data.useLockedTargetPosition &&
+                data.predictTargetMovement && context.Target != null)
             {
                 return ProjectileAim.PredictDirection(
                     origin,
@@ -133,7 +134,8 @@ namespace Project.Scripts.Actions
             Vector2 direction = data.useFacingDirection
                 ? ResolveFacing(context)
                 : context.TargetPosition - origin;
-            if (direction.sqrMagnitude <= Mathf.Epsilon && context.Target != null)
+            if (direction.sqrMagnitude <= Mathf.Epsilon &&
+                !data.useLockedTargetPosition && context.Target != null)
                 direction = context.Target.transform.position - origin;
             return direction.normalized;
         }
@@ -142,7 +144,8 @@ namespace Project.Scripts.Actions
             SkillActionContext context,
             ProjectileSkillActionData data)
         {
-            if (data.predictTargetMovement && context.Target != null)
+            if (!data.useLockedTargetPosition &&
+                data.predictTargetMovement && context.Target != null)
             {
                 Vector2 aim = ProjectileAim.PredictDirection(
                     context.User.transform.position,

@@ -15,7 +15,7 @@ namespace Project.Scripts.Gameplay
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class EnemyRuntime : MonoBehaviour, IEntityDamageSource,
-        ISkillFacing, IProjectileAccuracy
+        ISkillFacing, IAttackFacing, IProjectileAccuracy
     {
         private IItemStackExplosionService _itemStackExplosion;
         private EntityBus _entityBus;
@@ -31,6 +31,11 @@ namespace Project.Scripts.Gameplay
             ? Mathf.Clamp01(Data.accuracy)
             : 1f;
         public Vector2 FacingDirection => _facingDirection;
+        public void SetAttackFacing(Vector2 direction)
+        {
+            if (direction.sqrMagnitude > 0.0001f)
+                _facingDirection = direction.normalized;
+        }
         public Vector3 ResolveLaunchOrigin(Vector2 offset)
         {
             Vector2 facing = _facingDirection.normalized;
@@ -91,6 +96,9 @@ namespace Project.Scripts.Gameplay
             skillRuntime.Initialize(
                 _attackService,
                 projectileService: _projectileService);
+
+            if (GetComponent<EnemyAttackController>() == null)
+                gameObject.AddComponent<EnemyAttackController>();
 
             if (data.behaviourTree != null &&
                 data.behaviourTree is not AiNodeData)

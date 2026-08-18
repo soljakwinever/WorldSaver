@@ -1,5 +1,6 @@
 #if UNITY_INCLUDE_TESTS
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Project.Scripts.Core;
 using Project.Scripts.DataTypes;
@@ -95,6 +96,70 @@ namespace Project.Tests.EditMode
                 }
                 Object.DestroyImmediate(toolbarItem);
                 Object.DestroyImmediate(carriedItem);
+            }
+        }
+
+        [Test]
+        public void SpawnPointRecordsThePlaneWhereItWasSelected()
+        {
+            GameObject playerObject = new("Player");
+            try
+            {
+                PlayerDataController player =
+                    playerObject.AddComponent<PlayerDataController>();
+                typeof(PlayerDataController)
+                    .GetField(
+                        "currentPlaneId",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(player, "surface");
+
+                Vector3 spawn = new(12f, -7f, 0f);
+                player.SetSpawnPoint(spawn);
+
+                Assert.That(player.SpawnPlaneId, Is.EqualTo("surface"));
+                Assert.That(player.SpawnPoint, Is.EqualTo(spawn));
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerObject);
+            }
+        }
+
+        [Test]
+        public void SamePlaneRespawnNotifiesAfterPlayerHasMoved()
+        {
+            GameObject playerObject = new("Player");
+            try
+            {
+                PlayerDataController player =
+                    playerObject.AddComponent<PlayerDataController>();
+                typeof(PlayerDataController)
+                    .GetField(
+                        "currentPlaneId",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(player, "surface");
+                Vector3 spawn = new(3f, 5f, 0f);
+                player.SetSpawnPoint(spawn);
+                playerObject.transform.position = new Vector3(20f, 20f, 0f);
+
+                int respawns = 0;
+                Vector3 positionAtNotification = default;
+                player.Respawned += controller =>
+                {
+                    respawns++;
+                    positionAtNotification = controller.transform.position;
+                };
+
+                player.TakeDamage(player.MaxHealth);
+                player.CompleteDeath();
+
+                Assert.That(respawns, Is.EqualTo(1));
+                Assert.That(positionAtNotification, Is.EqualTo(spawn));
+                Assert.That(playerObject.transform.position, Is.EqualTo(spawn));
+            }
+            finally
+            {
+                Object.DestroyImmediate(playerObject);
             }
         }
 

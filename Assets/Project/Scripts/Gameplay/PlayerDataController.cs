@@ -121,6 +121,7 @@ namespace Project.Scripts.Gameplay
         private bool _loaded;
         private bool _subscribedToEnemyDefeats;
         private bool _deathInProgress;
+        private bool _deathResolutionInProgress;
         private bool _planeTravelInProgress;
 
         public event Action<PlayerDataController> DeathStarted;
@@ -599,50 +600,80 @@ namespace Project.Scripts.Gameplay
                 return false;
 
             _planeTravelInProgress = true;
+            PlaneData originPlane = _planeSelection?.Plane;
+            Vector3 originPosition = transform.position;
+            PlaneTransitSpace transit = null;
             try
             {
                 if (_worldSaveService != null)
                     await _worldSaveService.SaveAsync();
 
-                // Save the real landing position before temporarily moving the
-                // live player into the elevator/lobby.
-                currentPlaneId = destination.PersistentId;
-                MoveToRespawnPosition(destinationPosition);
-                Save();
-                PlayerPrefs.SetString(PlaneSelection.GetActivePlaneIdKey(),
-                    currentPlaneId);
-                PlayerPrefs.Save();
-
-                PlaneTransitSpace transit =
+                transit =
                     FindFirstObjectByType<PlaneTransitSpace>();
-                transit?.Begin(this, _chunkLoader);
-
-                AsyncOperation load = SceneManager.LoadSceneAsync(
-                    SceneManager.GetActiveScene().buildIndex,
-                    LoadSceneMode.Single);
-                if (load == null)
+                if (transit == null || _chunkLoader == null)
                     throw new InvalidOperationException(
-                        "Could not begin loading the destination plane.");
+                        "Plane travel requires a transit space and chunk loader.");
 
-                load.allowSceneActivation = false;
-                while (load.progress < 0.9f ||
-                       (transit != null && !transit.MinimumDurationElapsed))
-                {
+                transit.Begin(this, _chunkLoader);
+                bool ready = await _chunkLoader.PreparePlaneTransitionAsync(
+                    destination,
+                    destinationPosition,
+                    destroyCancellationToken);
+                if (!ready)
+                    throw new InvalidOperationException(
+                        "The destination plane transition was rejected.");
+
+                while (!transit.MinimumDurationElapsed)
                     await Awaitable.NextFrameAsync(destroyCancellationToken);
-                }
 
-                transit?.NotifyDestinationReady();
+                transit.NotifyDestinationReady(destinationPosition);
                 float activateAt = Time.unscaledTime +
-                    (transit != null ? transit.ArrivalAnimationSeconds : 0f);
+                    transit.ArrivalAnimationSeconds;
                 do
                 {
                     await Awaitable.NextFrameAsync(destroyCancellationToken);
                 } while (Time.unscaledTime < activateAt);
-                load.allowSceneActivation = true;
+
+                currentPlaneId = destination.PersistentId;
+                Save();
+                PlayerPrefs.SetString(PlaneSelection.GetActivePlaneIdKey(),
+                    currentPlaneId);
+                PlayerPrefs.Save();
+                transit.Complete();
+                _planeTravelInProgress = false;
                 return true;
             }
             catch
             {
+                transit?.Abort();
+                if (_chunkLoader != null)
+                    _chunkLoader.CompletePlaneTransition();
+
+                bool originRestored = originPlane == null ||
+                    _planeSelection == null ||
+                    ReferenceEquals(_planeSelection.Plane, originPlane);
+                if (originPlane != null && _planeSelection != null &&
+                    !ReferenceEquals(_planeSelection.Plane, originPlane))
+                {
+                    try
+                    {
+                        if (await _chunkLoader.PreparePlaneTransitionAsync(
+                                originPlane,
+                                originPosition,
+                                destroyCancellationToken))
+                        {
+                            MoveToRespawnPosition(originPosition);
+                            _chunkLoader.CompletePlaneTransition();
+                            originRestored = true;
+                        }
+                    }
+                    catch (Exception rollbackException)
+                    {
+                        Debug.LogException(rollbackException, this);
+                    }
+                }
+                if (originRestored)
+                    MoveToRespawnPosition(originPosition);
                 _planeTravelInProgress = false;
                 throw;
             }
@@ -693,29 +724,72 @@ namespace Project.Scripts.Gameplay
 
         public void CompleteDeath()
         {
-            if (!_deathInProgress)
+            _ = CompleteDeathAsync();
+        }
+
+        private async Awaitable CompleteDeathAsync()
+        {
+            if (!_deathInProgress || _deathResolutionInProgress)
                 return;
 
-            Vector3 deathPosition = transform.position;
-            DropNonToolbarItems(deathPosition);
-            Vector3 respawnPosition = ResolveRespawnPosition();
-            hunger = 0.25f;
-            energy = 1f;
-            _health.SetHealth(Mathf.Min(20, _health.MaxHealth));
-            _deathInProgress = false;
-            Respawned?.Invoke(this);
-
-            if (!string.IsNullOrWhiteSpace(spawnPlaneId) &&
-                !string.Equals(spawnPlaneId, CurrentPlaneId,
-                    StringComparison.OrdinalIgnoreCase) &&
-                _worldData != null &&
-                _worldData.TryGetPlane(spawnPlaneId, out PlaneData spawnPlane))
+            _deathResolutionInProgress = true;
+            try
             {
-                _ = TravelToPlaneAsync(spawnPlane, respawnPosition);
-                return;
-            }
+                Vector3 deathPosition = transform.position;
+                DropNonToolbarItems(deathPosition);
+                Vector3 respawnPosition = ResolveRespawnPosition();
 
-            MoveToRespawnPosition(respawnPosition);
+                if (!string.IsNullOrWhiteSpace(spawnPlaneId) &&
+                    !string.Equals(spawnPlaneId, CurrentPlaneId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    if (_worldData == null ||
+                        !_worldData.TryGetPlane(
+                            spawnPlaneId,
+                            out PlaneData spawnPlane))
+                    {
+                        Debug.LogError(
+                            $"Cannot respawn on unavailable plane " +
+                            $"'{spawnPlaneId}'.",
+                            this);
+                        return;
+                    }
+
+                    if (!await TravelToPlaneAsync(
+                            spawnPlane,
+                            respawnPosition))
+                    {
+                        Debug.LogError(
+                            $"Could not respawn on plane " +
+                            $"'{spawnPlaneId}'.",
+                            this);
+                        return;
+                    }
+                }
+                else
+                {
+                    MoveToRespawnPosition(respawnPosition);
+                }
+
+                hunger = 0.25f;
+                energy = 1f;
+                _health.SetHealth(Mathf.Min(20, _health.MaxHealth));
+                _deathInProgress = false;
+                Respawned?.Invoke(this);
+            }
+            catch (OperationCanceledException)
+            {
+                // Destruction cancels outstanding Unity awaitables. There is
+                // no live player left to recover or notify in that case.
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, this);
+            }
+            finally
+            {
+                _deathResolutionInProgress = false;
+            }
         }
 
         public void ResolveDeathImmediately()

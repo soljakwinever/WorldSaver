@@ -4,6 +4,26 @@ namespace Project.Scripts.AI.Leaves.Sensors
 {
     internal static class SpatialSensorUtility
     {
+        public static bool TryGetTransform(
+            Blackboard blackboard,
+            AiKeys.Key key,
+            out Transform transform)
+        {
+            transform = null;
+            return blackboard != null &&
+                   blackboard.TryGetValue(
+                       AiKeys.Resolve(key), out object value) &&
+                   (transform = value switch
+                   {
+                       Transform candidate when candidate != null => candidate,
+                       GameObject gameObject when gameObject != null =>
+                           gameObject.transform,
+                       Component component when component != null =>
+                           component.transform,
+                       _ => null
+                   }) != null;
+        }
+
         public static bool TryGetPosition(
             Blackboard blackboard,
             AiKeys.Key key,

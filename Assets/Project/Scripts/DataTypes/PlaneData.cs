@@ -72,7 +72,9 @@ namespace Project.Scripts.DataTypes
         public const string ActivePlaneIdKeyPrefix =
             "WorldSaver.ActivePlane.";
 
-        public PlaneData Plane { get; }
+        public event Action<PlaneData, PlaneData> Changed;
+
+        public PlaneData Plane { get; private set; }
         public string PlaneId => Plane.PersistentId;
 
         public static string GetActivePlaneIdKey()
@@ -87,6 +89,18 @@ namespace Project.Scripts.DataTypes
             Plane = plane != null
                 ? plane
                 : throw new System.ArgumentNullException(nameof(plane));
+        }
+
+        public void SetPlane(PlaneData plane)
+        {
+            if (plane == null)
+                throw new ArgumentNullException(nameof(plane));
+            if (ReferenceEquals(Plane, plane))
+                return;
+
+            PlaneData previous = Plane;
+            Plane = plane;
+            Changed?.Invoke(previous, plane);
         }
     }
 }

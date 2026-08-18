@@ -52,7 +52,29 @@ namespace Project.Scripts.DataTypes
         public ProjectileData projectile;
         [Tooltip("Optional weapon swing override for this conditional skill. Falls back to the enemy's basic-attack swing when empty.")]
         public WeaponSwingAnimation weaponSwing;
+        [Header("Attack Pattern")]
+        [Min(0f)] public float minimumRange;
+        [Min(0f), Tooltip("Zero leaves range eligibility to the condition/AI action.")]
+        public float maximumRange;
+        [Min(0f)] public float windUpDuration;
+        [Min(0f), Tooltip("Seconds before release when target tracking stops. Zero locks aim immediately.")]
+        public float aimLockLeadTime;
+        [Tooltip("Layers that block a projectile attack during its telegraph and at release.")]
+        public LayerMask lineOfFireBlockingLayers = (1 << 0) | (1 << 6);
+        [Min(0f)] public float activeDuration;
+        [Min(0f)] public float recoveryDuration;
+        [Tooltip("Higher-priority usable attacks are selected first.")]
+        public int priority;
+        public Color telegraphColor = new(1f, 0.2f, 0.1f, 0.65f);
+        [Min(0.01f)] public float telegraphWidth = 0.15f;
+        public EnemyAttackTelegraphShape telegraphShape;
         public EnemySkillCondition condition = new();
+    }
+
+    public enum EnemyAttackTelegraphShape : byte
+    {
+        Line,
+        Arrow
     }
 
     [CreateAssetMenu(

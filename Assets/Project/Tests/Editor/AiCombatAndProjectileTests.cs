@@ -116,6 +116,104 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void AttackTargetStartsCommittedPatternAndLocksMovement()
+        {
+            GameObject attacker = CreateGameObject("Attacker");
+            GameObject target = CreateGameObject("Target");
+            target.AddComponent<PersistentHealth>().Initialize(10);
+            target.transform.position = Vector3.right;
+
+            ForwardBoxAttackSkillAction action =
+                CreateScriptableObject<ForwardBoxAttackSkillAction>();
+            SkillData swipe = CreateScriptableObject<SkillData>();
+            SetField(swipe, "actionData", new SkillActionData[]
+            {
+                new ForwardBoxAttackSkillActionData
+                {
+                    action = action,
+                    mode = SkillActionMode.Active,
+                    boxSize = Vector2.one
+                }
+            });
+            EnemyData enemy = CreateScriptableObject<EnemyData>();
+            enemy.NormalAttack = swipe;
+            enemy.conditionalSkills = new[]
+            {
+                new ConditionalEnemySkill
+                {
+                    skill = swipe,
+                    maximumRange = 1.5f,
+                    windUpDuration = 10f,
+                    recoveryDuration = 1f,
+                    condition = new EnemySkillCondition
+                    {
+                        type = EnemySkillConditionType.Always
+                    }
+                }
+            };
+
+            SkillRuntime runtime = attacker.AddComponent<SkillRuntime>();
+            runtime.Initialize(new AttackService(new EntityBus()));
+            EnemyAttackController controller =
+                attacker.AddComponent<EnemyAttackController>();
+            AttackTarget node = new();
+            Blackboard blackboard = CreateBlackboard(attacker, target.transform);
+            blackboard.Set(AiKeys.EnemyData, enemy);
+            node.Bind(blackboard);
+
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Running));
+            Assert.That(controller.Phase,
+                Is.EqualTo(EnemyAttackController.AttackPhase.WindUp));
+            Assert.That(controller.IsMovementLocked, Is.True);
+
+            controller.Stun(0.25f);
+            Assert.That(controller.Phase,
+                Is.EqualTo(EnemyAttackController.AttackPhase.Ready));
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Failure));
+        }
+
+        [Test]
+        public void ArrowTelegraphUsesSeparateRendererObjects()
+        {
+            GameObject attacker = CreateGameObject("Attacker");
+            attacker.AddComponent<SpriteRenderer>();
+            EnemyAttackController controller =
+                attacker.AddComponent<EnemyAttackController>();
+            ConditionalEnemySkill attack = new()
+            {
+                maximumRange = 8f,
+                telegraphWidth = 0.08f,
+                telegraphShape = EnemyAttackTelegraphShape.Arrow
+            };
+
+            typeof(EnemyAttackController)
+                .GetMethod(
+                    "ShowTelegraph",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(controller, new object[] { attack, Vector3.right });
+
+            LineRenderer[] renderers =
+                attacker.GetComponentsInChildren<LineRenderer>();
+            Assert.That(renderers, Has.Length.EqualTo(2));
+            Assert.That(renderers[0].gameObject,
+                Is.Not.SameAs(renderers[1].gameObject));
+
+            typeof(EnemyAttackController)
+                .GetMethod(
+                    "UpdateTelegraph",
+                    BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(controller, new object[] { attack, Vector3.up });
+            LineRenderer shaft = attacker.transform
+                .Find("Attack Telegraph")
+                ?.GetComponent<LineRenderer>();
+            Assert.That(shaft, Is.Not.Null);
+            Assert.That(shaft.GetPosition(1).x,
+                Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(shaft.GetPosition(1).y,
+                Is.EqualTo(8f).Within(0.0001f));
+        }
+
+        [Test]
         public void ConditionalSkillEvaluatorSelectsFirstValidSkill()
         {
             GameObject enemyObject = CreateGameObject("Enemy");
@@ -173,6 +271,121 @@ namespace Project.Tests.EditMode
             Assert.That(
                 blackboard.GetOrDefault(AiKeys.ConditionalWeaponSwing),
                 Is.SameAs(basicSwing));
+        }
+
+        [Test]
+        public void SkeletonMeleeWinsAtRangedBoundary()
+        {
+            GameObject skeleton = CreateGameObject("Skeleton");
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = Vector3.right * 1.4f;
+            SkillData melee = CreateScriptableObject<SkillData>();
+            SkillData ranged = CreateScriptableObject<SkillData>();
+            EnemyData enemy = CreateScriptableObject<EnemyData>();
+            enemy.conditionalSkills = new[]
+            {
+                new ConditionalEnemySkill
+                {
+                    skill = melee,
+                    maximumRange = 1.4f,
+                    priority = 2,
+                    condition = new EnemySkillCondition
+                    {
+                        type = EnemySkillConditionType.Always
+                    }
+                },
+                new ConditionalEnemySkill
+                {
+                    skill = ranged,
+                    minimumRange = 1.4f,
+                    maximumRange = 8f,
+                    priority = 1,
+                    condition = new EnemySkillCondition
+                    {
+                        type = EnemySkillConditionType.Always
+                    }
+                }
+            };
+            Blackboard blackboard = CreateBlackboard(
+                skeleton, target.transform);
+            blackboard.Set(AiKeys.EnemyData, enemy);
+            EvaluateConditionalSkills node = new();
+            node.Bind(blackboard);
+
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Success));
+            Assert.That(blackboard.GetOrDefault(AiKeys.ConditionalSkill),
+                Is.SameAs(melee));
+        }
+
+        [Test]
+        public void LockedProjectileUsesCommittedPosition()
+        {
+            GameObject skeleton = CreateGameObject("Skeleton");
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = Vector3.up * 4f;
+            GameObject projectilePrefab = CreateGameObject("Arrow Prefab");
+            ProjectileData projectile = CreateScriptableObject<ProjectileData>();
+            projectile.prefab = projectilePrefab;
+            ProjectileSkillAction action =
+                CreateScriptableObject<ProjectileSkillAction>();
+            SkillData shot = CreateScriptableObject<SkillData>();
+            SetField(shot, "actionData", new SkillActionData[]
+            {
+                new ProjectileSkillActionData
+                {
+                    action = action,
+                    mode = SkillActionMode.Active,
+                    useLockedTargetPosition = true,
+                    predictTargetMovement = true,
+                    consumeProjectile = false
+                }
+            });
+            CapturingProjectileService projectiles = new();
+            SkillRuntime runtime = skeleton.AddComponent<SkillRuntime>();
+            runtime.Initialize(
+                new AttackService(new EntityBus()),
+                projectileService: projectiles);
+
+            Assert.That(runtime.TryUse(
+                shot,
+                target,
+                Vector3.right * 4f,
+                projectile: projectile), Is.True);
+            Assert.That(projectiles.LastContext.Direction.x,
+                Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(projectiles.LastContext.Direction.y,
+                Is.EqualTo(0f).Within(0.0001f));
+        }
+
+        [TestCase(1.3f, 0f)]
+        [TestCase(0f, 1.3f)]
+        [TestCase(0.9192388f, 0.9192388f)]
+        public void EnemyAttackEngagementRangeIsAngleIndependent(
+            float targetX,
+            float targetY)
+        {
+            GameObject enemyObject = CreateGameObject("Enemy");
+            GameObject target = CreateGameObject("Target");
+            target.transform.position = new Vector3(targetX, targetY);
+            SkillData swipe = CreateScriptableObject<SkillData>();
+            EnemyData enemy = CreateScriptableObject<EnemyData>();
+            enemy.conditionalSkills = new[]
+            {
+                new ConditionalEnemySkill
+                {
+                    skill = swipe,
+                    maximumRange = 1.4f
+                }
+            };
+
+            IsWithinDistance node = new();
+            SetField(node, "distance", 0f);
+            Blackboard blackboard = CreateBlackboard(
+                enemyObject, target.transform);
+            blackboard.Set(AiKeys.EnemyData, enemy);
+            node.Bind(blackboard);
+
+            Assert.That(node.Evaluate(), Is.EqualTo(AiNode.NodeState.Success));
         }
 
         [Test]
@@ -280,6 +493,56 @@ namespace Project.Tests.EditMode
         }
 
         [Test]
+        public void ProjectileCollidesWithStaticEnvironmentAndReturnsToPool()
+        {
+            GameObject attacker = CreateGameObject("Attacker");
+            GameObject wall = CreateGameObject("Wall");
+            wall.transform.position = Vector3.right;
+            wall.AddComponent<BoxCollider2D>().size =
+                new Vector2(0.1f, 2f);
+
+            GameObject prefab = CreateGameObject("Projectile Prefab");
+            prefab.AddComponent<Projectile>();
+            prefab.AddComponent<CircleCollider2D>().radius = 0.1f;
+            prefab.SetActive(false);
+
+            ProjectileData data = CreateScriptableObject<ProjectileData>();
+            data.prefab = prefab;
+            data.speed = 32f;
+            data.lifetime = 2f;
+            data.collisionMask = ~0;
+            data.despawnOnEnvironmentHit = true;
+
+            int impacts = 0;
+            ProjectileService service = new(
+                new AttackService(new EntityBus()));
+            ProjectileLaunchContext context = new(
+                data,
+                new AttackContext(attacker, null, 3),
+                Vector3.zero,
+                Vector2.right,
+                onImpact: _ => impacts++);
+
+            Physics2D.SyncTransforms();
+            Assert.That(service.TryLaunch(context), Is.True);
+            Projectile projectile = GameObject.Find("Projectiles")
+                .GetComponentInChildren<Projectile>(true);
+            Rigidbody2D body = projectile.GetComponent<Rigidbody2D>();
+            Assert.That(body.useFullKinematicContacts, Is.True);
+            Assert.That(body.collisionDetectionMode,
+                Is.EqualTo(CollisionDetectionMode2D.Continuous));
+
+            Physics2D.SyncTransforms();
+            for (int i = 0; i < 4 && projectile.IsActive; i++)
+                Physics2D.Simulate(0.02f);
+
+            Assert.That(projectile.IsActive, Is.False);
+            Assert.That(impacts, Is.EqualTo(1));
+            Assert.That(projectile.gameObject.activeSelf, Is.False);
+            service.Dispose();
+        }
+
+        [Test]
         public void FleeChoosesAReachableDestinationAwayFromThreat()
         {
             GameObject self = CreateGameObject("Self");
@@ -379,6 +642,69 @@ namespace Project.Tests.EditMode
             Assert.That(
                 blackboard.GetOrDefault(AiKeys.Target),
                 Is.SameAs(target.transform));
+        }
+
+        [Test]
+        public void TargetMemoryFollowsOnlyRecordedVisibleBreadcrumbs()
+        {
+            TargetTrackingMemory memory = new();
+            memory.Record(Vector3.right, Vector3.zero, 1f, 0.25f, 12);
+            memory.Record(Vector3.right * 2f, Vector3.zero, 2f, 0.25f, 12);
+
+            Assert.That(memory.TryGetNext(
+                Vector3.zero, 3f, 5f, 0.2f, out Vector3 first), Is.True);
+            Assert.That(first, Is.EqualTo(Vector3.right));
+
+            // Moving the real target while hidden cannot affect memory because
+            // only RecordVisibleTargetPath writes observed positions.
+            Assert.That(memory.TryGetNext(
+                Vector3.right, 3f, 5f, 0.2f, out Vector3 second), Is.True);
+            Assert.That(second, Is.EqualTo(Vector3.right * 2f));
+        }
+
+        [Test]
+        public void TargetMemoryExpiresAfterConfiguredLifetime()
+        {
+            TargetTrackingMemory memory = new();
+            memory.Record(Vector3.right, Vector3.zero, 1f, 0.25f, 12);
+
+            Assert.That(memory.TryGetNext(
+                Vector3.zero, 6.01f, 5f, 0.2f, out _), Is.False);
+            Assert.That(memory.Count, Is.Zero);
+        }
+
+        [Test]
+        public void ProjectileAttackLineOfFireDetectsConfiguredCover()
+        {
+            GameObject attacker = CreateGameObject("Attacker");
+            attacker.layer = 31;
+            attacker.AddComponent<CircleCollider2D>().radius = 0.25f;
+            GameObject target = CreateGameObject("Target");
+            target.layer = 31;
+            target.transform.position = Vector3.right * 2f;
+            target.AddComponent<CircleCollider2D>().radius = 0.25f;
+            GameObject wall = CreateGameObject("Cover");
+            wall.layer = 31;
+            wall.transform.position = Vector3.right;
+            wall.AddComponent<BoxCollider2D>().size =
+                new Vector2(0.2f, 2f);
+            Physics2D.SyncTransforms();
+
+            Assert.That(LineOfFireUtility.HasClearPath(
+                attacker.transform.position,
+                target.transform.position,
+                attacker.transform,
+                target.transform,
+                1 << 31), Is.False);
+
+            wall.SetActive(false);
+            Physics2D.SyncTransforms();
+            Assert.That(LineOfFireUtility.HasClearPath(
+                attacker.transform.position,
+                target.transform.position,
+                attacker.transform,
+                target.transform,
+                1 << 31), Is.True);
         }
 
         private Blackboard CreateBlackboard(

@@ -19,15 +19,30 @@ namespace Project.Scripts.AI.Leaves.Sensors
             Blackboard.Set<WeaponSwingAnimation>(
                 AiKeys.ConditionalWeaponSwing,
                 null);
+            Blackboard.Set<ConditionalEnemySkill>(AiKeys.ConditionalAttack, null);
             if (!Blackboard.TryGet(AiKeys.EnemyData, out EnemyData enemy) ||
                 enemy?.conditionalSkills == null)
                 return NodeState.Failure;
 
+            ConditionalEnemySkill selected = null;
             foreach (ConditionalEnemySkill candidate in enemy.conditionalSkills)
             {
                 if (candidate?.skill == null ||
                     !Evaluate(candidate.condition, Blackboard, 0))
                     continue;
+
+                if (selected != null && candidate.priority <= selected.priority)
+                    continue;
+
+                if (!IsInConfiguredRange(candidate, Blackboard))
+                    continue;
+
+                selected = candidate;
+            }
+
+            if (selected != null)
+            {
+                ConditionalEnemySkill candidate = selected;
 
                 Blackboard.Set(AiKeys.ConditionalSkill, candidate.skill);
                 Blackboard.Set(
@@ -38,10 +53,32 @@ namespace Project.Scripts.AI.Leaves.Sensors
                     candidate.weaponSwing != null
                         ? candidate.weaponSwing
                         : enemy.BasicAttackWeaponSwing);
+                Blackboard.Set(AiKeys.ConditionalAttack, candidate);
                 return NodeState.Success;
             }
 
             return NodeState.Failure;
+        }
+
+        private static bool IsInConfiguredRange(
+            ConditionalEnemySkill candidate,
+            Blackboard blackboard)
+        {
+            if (!blackboard.TryGet(AiKeys.Self, out GameObject self) ||
+                self == null ||
+                !blackboard.TryGet(AiKeys.Target, out Transform target) ||
+                target == null)
+                return false;
+
+            float distanceSquared = ((Vector2)(self.transform.position -
+                                                 target.position)).sqrMagnitude;
+            float minimum = Mathf.Max(0f, candidate.minimumRange);
+            if (distanceSquared < minimum * minimum)
+                return false;
+            if (candidate.maximumRange <= 0f)
+                return true;
+            float maximum = Mathf.Max(minimum, candidate.maximumRange);
+            return distanceSquared <= maximum * maximum;
         }
 
         internal static bool Evaluate(

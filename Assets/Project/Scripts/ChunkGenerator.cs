@@ -13,6 +13,8 @@ namespace Project.Scripts
     public class ChunkGenerator : IChunkGenerator
     {
         public bool IsRunning { get; private set; }
+        public int PendingWorkCount =>
+            pendingChunks.Count + runningTasks.Count + completedChunks.Count;
         
         private readonly Queue<Vector2Int> pendingChunks = new Queue<Vector2Int>();
         private readonly List<RunningChunkTask> runningTasks = new();
@@ -30,6 +32,7 @@ namespace Project.Scripts
 
         private readonly HashSet<Vector2Int> queuedOrRunning = new();
         private readonly HashSet<Vector2Int> completed = new();
+        private bool _suspended;
         
         [Inject] private WorldGeneration worldGeneration;
         [Inject] private Chunk.Pool chunkPool;
@@ -40,6 +43,9 @@ namespace Project.Scripts
 
         public void RequestChunk(Vector2Int position)
         {
+            if (_suspended)
+                return;
+
             if(completed.Contains(position))
                 return;
             
@@ -132,8 +138,33 @@ namespace Project.Scripts
             queuedOrRunning.Remove(position);
         }
 
+        public async Awaitable SuspendAndClearAsync(
+            CancellationToken cancellationToken)
+        {
+            _suspended = true;
+            pendingChunks.Clear();
+            completedChunks.Clear();
+            queuedOrRunning.Clear();
+            completed.Clear();
+
+            foreach (RunningChunkTask running in runningTasks)
+                running.Cancellation.Cancel();
+
+            while (runningTasks.Count > 0)
+                await Awaitable.NextFrameAsync(cancellationToken);
+
+            completedChunks.Clear();
+            queuedOrRunning.Clear();
+            completed.Clear();
+        }
+
+        public void Resume() => _suspended = false;
+
         private void StartPendingTasks(CancellationToken cancellationToken = default)
         {
+            if (_suspended)
+                return;
+
             // Fill every available worker slot immediately. Starting at most one
             // task per frame left cores idle between completions and made the
             // initial ring of chunks take noticeably longer to become ready.

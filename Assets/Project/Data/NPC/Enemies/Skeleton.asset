@@ -10,32 +10,64 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b319666b71c34b71aaf4935c3ee02487, type: 3}
-  m_Name: Zombie Conditional Skills
+  m_Name: Skeleton
   m_EditorClassIdentifier: Playwinever.Datatypes.Enums::Project.Scripts.DataTypes.EnemyData
   hp: 20
   attack: 20
   defense: 0
   experienceValue: 15
-  accuracy: 0.365
+  accuracy: 1
+  dangerLevel: 0
+  dangerWeight: 1
   movementSpeed: 2
   sprintMultiplier: 1.5
   visual: {fileID: 2119611675089420321, guid: 54e199f84f798a44796c4179895999b0, type: 3}
   behaviourTree: {fileID: 11400000, guid: 9602b60de62e4a10b7d75906c2ca5545, type: 2}
-  NormalAttack: {fileID: 11400000, guid: 8447a4314ce74b75b1d3400779bf5232, type: 2}
+  NormalAttack: {fileID: 11400000, guid: 3377b506ce60443e852dcf17e264308d, type: 2}
+  BasicAttackWeaponSwing: {fileID: 0}
   conditionalSkills:
-  - skill: {fileID: 11400000, guid: 8447a4314ce74b75b1d3400779bf5232, type: 2}
+  - skill: {fileID: 11400000, guid: 3377b506ce60443e852dcf17e264308d, type: 2}
     projectile: {fileID: 0}
+    weaponSwing: {fileID: 0}
+    minimumRange: 0
+    maximumRange: 1.4
+    windUpDuration: 0.35
+    aimLockLeadTime: 0
+    lineOfFireBlockingLayers:
+      serializedVersion: 2
+      m_Bits: 0
+    activeDuration: 0.05
+    recoveryDuration: 0.55
+    priority: 2
+    telegraphColor: {r: 1, g: 0.45, b: 0.1, a: 0.65}
+    telegraphWidth: 0.7
+    telegraphShape: 0
     condition:
-      type: 1
-      distance: 2
+      type: 0
+      distance: 1
       conditions: []
-  - skill: {fileID: 11400000, guid: a42379196da5dd84c9ab6b3c50fdf850, type: 2}
+  - skill: {fileID: 11400000, guid: 9d409cfd36de44e489e47ac0cc704dab, type: 2}
     projectile: {fileID: 11400000, guid: 96c7fd5008bf4cd42b99eec2450371b4, type: 2}
+    weaponSwing: {fileID: 0}
+    minimumRange: 1.4
+    maximumRange: 8
+    windUpDuration: 0.7
+    aimLockLeadTime: 0.15
+    lineOfFireBlockingLayers:
+      serializedVersion: 2
+      m_Bits: 65
+    activeDuration: 0.05
+    recoveryDuration: 0.5
+    priority: 1
+    telegraphColor: {r: 0.95, g: 0.85, b: 0.25, a: 0.8}
+    telegraphWidth: 0.08
+    telegraphShape: 1
     condition:
-      type: 1
-      distance: 8
+      type: 0
+      distance: 1
       conditions: []
-  damageTags: []
+  damageTags:
+  - {fileID: 11400000, guid: b21753a0f8d38832f40c17f0ac19860e, type: 2}
   drops:
   - item: {fileID: 11400000, guid: c722834d8fc1c9d4fb90d235e0011d62, type: 2}
     dropChance: 0.3

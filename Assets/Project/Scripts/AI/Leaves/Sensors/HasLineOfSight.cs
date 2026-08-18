@@ -16,8 +16,9 @@ namespace Project.Scripts.AI.Leaves.Sensors
         private AiKeys.Key toKey = AiKeys.Key.Target;
 
         [SerializeField, InputPort("Blocking Layers")]
-        [Tooltip("Layers that block sight. Defaults to the Buildings layer.")]
-        private LayerMask blockingLayers = 1 << BuildingsLayer;
+        [Tooltip("Collision layers checked for cover. The intended target is allowed even when it shares one of these layers.")]
+        private LayerMask blockingLayers =
+            (1 << 0) | (1 << BuildingsLayer);
 
         protected override NodeState OnTick()
         {
@@ -29,18 +30,16 @@ namespace Project.Scripts.AI.Leaves.Sensors
                 return NodeState.Failure;
             }
 
-            Vector2 direction = (Vector2)(to - from);
-            float distance = direction.magnitude;
-            if (distance <= Mathf.Epsilon)
-                return NodeState.Success;
-
-            RaycastHit2D obstruction = Physics2D.Raycast(
+            SpatialSensorUtility.TryGetTransform(
+                Blackboard, fromKey, out Transform attacker);
+            SpatialSensorUtility.TryGetTransform(
+                Blackboard, toKey, out Transform target);
+            return LineOfFireUtility.HasClearPath(
                 from,
-                direction / distance,
-                distance,
-                blockingLayers);
-
-            return obstruction.collider == null
+                to,
+                attacker,
+                target,
+                blockingLayers)
                 ? NodeState.Success
                 : NodeState.Failure;
         }

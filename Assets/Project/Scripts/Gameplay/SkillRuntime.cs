@@ -520,6 +520,22 @@ namespace Project.Scripts.Gameplay
                 yield return new WaitForFixedUpdate();
                 float step = Mathf.Min(remaining, speed * Time.fixedDeltaTime);
                 Vector2 start = body.position;
+                if (data.blockingLayers.value != 0)
+                {
+                    RaycastHit2D obstacle = Physics2D.CircleCast(
+                        start,
+                        Mathf.Max(0.05f, data.hitRadius),
+                        direction,
+                        step,
+                        data.blockingLayers);
+                    if (obstacle.collider != null)
+                    {
+                        float allowed = Mathf.Max(0f, obstacle.distance - 0.01f);
+                        if (allowed > 0f)
+                            body.MovePosition(start + direction * allowed);
+                        yield break;
+                    }
+                }
                 Collider2D[] hits = Physics2D.OverlapCapsuleAll(
                     start + direction * (step * 0.5f),
                     new Vector2(data.hitRadius * 2f, step + data.hitRadius * 2f),

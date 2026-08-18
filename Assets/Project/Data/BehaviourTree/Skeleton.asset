@@ -29,6 +29,7 @@ MonoBehaviour:
         _floatBindings: []
         children:
         - rid: 1003
+        - rid: 1011
         - rid: 1010
     - rid: 1003
       type: {class: ReactiveSequence, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
@@ -37,6 +38,7 @@ MonoBehaviour:
         children:
         - rid: 1004
         - rid: 4542294991362326763
+        - rid: 1012
         - rid: 1005
     - rid: 1004
       type: {class: DetectNearby, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
@@ -89,6 +91,34 @@ MonoBehaviour:
         arrivalTolerance: 0.08
         candidateAttempts: 16
         maximumVisitedTiles: 4096
+    - rid: 1011
+      type: {class: ReactiveSequence, ns: Project.Scripts.AI.Composite, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        children:
+        - rid: 1013
+        - rid: 1014
+    - rid: 1012
+      type: {class: RecordVisibleTargetPath, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        minimumSpacing: 0.4
+        maximumBreadcrumbs: 12
+    - rid: 1013
+      type: {class: SelectRememberedTargetPosition, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        memoryDuration: 5
+        arrivalTolerance: 0.8
+    - rid: 1014
+      type: {class: MoveToTarget, ns: Project.Scripts.AI.Leaves.Actions, asm: Playwinever.AI}
+      data:
+        _floatBindings: []
+        targetKey: 2
+        movementSpeed: 2
+        arrivalTolerance: 0.2
+        repathInterval: 0.1
+        maximumVisitedTiles: 4096
     - rid: 4542294991362326763
       type: {class: HasLineOfSight, ns: Project.Scripts.AI.Leaves.Sensors, asm: Playwinever.AI}
       data:
@@ -97,4 +127,4 @@ MonoBehaviour:
         toKey: 1
         blockingLayers:
           serializedVersion: 2
-          m_Bits: 64
+          m_Bits: 65

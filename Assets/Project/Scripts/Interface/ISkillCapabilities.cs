@@ -21,6 +21,12 @@ namespace Project.Scripts.Interface
         Vector3 ResolveLaunchOrigin(Vector2 offset);
     }
 
+    /// <summary>Lets committed attacks snapshot their aim independently of movement.</summary>
+    public interface IAttackFacing
+    {
+        void SetAttackFacing(Vector2 direction);
+    }
+
     public interface IProjectileAccuracy
     {
         float ProjectileAccuracy { get; }

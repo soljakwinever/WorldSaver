@@ -33,6 +33,9 @@ namespace Project.Scripts.AI
         public static readonly BlackboardKey<Vector3> Destination =
             new BlackboardKey<Vector3>("Destination");
 
+        public static readonly BlackboardKey<TargetTrackingMemory> TargetMemory =
+            new BlackboardKey<TargetTrackingMemory>("Target Memory");
+
         public static readonly BlackboardKey<GameObject> Self =
             new BlackboardKey<GameObject>("Self");
 
@@ -71,6 +74,9 @@ namespace Project.Scripts.AI
 
         public static readonly BlackboardKey<WeaponSwingAnimation> ConditionalWeaponSwing =
             new BlackboardKey<WeaponSwingAnimation>("Conditional Weapon Swing");
+
+        public static readonly BlackboardKey<ConditionalEnemySkill> ConditionalAttack =
+            new BlackboardKey<ConditionalEnemySkill>("Conditional Attack");
 
         public static readonly BlackboardKey<ITimeController> TimeController =
             new BlackboardKey<ITimeController>("Time Controller");
@@ -124,6 +130,9 @@ namespace Project.Scripts.AI
                     owner != null ? owner.transform.position : Vector3.zero;
                 blackboard.Set(Destination, initialDestination);
             }
+
+            if (!blackboard.ContainsLocal(TargetMemory))
+                blackboard.Set(TargetMemory, new TargetTrackingMemory());
 
             if (!blackboard.ContainsLocal(IsIdle))
                 blackboard.Set(IsIdle, false);
