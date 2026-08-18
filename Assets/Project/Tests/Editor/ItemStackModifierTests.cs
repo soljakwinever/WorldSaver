@@ -1,6 +1,7 @@
 #if UNITY_INCLUDE_TESTS
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using NUnit.Framework;
 using Project.Scripts.DataTypes;
 using Project.Scripts.Gameplay;
@@ -50,6 +51,67 @@ namespace Project.Tests.EditMode
                 Assert.That(inventory.OccupiedSlots, Is.EqualTo(2));
             }
             finally { Object.DestroyImmediate(item); }
+        }
+
+        [Test]
+        public void GeneratedNameUsesStrictHighestPriorities()
+        {
+            ItemModifierDefinition first = new()
+            {
+                prefix = "Fine", prefixPriority = 2,
+                suffix = "of Sparks", suffixPriority = 1,
+                replacementName = "Brand", replacementNamePriority = 4
+            };
+            ItemModifierDefinition equal = new()
+            {
+                prefix = "Equal", prefixPriority = 2,
+                replacementName = "Equal Brand", replacementNamePriority = 4
+            };
+            ItemModifierDefinition higher = new()
+            {
+                prefix = "Exalted", prefixPriority = 3,
+                suffix = "of Storms", suffixPriority = 5
+            };
+
+            Assert.That(GeneratedEquipmentFactory.BuildName("Sword",
+                new[] { first, equal, higher }),
+                Is.EqualTo("Exalted Brand of Storms"));
+        }
+
+        [Test]
+        public void ItemSpecificModifierIsUsedWhenGlobalPoolIsEmpty()
+        {
+            EquipableItemData item = ScriptableObject.CreateInstance<EquipableItemData>();
+            ModifiersData data = ScriptableObject.CreateInstance<ModifiersData>();
+            try
+            {
+                item.name = "Sword"; item.maxStack = 1;
+                ItemModifierDefinition definition = new()
+                {
+                    type = ItemModifierType.Damage,
+                    minimumMagnitude = 2,
+                    maximumMagnitude = 2,
+                    allowNegative = false,
+                    prefix = "Keen",
+                    prefixPriority = 1
+                };
+                typeof(EquipableItemData).GetField("generatedModifiers",
+                    BindingFlags.Instance | BindingFlags.NonPublic)?.SetValue(
+                    item, new[] { definition });
+                GeneratedEquipmentFactory factory = new(data, new System.Random(17));
+
+                ItemStack stack = factory.Create(item, ItemData.Rarity.Rare, 1f);
+
+                Assert.That(stack.GeneratedData, Is.Not.Null);
+                Assert.That(stack.DisplayName, Is.EqualTo("Keen Sword"));
+                Assert.That(stack.GeneratedData.Modifiers[0].Type,
+                    Is.EqualTo(ItemModifierType.Damage));
+            }
+            finally
+            {
+                Object.DestroyImmediate(item);
+                Object.DestroyImmediate(data);
+            }
         }
     }
 }

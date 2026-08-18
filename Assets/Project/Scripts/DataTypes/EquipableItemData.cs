@@ -54,10 +54,15 @@ namespace Project.Scripts.DataTypes
         [SerializeField] private EquipmentSlot equipmentSlot;
         [SerializeField] private EquipmentStatModifier[] statModifiers =
             Array.Empty<EquipmentStatModifier>();
+        [SerializeField, Tooltip("Item-specific generated modifiers added to the matching global modifier pool.")]
+        private ItemModifierDefinition[] generatedModifiers =
+            Array.Empty<ItemModifierDefinition>();
 
         public EquipmentSlot EquipmentSlot => equipmentSlot;
         public IReadOnlyList<EquipmentStatModifier> StatModifiers =>
             statModifiers ?? Array.Empty<EquipmentStatModifier>();
+        public IReadOnlyList<ItemModifierDefinition> GeneratedModifiers =>
+            generatedModifiers ?? Array.Empty<ItemModifierDefinition>();
 
         public int GetStatModifier(EquipmentStat stat)
         {
@@ -78,6 +83,7 @@ namespace Project.Scripts.DataTypes
         {
             maxStack = 1;
             statModifiers ??= Array.Empty<EquipmentStatModifier>();
+            generatedModifiers ??= Array.Empty<ItemModifierDefinition>();
         }
 #endif
     }

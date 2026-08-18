@@ -31,6 +31,15 @@ public class GameDataInstaller : MonoInstaller
     {
         Container.Bind<ItemCatalog>().FromComponentInHierarchy().AsSingle();
         Container.Bind<SkillCatalog>().AsSingle();
+        Container.Bind<ModifiersData>()
+            .FromMethod(_ => LoadModifiersData())
+            .AsSingle();
+        Container.Bind<System.Random>()
+            .WithId(GeneratedEquipmentFactory.RandomId)
+            .FromInstance(new System.Random());
+        Container.Bind<IFactory<ItemData, ItemData.Rarity, float, ItemStack>>()
+            .To<GeneratedEquipmentFactory>()
+            .AsSingle();
         Container.Bind<ICraftingRandom>()
             .To<CraftingService.UnityCraftingRandom>()
             .AsSingle();
@@ -273,6 +282,16 @@ public class GameDataInstaller : MonoInstaller
             "No Resources/Audio/DangerSettings asset was found. " +
             "Using default danger settings.");
         return ScriptableObject.CreateInstance<DangerSettings>();
+    }
+
+    private static ModifiersData LoadModifiersData()
+    {
+        ModifiersData data = Resources.Load<ModifiersData>("ModifiersData");
+        if (data != null) return data;
+        Debug.LogWarning(
+            "No Resources/ModifiersData asset was found. Generated equipment " +
+            "will use only item-specific modifier definitions.");
+        return ScriptableObject.CreateInstance<ModifiersData>();
     }
 
     private sealed class WeatherWorldClockAdapter : IWeatherWorldClock

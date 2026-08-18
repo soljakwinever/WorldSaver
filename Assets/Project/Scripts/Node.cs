@@ -23,6 +23,8 @@ public class Node : MonoBehaviour, INode
     [SerializeField] private Material _defaultMaterial;
     
     [Inject] private DiContainer _container;
+    [Inject] private IFactory<ItemData, ItemData.Rarity, float, ItemStack>
+        _generatedEquipmentFactory;
     
     private PersistentEntity _persistentEntity;
 
@@ -216,8 +218,8 @@ public class Node : MonoBehaviour, INode
             try
             {
                 if (entry.generateModifiers && item is EquipableItemData)
-                    inventory.TryAdd(GeneratedEquipmentFactory.Create(item, rarity, random,
-                        entry.uniqueNameChance), out _);
+                    inventory.TryAdd(_generatedEquipmentFactory.Create(
+                        item, rarity, entry.uniqueNameChance), out _);
                 else
                     inventory.TryAdd(item, count, out _, rarity);
             }
